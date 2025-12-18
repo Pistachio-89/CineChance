@@ -1,3 +1,4 @@
+// src/app/components/MovieCard.tsx
 'use client';
 
 import Image from 'next/image';
@@ -10,11 +11,10 @@ interface MovieCardProps {
 export default function MovieCard({ movie }: MovieCardProps) {
   const imageUrl = movie.poster_path 
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : '/placeholder-poster.jpg'; // Создайте или найдите изображение-заглушку
+    : '/placeholder-poster.svg';
 
   return (
     <div className="aspect-[2/3] bg-gray-800 rounded-lg overflow-hidden shadow-lg hover:shadow-2xl hover:scale-105 transition-all duration-300 group cursor-pointer">
-      {/* Постер фильма */}
       <div className="relative w-full h-full">
         <Image
           src={imageUrl}
@@ -24,7 +24,6 @@ export default function MovieCard({ movie }: MovieCardProps) {
           sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 15vw"
         />
         
-        {/* Затемнение и информация при наведении */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
           <h3 className="text-white font-bold text-lg mb-2 line-clamp-2">
             {movie.title}
