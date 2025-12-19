@@ -83,7 +83,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
               <h3 className="text-white font-medium text-center">
                 {session.user.name || session.user.email}
               </h3>
-              <p className="text-gray-400 text-sm mt-1">Сессия: 30 дней</p>
+              
             </div>
           ) : (
             <div className="text-center">
@@ -141,9 +141,7 @@ export default function Sidebar({ isOpen, toggle }: SidebarProps) {
               >
                 Войти
               </button>
-              <div className="mt-2 text-center">
-                <span className="text-gray-500 text-xs">Запомнить на 30 дней</span>
-              </div>
+
             </>
           )}
         </div>
