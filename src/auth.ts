@@ -1,8 +1,8 @@
+// src/auth.ts
 import { NextAuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-// Импорт из кастомного output (после npx prisma generate)
 import { PrismaClient } from "@prisma/client";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import { neon } from "@neondatabase/serverless";
@@ -27,13 +27,12 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
 
-// Секретный ключ для JWT
+// Секретный ключ для JWT — обязателен!
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
 if (!NEXTAUTH_SECRET) {
   throw new Error("NEXTAUTH_SECRET is not set in environment variables");
 }
 
-// Конфигурация NextAuth 4
 export const authOptions: NextAuthOptions = {
   session: {
     strategy: "jwt",
@@ -115,15 +114,13 @@ export const authOptions: NextAuthOptions = {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        maxAge: 30 * 24 * 60 * 60, // 30 дней
+        maxAge: 30 * 24 * 60 * 60,
       },
     },
   },
 
   secret: NEXTAUTH_SECRET,
-  
   debug: process.env.NODE_ENV === "development",
 };
 
-// Экспортируем функцию для получения сессии на сервере
 export const getServerAuthSession = () => getServerSession(authOptions);
