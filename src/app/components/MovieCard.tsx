@@ -75,7 +75,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         return (
           <div className="absolute top-2 right-2 z-10 bg-white rounded-full p-1.5 shadow-lg">
             <div className="w-4 h-4 flex items-center justify-center">
-              <span className="text-blue-500 text-lg font-bold leading-none">+</span>
+              <span className="text-blue-500 text-lg font-bold leading-none" style={{ marginTop: '-1px' }}>+</span>
             </div>
           </div>
         );
@@ -83,7 +83,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         return (
           <div className="absolute top-2 right-2 z-10 bg-green-500 rounded-full p-1.5 shadow-lg">
             <div className="w-4 h-4 flex items-center justify-center">
-              <span className="text-white text-sm font-bold leading-none">✓</span>
+              <span className="text-white text-sm font-bold leading-none" style={{ marginTop: '-1px' }}>✓</span>
             </div>
           </div>
         );
@@ -91,7 +91,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         return (
           <div className="absolute top-2 right-2 z-10 bg-red-500 rounded-full p-1.5 shadow-lg">
             <div className="w-4 h-4 flex items-center justify-center">
-              <span className="text-white text-sm font-bold leading-none">×</span>
+              <span className="text-white text-base font-bold leading-none flex items-center justify-center h-full">×</span>
             </div>
           </div>
         );
@@ -124,13 +124,15 @@ export default function MovieCard({ movie }: MovieCardProps) {
   return (
     <div 
       ref={cardRef}
-      className="group cursor-pointer transition-all duration-300 hover:scale-[1.02] w-full h-full min-w-0 relative"
+      className="group w-full h-full min-w-0 relative"
       onClick={handleCardClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {/* Контейнер постера с плавной анимацией */}
-      <div className="relative w-full aspect-[2/3] bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <div className={`relative w-full aspect-[2/3] bg-gradient-to-br from-gray-800 to-gray-900 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 ${
+        showOverlay && !isMobile ? 'cursor-default' : 'cursor-pointer'
+      }`}>
         {/* Иконка статуса (всегда видна) */}
         {getStatusIcon()}
 
@@ -151,49 +153,49 @@ export default function MovieCard({ movie }: MovieCardProps) {
         {showOverlay && (
           <div 
             ref={overlayRef}
-            className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-3 sm:p-4 z-20"
+            className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center p-2 sm:p-3 z-20"
           >
-            <div className="w-full max-w-[160px] space-y-1.5">
+            <div className="w-full max-w-[140px] sm:max-w-[150px] space-y-1">
               <button
                 onClick={() => handleStatusChange('want')}
-                className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
+                className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer ${
                   status === 'want' 
                     ? 'bg-blue-500 text-white' 
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                <span className="mr-2 text-base">+</span>
-                Хочу посмотреть
+                <span className="text-base font-bold min-w-[16px] flex justify-center mr-1.5">+</span>
+                <span className="truncate">Хочу посмотреть</span>
               </button>
               
               <button
                 onClick={() => handleStatusChange('watched')}
-                className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
+                className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer ${
                   status === 'watched' 
                     ? 'bg-green-500 text-white' 
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                <span className="mr-2 text-sm">✓</span>
-                Просмотрено
+                <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">✓</span>
+                <span className="truncate">Просмотрено</span>
               </button>
               
               <button
                 onClick={() => handleStatusChange('dropped')}
-                className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center ${
+                className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer ${
                   status === 'dropped' 
                     ? 'bg-red-500 text-white' 
                     : 'bg-white/10 text-white hover:bg-white/20'
                 }`}
               >
-                <span className="mr-2 text-sm">×</span>
-                Брошено
+                <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">×</span>
+                <span className="truncate">Брошено</span>
               </button>
 
               {status && (
                 <button
                   onClick={() => handleStatusChange(null)}
-                  className="w-full py-1.5 px-3 rounded-lg text-xs font-medium bg-gray-800/50 text-gray-300 hover:bg-gray-800/70 mt-2"
+                  className="w-full py-1 px-2 rounded-lg text-[10px] sm:text-xs font-medium bg-gray-800/50 text-gray-300 hover:bg-gray-800/70 mt-1 flex items-center justify-center cursor-pointer"
                 >
                   Убрать из списков
                 </button>
@@ -204,7 +206,7 @@ export default function MovieCard({ movie }: MovieCardProps) {
         
         {/* Оверлей при наведении (только для десктопа, если не показываются кнопки) */}
         {!showOverlay && (
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2.5 sm:p-3">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 sm:p-3">
             <h3 className="text-white font-bold text-xs sm:text-sm mb-1.5 line-clamp-3">
               {movie.title}
             </h3>
