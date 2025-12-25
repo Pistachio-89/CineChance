@@ -63,14 +63,15 @@ model VerificationToken {
 
 model WatchList {
   id           Int      @id @default(autoincrement())  // Счётчик
-  userId       String
-  tmdbId       Int
+  userId       String   // id пользователя сайта из таблицы User
+  tmdbId       Int      // id фильма с TMDB
   mediaType    String   // "movie" или "tv"
   title        String   // Название фильма/сериала (дублируем из TMDB для быстрого доступа)
   voteAverage  Float    // Рейтинг на TMDB (например, 8.3)
   userRating   Int?     // Рейтинг пользователя от 1 до 10 (опционально)
-  statusId     Int
-  addedAt      DateTime @default(now())
+  statusId     Int      // id статуса фильма из таблицы MovieStatus
+  addedAt      DateTime @default(now()) // дата добавления фильма в таблицу
+  watchedDate  DateTime? // дата просмотра фильма
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   status       MovieStatus  @relation(fields: [statusId], references: [id])

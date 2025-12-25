@@ -52,7 +52,12 @@ export async function GET(req: Request) {
     const dbStatusName = record?.status?.name;
     const clientStatus = dbStatusName ? (STATUS_FROM_DB[dbStatusName] || null) : null;
 
-    return NextResponse.json({ status: clientStatus });
+    // Возвращаем статус и данные оценки (если есть)
+    return NextResponse.json({ 
+      status: clientStatus,
+      userRating: record?.userRating,
+      watchedDate: record?.watchedDate,
+    });
   } catch (error) {
     console.error('WatchList GET error:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
@@ -69,7 +74,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { tmdbId, mediaType, status, title, voteAverage } = body;
+    const { tmdbId, mediaType, status, title, voteAverage, userRating, watchedDate } = body;
 
     if (!tmdbId || !mediaType || !status || !title) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -103,6 +108,9 @@ export async function POST(req: Request) {
         statusId: statusRecord.id,
         title,
         voteAverage,
+        // Обновляем оценку и дату, если они переданы
+        userRating: userRating ? Number(userRating) : null,
+        watchedDate: watchedDate ? new Date(watchedDate) : null,
       },
       create: {
         userId: session.user.id,
@@ -111,6 +119,9 @@ export async function POST(req: Request) {
         title,
         voteAverage,
         statusId: statusRecord.id,
+        // Создаем с оценкой и датой, если они переданы
+        userRating: userRating ? Number(userRating) : null,
+        watchedDate: watchedDate ? new Date(watchedDate) : null,
       },
     });
 
