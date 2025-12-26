@@ -10,12 +10,14 @@ type MediaStatus = 'want' | 'watched' | 'dropped' | null;
 interface MovieCardProps {
   movie: Media;
   restoreView?: boolean;
+  initialIsBlacklisted?: boolean;
+  initialStatus?: MediaStatus;
 }
 
-export default function MovieCard({ movie, restoreView = false }: MovieCardProps) {
+export default function MovieCard({ movie, restoreView = false, initialIsBlacklisted, initialStatus }: MovieCardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
-  const [status, setStatus] = useState<MediaStatus>(null);
-  const [isBlacklisted, setIsBlacklisted] = useState(false);
+  const [status, setStatus] = useState<MediaStatus>(initialStatus ?? null);
+  const [isBlacklisted, setIsBlacklisted] = useState<boolean>(initialIsBlacklisted ?? false);
   const [isRemoved, setIsRemoved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
@@ -35,35 +37,30 @@ export default function MovieCard({ movie, restoreView = false }: MovieCardProps
   const date = movie.release_date || movie.first_air_date;
   const year = date ? date.split('-')[0] : '—';
 
-  if (isRemoved) {
-    return (
-      <div className="w-full h-[200px] sm:h-[300px] border border-dashed border-gray-700 rounded-lg flex items-center justify-center">
-        <span className="text-gray-600 text-sm">Удалено из списка</span>
-      </div>
-    );
-  }
-
   useEffect(() => {
     if (restoreView) {
-      setIsBlacklisted(true); 
+      setIsBlacklisted(true);
       return;
     }
 
     const fetchData = async () => {
       try {
-        const [statusRes, blacklistRes] = await Promise.all([
-          fetch(`/api/watchlist?tmdbId=${movie.id}&mediaType=${movie.media_type}`),
-          fetch(`/api/blacklist?tmdbId=${movie.id}&mediaType=${movie.media_type}`)
-        ]);
-
-        if (statusRes.ok) {
-          const data = await statusRes.json();
-          setStatus(data.status);
+        // If initialStatus wasn't provided, fetch watchlist status per-card
+        if (initialStatus === undefined) {
+          const statusRes = await fetch(`/api/watchlist?tmdbId=${movie.id}&mediaType=${movie.media_type}`);
+          if (statusRes.ok) {
+            const data = await statusRes.json();
+            setStatus(data.status);
+          }
         }
 
-        if (blacklistRes.ok) {
-          const data = await blacklistRes.json();
-          setIsBlacklisted(data.isBlacklisted);
+        // If initialIsBlacklisted wasn't provided, fall back to fetching blacklist
+        if (initialIsBlacklisted === undefined) {
+          const blacklistRes = await fetch(`/api/blacklist?tmdbId=${movie.id}&mediaType=${movie.media_type}`);
+          if (blacklistRes.ok) {
+            const data = await blacklistRes.json();
+            setIsBlacklisted(data.isBlacklisted);
+          }
         }
       } catch (error) {
         console.error("Failed to fetch data", error);
@@ -76,7 +73,7 @@ export default function MovieCard({ movie, restoreView = false }: MovieCardProps
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [movie.id, movie.media_type, restoreView]);
+  }, [movie.id, movie.media_type, restoreView, initialIsBlacklisted, initialStatus]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -344,6 +341,14 @@ export default function MovieCard({ movie, restoreView = false }: MovieCardProps
     return stars;
   };
 
+  if (isRemoved) {
+    return (
+      <div className="w-full h-[200px] sm:h-[300px] border border-dashed border-gray-700 rounded-lg flex items-center justify-center">
+        <span className="text-gray-600 text-sm">Удалено из списка</span>
+      </div>
+    );
+  }
+
   return (
     <>
       {isRatingModalOpen && (
@@ -460,7 +465,15 @@ export default function MovieCard({ movie, restoreView = false }: MovieCardProps
                 </h3>
                 <div className="flex items-center justify-between text-xs">
                   <div className="flex items-center bg-black/40 px-1.5 py-0.5 rounded">
-                    <span className="text-yellow-400 mr-1 text-xs">★</span>
+                    {/* Заменяем звездочку на логотип */}
+                    <div className="mr-1 w-4 h-4 relative">
+                      <Image 
+                        src="/images/logo_mini_lgt_pls_tmdb.png" 
+                        alt="TMDB Logo" 
+                        fill 
+                        className="object-contain" 
+                      />
+                    </div>
                     <span className="text-white font-medium">
                       {movie.vote_average?.toFixed(1) || '0.0'}
                     </span>
@@ -550,7 +563,15 @@ export default function MovieCard({ movie, restoreView = false }: MovieCardProps
           </h3>
           <div className="flex items-center justify-between mt-1.5">
             <div className="flex items-center bg-gray-800/50 px-1.5 py-0.5 rounded text-xs">
-              <span className="text-yellow-400 mr-1">★</span>
+              {/* Заменяем звездочку на логотип */}
+              <div className="mr-1 w-4 h-4 relative">
+                <Image 
+                  src="/images/logo_mini_lgt_pls_tmdb.png" 
+                  alt="TMDB Logo" 
+                  fill 
+                  className="object-contain" 
+                />
+              </div>
               <span className="text-gray-200 font-medium">
                 {movie.vote_average?.toFixed(1) || '0.0'}
               </span>

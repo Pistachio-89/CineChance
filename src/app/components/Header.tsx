@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 
 type HeaderProps = {
   toggleSidebar: () => void;
@@ -13,11 +14,8 @@ export default function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = () => {
-    
     if (searchQuery.trim()) {
-      // Переходим на страницу поиска с параметром q
       window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
-      // Сворачиваем поиск после выполнения (на мобильных)
       if (window.innerWidth < 768) {
         setIsSearchExpanded(false);
       }
@@ -35,7 +33,6 @@ export default function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
   const toggleSearch = () => {
     setIsSearchExpanded(!isSearchExpanded);
     if (!isSearchExpanded && searchInputRef.current) {
-      // Фокус на поле ввода при разворачивании
       setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   };
@@ -45,7 +42,6 @@ export default function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
     setSearchQuery('');
   };
 
-  // Закрываем поиск при клике вне области на мобильных
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (window.innerWidth < 768 && 
@@ -65,16 +61,60 @@ export default function Header({ toggleSidebar, isSidebarOpen }: HeaderProps) {
       <div className="flex items-center justify-between w-full px-4 sm:px-6 lg:px-8">
         
         {/* Логотип и кнопка меню - скрываются при развернутом поиске на мобильных */}
-        <div className={`flex items-center gap-4 transition-all duration-300 ${
+        <div className={`flex items-center transition-all duration-300 ${
           isSearchExpanded ? 'md:flex hidden' : 'flex'
         }`}>
           <button 
             onClick={toggleSidebar} 
-            className="text-white text-2xl hover:text-purple-500 transition shrink-0"
+            className="text-white hover:text-purple-500 transition shrink-0 flex items-center justify-center w-8 h-8 mr-4"
             aria-label={isSidebarOpen ? "Скрыть меню" : "Показать меню"}
           >
-            {isSidebarOpen ? '◀' : '▶'}
+            {/* Иконка гамбургера (три полоски) */}
+            {!isSidebarOpen ? (
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-6 w-6" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M4 6h16M4 12h16M4 18h16" 
+                />
+              </svg>
+            ) : (
+              /* Иконка крестика при открытом сайдбаре */
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-6 w-6" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M6 18L18 6M6 6l12 12" 
+                />
+              </svg>
+            )}
           </button>
+          
+          {/* Логотип */}
+          <div className="relative w-8 h-8 mr-1">
+            <Image
+              src="/images/logo_lgt.png"
+              alt="CineChance Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          
           <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent whitespace-nowrap">
             CineChance
           </h1>
