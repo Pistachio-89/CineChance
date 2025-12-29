@@ -10,6 +10,7 @@ interface RatingModalProps {
   title: string; // Название фильма
   releaseDate: string | null; // Дата релиза фильма (для быстрой кнопки)
   userRating?: number | null; // Текущая оценка пользователя
+  defaultRating?: number; // Значение по умолчанию для оценки
 }
 
 const RATING_TEXTS: Record<number, string> = {
@@ -25,7 +26,7 @@ const RATING_TEXTS: Record<number, string> = {
   10: 'Эпик вин!',
 };
 
-export default function RatingModal({ isOpen, onClose, onSave, title, releaseDate, userRating }: RatingModalProps) {
+export default function RatingModal({ isOpen, onClose, onSave, title, releaseDate, userRating, defaultRating = 6 }: RatingModalProps) {
   const [rating, setRating] = useState(0);
   const [watchedDate, setWatchedDate] = useState(new Date().toISOString().split('T')[0]);
   const starRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -36,13 +37,13 @@ export default function RatingModal({ isOpen, onClose, onSave, title, releaseDat
     userRatingRef.current = userRating ?? null;
   }, [userRating]);
 
-  // Сбрасываем оценку на текущую пользователя или "Нормально" (6) и дату на текущую при каждом открытии
+  // Сбрасываем оценку на текущую пользователя или значение по умолчанию и дату на текущую при каждом открытии
   useEffect(() => {
     if (isOpen) {
-      setRating(userRatingRef.current ?? 6);
+      setRating(userRatingRef.current ?? defaultRating);
       setWatchedDate(new Date().toISOString().split('T')[0]);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultRating]);
 
   // Логика звездочек
   const handleStarInteraction = (starIndex: number, clientX: number) => {

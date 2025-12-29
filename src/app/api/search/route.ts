@@ -3,16 +3,178 @@ import { NextResponse } from 'next/server';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
+  const page = parseInt(searchParams.get('page') || '1');
+  const limit = parseInt(searchParams.get('limit') || '20');
 
-  if (!query) return NextResponse.json([]);
+  // Filter parameters
+  const type = searchParams.get('type') || 'all';
+  const yearFrom = searchParams.get('yearFrom') || '';
+  const yearTo = searchParams.get('yearTo') || '';
+  const quickYear = searchParams.get('quickYear') || '';
+  const genresParam = searchParams.get('genres') || '';
+  const ratingFrom = parseFloat(searchParams.get('ratingFrom') || '0');
+  const sortBy = searchParams.get('sortBy') || 'popularity';
+  const sortOrder = searchParams.get('sortOrder') || 'desc';
+
+  // If no query and no filters, return empty
+  if (!query && !type && !yearFrom && !yearTo && !quickYear && !genresParam && !ratingFrom) {
+    return NextResponse.json({ results: [], totalPages: 1, totalResults: 0 });
+  }
 
   try {
-    const res = await fetch(
-      `https://api.themoviedb.org/3/search/multi?api_key=${process.env.TMDB_API_KEY}&query=${encodeURIComponent(query)}&language=ru-RU&page=1&include_adult=false`
-    );
-    const data = await res.json();
-    return NextResponse.json(data.results?.slice(0, 30) || []);
+    const apiKey = process.env.TMDB_API_KEY;
+    let results: any[] = [];
+    let totalResults = 0;
+    let totalPages = 1;
+
+    if (query) {
+      // Use search/multi for queries with optional filters
+      const url = new URL(`https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&language=ru-RU&page=${page}&include_adult=false`);
+      url.searchParams.set('query', query);
+
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      let searchResults = data.results || [];
+
+      // Filter results based on type
+      if (type && type !== 'all') {
+        searchResults = searchResults.filter((item: any) => item.media_type === type);
+      }
+
+      // Filter by year
+      let yearFilter = '';
+      if (quickYear === '2020s') yearFilter = '2020-2029';
+      else if (quickYear === '2010s') yearFilter = '2010-2019';
+      else if (quickYear === '2000s') yearFilter = '2000-2009';
+      else if (quickYear === '1990s') yearFilter = '1990-1999';
+      else if (quickYear) yearFilter = quickYear;
+
+      if (yearFilter) {
+        const yearMatch = yearFilter.match(/(\d{4})(?:-(\d{4}))?/);
+        if (yearMatch) {
+          const y1 = parseInt(yearMatch[1]);
+          const y2 = yearMatch[2] ? parseInt(yearMatch[2]) : y1;
+          searchResults = searchResults.filter((item: any) => {
+            const releaseDate = item.release_date || item.first_air_date || '';
+            const year = parseInt(releaseDate.split('-')[0]) || 0;
+            return year >= y1 && year <= y2;
+          });
+        }
+      }
+
+      if (yearFrom) {
+        const yFrom = parseInt(yearFrom);
+        searchResults = searchResults.filter((item: any) => {
+          const releaseDate = item.release_date || item.first_air_date || '';
+          const year = parseInt(releaseDate.split('-')[0]) || 0;
+          return year >= yFrom;
+        });
+      }
+
+      if (yearTo) {
+        const yTo = parseInt(yearTo);
+        searchResults = searchResults.filter((item: any) => {
+          const releaseDate = item.release_date || item.first_air_date || '';
+          const year = parseInt(releaseDate.split('-')[0]) || 0;
+          return year <= yTo;
+        });
+      }
+
+      // Filter by genres
+      if (genresParam) {
+        const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
+        if (genreIds.length > 0) {
+          searchResults = searchResults.filter((item: any) => {
+            const itemGenres = item.genre_ids || [];
+            return genreIds.some((gid: number) => itemGenres.includes(gid));
+          });
+        }
+      }
+
+      // Filter by rating
+      if (ratingFrom > 0) {
+        searchResults = searchResults.filter((item: any) => (item.vote_average || 0) >= ratingFrom);
+      }
+
+      // Sort results
+      if (sortBy !== 'popularity') {
+        searchResults.sort((a: any, b: any) => {
+          const aVal = a.vote_average || 0;
+          const bVal = b.vote_average || 0;
+          const aDate = parseInt((a.release_date || a.first_air_date || '0').split('-')[0]) || 0;
+          const bDate = parseInt((b.release_date || b.first_air_date || '0').split('-')[0]) || 0;
+
+          let comparison = 0;
+          if (sortBy === 'rating') comparison = aVal - bVal;
+          else if (sortBy === 'date') comparison = aDate - bDate;
+
+          return sortOrder === 'desc' ? -comparison : comparison;
+        });
+      }
+
+      totalResults = searchResults.length;
+      totalPages = Math.ceil(totalResults / limit);
+
+      // Apply pagination to filtered results
+      const startIndex = (page - 1) * limit;
+      results = searchResults.slice(startIndex, startIndex + limit);
+
+    } else {
+      // No query, use discover endpoint with filters
+      const discoverUrl = new URL(`https://api.themoviedb.org/3/discover/${type === 'tv' ? 'tv' : 'movie'}?api_key=${apiKey}&language=ru-RU&page=${page}&include_adult=false`);
+
+      // Add year filters
+      let yearFilter = '';
+      if (quickYear === '2020s') yearFilter = '2020-2029';
+      else if (quickYear === '2010s') yearFilter = '2010-2019';
+      else if (quickYear === '2000s') yearFilter = '2000-2009';
+      else if (quickYear === '1990s') yearFilter = '1990-1999';
+      else if (quickYear) yearFilter = quickYear;
+
+      if (yearFrom) discoverUrl.searchParams.set('primary_release_date.gte', `${yearFrom}-01-01`);
+      if (yearTo) discoverUrl.searchParams.set('primary_release_date.lte', `${yearTo}-12-31`);
+      if (yearFilter && !yearFrom && !yearTo) {
+        const yearMatch = yearFilter.match(/(\d{4})(?:-(\d{4}))?/);
+        if (yearMatch) {
+          discoverUrl.searchParams.set('primary_release_date.gte', `${yearMatch[1]}-01-01`);
+          discoverUrl.searchParams.set('primary_release_date.lte', `${yearMatch[2] || yearMatch[1]}-12-31`);
+        }
+      }
+
+      // Add genre filters
+      if (genresParam) {
+        const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
+        if (genreIds.length > 0) {
+          discoverUrl.searchParams.set('with_genres', genreIds.join('|'));
+        }
+      }
+
+      // Add rating filter
+      if (ratingFrom > 0) {
+        discoverUrl.searchParams.set('vote_average.gte', String(ratingFrom));
+      }
+
+      // Add sort
+      let sortParam = 'popularity.desc';
+      if (sortBy === 'rating') sortParam = `vote_average.${sortOrder}`;
+      else if (sortBy === 'date') sortParam = `primary_release_date.${sortOrder}`;
+      discoverUrl.searchParams.set('sort_by', sortParam);
+
+      const res = await fetch(discoverUrl.toString());
+      const data = await res.json();
+
+      results = data.results || [];
+      totalResults = data.total_results || 0;
+      totalPages = data.total_pages || 1;
+    }
+
+    return NextResponse.json({
+      results,
+      totalPages,
+      totalResults
+    });
   } catch (error) {
-    return NextResponse.json([]);
+    console.error('Search API error:', error);
+    return NextResponse.json({ results: [], totalPages: 1, totalResults: 0 });
   }
 }

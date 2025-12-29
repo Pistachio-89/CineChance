@@ -44,6 +44,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const [cineChanceRating, setCineChanceRating] = useState<number | null>(null);
   const [cineChanceVoteCount, setCineChanceVoteCount] = useState(0);
   const [userRating, setUserRating] = useState<number | null>(null);
+  const [pendingStatus, setPendingStatus] = useState<'watched' | 'dropped' | null>(null);
   const [movieDetails, setMovieDetails] = useState<{
     genres: string[];
     runtime: number;
@@ -187,7 +188,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
           body: JSON.stringify({
             tmdbId: movie.id,
             mediaType: movie.media_type,
-            status: 'watched',
+            status: pendingStatus,
             title: title,
             voteAverage: movie.vote_average,
             userRating: rating,
@@ -196,8 +197,10 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
         });
         
         if (res.ok) {
-          setStatus('watched');
+          setStatus(pendingStatus);
+          setUserRating(rating);
           setIsRatingModalOpen(false);
+          setPendingStatus(null);
         } else {
           alert('Ошибка сохранения');
         }
@@ -211,7 +214,8 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   };
 
   const handleStatusChange = async (newStatus: MediaStatus) => {
-    if (newStatus === 'watched') {
+    if (newStatus === 'watched' || newStatus === 'dropped') {
+      setPendingStatus(newStatus);
       setIsRatingModalOpen(true);
       setShowOverlay(false);
       return;
@@ -362,11 +366,15 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
     <>
       <RatingModal 
         isOpen={isRatingModalOpen}
-        onClose={() => setIsRatingModalOpen(false)}
+        onClose={() => {
+          setIsRatingModalOpen(false);
+          setPendingStatus(null);
+        }}
         onSave={handleSaveRating}
         title={title}
         releaseDate={movie.release_date || movie.first_air_date || null}
         userRating={userRating}
+        defaultRating={pendingStatus === 'dropped' ? 2 : 6}
       />
 
       <RatingInfoModal
@@ -535,7 +543,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
           </div>
           
           {/* Плашка с оценкой пользователя - НЕ входит в кликабельную область */}
-          {showRatingBadge && status === 'watched' && (
+          {showRatingBadge && (status === 'watched' || status === 'dropped') && (
             <div className={`mt-0 px-2 py-1.5 rounded-b-lg text-xs font-semibold w-full text-center ${userRating ? 'bg-blue-900/80' : 'bg-gray-800/80'} flex items-center`}>
               {userRating ? (
                 <>
