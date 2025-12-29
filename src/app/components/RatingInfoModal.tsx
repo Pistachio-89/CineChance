@@ -202,7 +202,7 @@ export default function RatingInfoModal({
                 )}
 
                 {/* Остальная информация в две колонки на десктопе */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-[270px_266px_80px] gap-3 sm:gap-4">
                   {/* Жанр */}
                   {genres && genres.length > 0 && (
                     <div className="space-y-1">
@@ -222,13 +222,13 @@ export default function RatingInfoModal({
 
                   {/* Дата выхода */}
                   {releaseDate && (
-                    <div className="space-y-1">
+                    <div className="space-y-1 ">
                       <span className="text-xs sm:text-sm text-gray-400">Дата выхода</span>
                       <span className="text-xs sm:text-sm text-white block">
                         {formatDate(releaseDate)}
                       </span>
                     </div>
-                  )}
+                  )}  
 
                   {/* Время */}
                   {runtime && (
@@ -236,16 +236,6 @@ export default function RatingInfoModal({
                       <span className="text-xs sm:text-sm text-gray-400">Время</span>
                       <span className="text-xs sm:text-sm text-white block">
                         {formatDuration(runtime)}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Возрастной рейтинг */}
-                  {adult !== undefined && (
-                    <div className="space-y-1">
-                      <span className="text-xs sm:text-sm text-gray-400">Возрастной рейтинг</span>
-                      <span className={`text-xs sm:text-sm font-medium px-2 py-1 rounded-md ${adult ? 'bg-red-500/20 text-red-300' : 'bg-green-500/20 text-green-300'}`}>
-                        {adult ? '18+' : '0+'}
                       </span>
                     </div>
                   )}

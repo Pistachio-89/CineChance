@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="ru" className="w-full h-full">
+    <html lang="ru" className="w-full h-full" data-scroll-behavior="smooth">
       <body className={`bg-gray-950 text-white min-h-screen w-full ${inter.className}`}>
         <LayoutClient>{children}</LayoutClient>
       </body>

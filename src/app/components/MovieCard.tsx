@@ -323,8 +323,12 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const handlePosterMouseLeave = (e: React.MouseEvent) => { 
     if (!isMobile) {
       const relatedTarget = e.relatedTarget;
-      if (relatedTarget && overlayRef.current && overlayRef.current.contains(relatedTarget as Node)) {
-        return;
+      try {
+        if (relatedTarget instanceof Node && overlayRef.current?.contains(relatedTarget)) {
+          return;
+        }
+      } catch (error) {
+        // relatedTarget не является Node
       }
       setIsHovered(false);
       setShowOverlay(false);
@@ -334,8 +338,12 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const handleOverlayMouseLeave = (e: React.MouseEvent) => {
     if (!isMobile) {
       const relatedTarget = e.relatedTarget;
-      if (relatedTarget && posterRef.current && posterRef.current.contains(relatedTarget as Node)) {
-        return;
+      try {
+        if (relatedTarget instanceof Node && posterRef.current?.contains(relatedTarget)) {
+          return;
+        }
+      } catch (error) {
+        // relatedTarget не является Node
       }
       setIsHovered(false);
       setShowOverlay(false);
