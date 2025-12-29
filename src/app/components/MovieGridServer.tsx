@@ -23,8 +23,8 @@ export default async function MovieGridServer() {
         <h1 className="text-3xl sm:text-4xl font-bold mb-8 mt-4">Популярное на этой неделе</h1>
         
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4 sm:gap-6">
-          {displayMovies.map((movie) => (
-            <MovieCard key={movie.id} movie={movie} />
+          {displayMovies.map((movie, index) => (
+            <MovieCard key={movie.id} movie={movie} priority={index < 6} />
           ))}
         </div>
       </div>

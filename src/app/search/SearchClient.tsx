@@ -164,12 +164,12 @@ export default function SearchClient({ initialQuery, blacklistedIds }: SearchCli
       ) : results.length > 0 ? (
         <>
           <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-2 sm:gap-3 md:gap-4">
-            {results.map((item) => (
+            {results.map((item, index) => (
               <div
                 key={`${item.media_type}_${item.id}`}
                 className="w-full min-w-0 p-1"
               >
-                <MovieCard movie={item} />
+                <MovieCard movie={item} priority={index < 6} />
               </div>
             ))}
           </div>

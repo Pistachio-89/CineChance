@@ -29,9 +29,10 @@ interface MovieCardProps {
   initialIsBlacklisted?: boolean;
   initialStatus?: MediaStatus;
   showRatingBadge?: boolean;
+  priority?: boolean;
 }
 
-export default function MovieCard({ movie, restoreView = false, initialIsBlacklisted, initialStatus, showRatingBadge = false }: MovieCardProps) {
+export default function MovieCard({ movie, restoreView = false, initialIsBlacklisted, initialStatus, showRatingBadge = false, priority = false }: MovieCardProps) {
   const [showOverlay, setShowOverlay] = useState(false);
   const [status, setStatus] = useState<MediaStatus>(initialStatus ?? null);
   const [isBlacklisted, setIsBlacklisted] = useState<boolean>(initialIsBlacklisted ?? false);
@@ -49,6 +50,8 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
     genres: string[];
     runtime: number;
     adult: boolean;
+    productionCountries: string[];
+    seasonNumber: string | null;
   } | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -127,6 +130,8 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
             genres: data.genres || [],
             runtime: data.runtime || 0,
             adult: data.adult || false,
+            productionCountries: data.productionCountries || [],
+            seasonNumber: data.seasonNumber || null,
           });
         }
       } catch (error) {
@@ -391,6 +396,14 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
         genres={movieDetails?.genres}
         runtime={movieDetails?.runtime}
         adult={movieDetails?.adult}
+        productionCountries={movieDetails?.productionCountries}
+        seasonNumber={movieDetails?.seasonNumber}
+        mediaType={movie.media_type}
+        currentStatus={status}
+        onStatusChange={(newStatus) => {
+          handleStatusChange(newStatus);
+          setIsRatingInfoOpen(false);
+        }}
         isMobile={isMobile}
       />
 
@@ -425,7 +438,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
                 isHovered && !showOverlay ? 'scale-105' : ''
               }`}
               sizes="(max-width: 640px) 48vw, (max-width: 768px) 31vw, (max-width: 1024px) 23vw, (max-width: 1280px) 19vw, 15vw"
-              loading="lazy"
+              loading={priority ? "eager" : "lazy"}
             />
           </div>
 

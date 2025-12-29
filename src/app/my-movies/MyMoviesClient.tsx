@@ -81,10 +81,10 @@ export default function MyMoviesClient({
         {/* Сетка фильмов */}
         {currentMovies.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
-            {currentMovies.map((movie) => (
+            {currentMovies.map((movie, index) => (
               <div key={movie.id} className="p-1">
                 {/* Передаем флаг restoreView */}
-                <MovieCard movie={movie} restoreView={isRestoreView} showRatingBadge />
+                <MovieCard movie={movie} restoreView={isRestoreView} showRatingBadge priority={index < 6} />
               </div>
             ))}
           </div>

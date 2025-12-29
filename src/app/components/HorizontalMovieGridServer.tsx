@@ -39,9 +39,9 @@ export default async function HorizontalMovieGridServer({ blacklistedIds = new S
         
         {/* Используем компонент ScrollContainer */}
         <ScrollContainer>
-          {displayMovies.map((movie) => (
+          {displayMovies.map((movie, index) => (
             <div key={movie.id} className="flex-shrink-0 w-48">
-              <MovieCard movie={movie} />
+              <MovieCard movie={movie} priority={index < 4} />
             </div>
           ))}
         </ScrollContainer>
