@@ -28,7 +28,7 @@ interface MovieCardProps {
   restoreView?: boolean;
   initialIsBlacklisted?: boolean;
   initialStatus?: MediaStatus;
-  showRatingBadge?: boolean; // Показывать плашку с оценкой
+  showRatingBadge?: boolean;
 }
 
 export default function MovieCard({ movie, restoreView = false, initialIsBlacklisted, initialStatus, showRatingBadge = false }: MovieCardProps) {
@@ -41,7 +41,6 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [isRatingInfoOpen, setIsRatingInfoOpen] = useState(false);
-  const [ratingInfoPosition, setRatingInfoPosition] = useState<{ top: number; left: number } | null>(null);
   const [cineChanceRating, setCineChanceRating] = useState<number | null>(null);
   const [cineChanceVoteCount, setCineChanceVoteCount] = useState(0);
   const [userRating, setUserRating] = useState<number | null>(null);
@@ -49,9 +48,6 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const cardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
-  const ratingRef = useRef<HTMLDivElement>(null);
-  const ratingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const scrollListenerRef = useRef<boolean>(false);
 
   const imageUrl = movie.poster_path 
     ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
@@ -143,134 +139,12 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showOverlay]);
 
-  // Функция для расчета позиции попапа
-  const calculatePopupPosition = () => {
-    if (!ratingRef.current) return null;
-    
-    const rect = ratingRef.current.getBoundingClientRect();
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Определяем, хватит ли места справа для попапа
-    const popupWidth = 140;
-    const popupHeight = 80; // Примерная высота попапа
-    const spaceRight = viewportWidth - rect.right;
-    
-    let leftPosition;
-    let topPosition;
-    
-    // Определяем позицию по горизонтали
-    if (spaceRight >= popupWidth + 10) {
-      // Достаточно места справа
-      leftPosition = rect.right + 5;
-    } else {
-      // Не хватает места справа, показываем слева
-      leftPosition = rect.left - popupWidth - 5;
-    }
-    
-    // Определяем позицию по вертикали
-    // Центрируем попап относительно блока рейтинга
-    topPosition = rect.top + rect.height / 2 - popupHeight / 2;
-    
-    // Проверяем, чтобы попап не выходил за верхний или нижний край экрана
-    if (topPosition < 10) {
-      topPosition = 10;
-    } else if (topPosition + popupHeight > viewportHeight - 10) {
-      topPosition = viewportHeight - popupHeight - 10;
-    }
-    
-    return {
-      top: topPosition,
-      left: leftPosition
-    };
+  // Обработчик для клика на всю нижнюю часть карточки
+  const handleCardInfoClick = (e: React.MouseEvent) => {
+    // Предотвращаем всплытие, чтобы не перекрывать другие клики
+    e.stopPropagation();
+    setIsRatingInfoOpen(true);
   };
-
-  // Обработчик для наведения на блок рейтинга (только десктоп)
-  const handleRatingMouseEnter = (e: React.MouseEvent) => {
-    if (!isMobile && ratingRef.current) {
-      // Очищаем предыдущий таймер, если есть
-      if (ratingTimeoutRef.current) {
-        clearTimeout(ratingTimeoutRef.current);
-        ratingTimeoutRef.current = null;
-      }
-      
-      const position = calculatePopupPosition();
-      if (position) {
-        setRatingInfoPosition(position);
-        setIsRatingInfoOpen(true);
-      }
-    }
-  };
-
-  // Обработчик для ухода курсора с блока рейтинга (только десктоп)
-  const handleRatingMouseLeave = (e: React.MouseEvent) => {
-    if (!isMobile) {
-      // Небольшая задержка, чтобы проверить, не перешел ли курсор на попап
-      ratingTimeoutRef.current = setTimeout(() => {
-        if (isRatingInfoOpen) {
-          setIsRatingInfoOpen(false);
-        }
-      }, 100); // 100ms достаточно для перехода курсора на попап
-    }
-  };
-
-  // Обработчик для наведения на попап (только десктоп)
-  const handleRatingPopupMouseEnter = () => {
-    if (!isMobile) {
-      // Очищаем таймер закрытия, когда курсор на попапе
-      if (ratingTimeoutRef.current) {
-        clearTimeout(ratingTimeoutRef.current);
-        ratingTimeoutRef.current = null;
-      }
-    }
-  };
-
-  // Обработчик для ухода курсора с попапа (только десктоп)
-  const handleRatingPopupMouseLeave = () => {
-    if (!isMobile) {
-      // Закрываем попап сразу при уходе курсора
-      setIsRatingInfoOpen(false);
-    }
-  };
-
-  // Обработчик для клика на блок рейтинга (мобильный)
-  const handleRatingClick = (e: React.MouseEvent) => {
-    if (isMobile) {
-      e.stopPropagation();
-      
-      const position = calculatePopupPosition();
-      if (position) {
-        setRatingInfoPosition(position);
-        setIsRatingInfoOpen(true);
-      }
-    }
-  };
-
-  // Добавляем обработчик скролла для обновления позиции попапа
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isRatingInfoOpen && ratingInfoPosition) {
-        const newPosition = calculatePopupPosition();
-        if (newPosition) {
-          setRatingInfoPosition(newPosition);
-        }
-      }
-    };
-
-    if (isRatingInfoOpen) {
-      window.addEventListener('scroll', handleScroll, true);
-      window.addEventListener('resize', handleScroll);
-      
-      // Добавляем небольшую задержку, чтобы убедиться, что DOM обновился
-      const timeoutId = setTimeout(handleScroll, 50);
-      
-      return () => {
-        window.removeEventListener('scroll', handleScroll, true);
-        window.removeEventListener('resize', handleScroll);
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [isRatingInfoOpen, isMobile]);
 
   const handleSaveRating = (rating: number, date: string) => {
     const saveStatus = async () => {
@@ -291,7 +165,6 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
         
         if (res.ok) {
           setStatus('watched');
-          setUserRating(rating);
           setIsRatingModalOpen(false);
         } else {
           alert('Ошибка сохранения');
@@ -418,8 +291,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const handlePosterMouseLeave = (e: React.MouseEvent) => { 
     if (!isMobile) {
       const relatedTarget = e.relatedTarget;
-      // Проверяем, что relatedTarget существует, является Node и содержится в overlayRef
-      if (relatedTarget instanceof Node && overlayRef.current && overlayRef.current.contains(relatedTarget)) {
+      if (relatedTarget && overlayRef.current && overlayRef.current.contains(relatedTarget as Node)) {
         return;
       }
       setIsHovered(false);
@@ -430,23 +302,13 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const handleOverlayMouseLeave = (e: React.MouseEvent) => {
     if (!isMobile) {
       const relatedTarget = e.relatedTarget;
-      // Проверяем, что relatedTarget существует, является Node и содержится в posterRef
-      if (relatedTarget instanceof Node && posterRef.current && posterRef.current.contains(relatedTarget)) {
+      if (relatedTarget && posterRef.current && posterRef.current.contains(relatedTarget as Node)) {
         return;
       }
       setIsHovered(false);
       setShowOverlay(false);
     }
   };
-
-  // Очистка таймера при размонтировании
-  useEffect(() => {
-    return () => {
-      if (ratingTimeoutRef.current) {
-        clearTimeout(ratingTimeoutRef.current);
-      }
-    };
-  }, []);
 
   if (isRemoved) {
     return (
@@ -470,13 +332,11 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
       <RatingInfoModal
         isOpen={isRatingInfoOpen}
         onClose={() => setIsRatingInfoOpen(false)}
-        onMouseEnter={handleRatingPopupMouseEnter}
-        onMouseLeave={handleRatingPopupMouseLeave}
         tmdbRating={movie.vote_average || 0}
         tmdbVoteCount={movie.vote_count || 0}
         cineChanceRating={cineChanceRating}
         cineChanceVoteCount={cineChanceVoteCount}
-        position={ratingInfoPosition}
+        combinedRating={combinedRating} // Передаем combinedRating
         isMobile={isMobile}
       />
 
@@ -587,19 +447,34 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
           )}
         </div>
         
-        <div className="mt-2 px-0.5 pb-0.5">
-          <h3 className={`text-xs sm:text-sm line-clamp-1 leading-tight ${isBlacklisted ? 'text-gray-500' : 'text-white font-medium'}`}>
-            {title}
-          </h3>
-          <div className="flex items-center justify-between mt-1.5">
-            <div 
-              ref={ratingRef}
-              className="flex items-center bg-gray-800/50 px-1.5 py-0.5 rounded text-xs cursor-help relative"
-              onMouseEnter={handleRatingMouseEnter}
-              onMouseLeave={handleRatingMouseLeave}
-              onClick={handleRatingClick}
-            >
-              <div className="mr-1 w-4 h-4 relative">
+        {/* Кликабельная область для открытия попапа с рейтингом */}
+        <div 
+          className="mt-1 cursor-pointer"
+          onClick={handleCardInfoClick}
+        >
+          {/* Заголовок с названием фильма и годом в одной строке */}
+          <div className={`flex items-center justify-between gap-2 ${isBlacklisted ? 'text-gray-500' : 'text-white'}`}>
+            <h3 className={`text-xs sm:text-sm font-medium flex-1 min-w-0 overflow-hidden`} style={{ 
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden'
+            }}>
+              {title}
+            </h3>
+            <div className="text-xs text-gray-400 flex-shrink-0">
+              {year}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between mt-1 w-full">
+            {/* Кнопка "Подробнее" слева - без отступов */}
+            <div className="text-sm py-1 text-gray-400 hover:text-white transition-colors pl-0">
+              Подробнее
+            </div>
+            
+            {/* Рейтинг справа - без отступов */}
+            <div className="flex items-center bg-gray-800/50 rounded text-sm relative pr-0">
+              <div className="w-5 h-5 relative mx-1">
                   <Image 
                       src="/images/logo_mini_lgt_pls_tmdb.png" 
                       alt="TMDB Logo" 
@@ -611,12 +486,9 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
                 {combinedRating.toFixed(1)}
               </span>
             </div>
-            <div className="text-xs text-gray-400">
-              {year}
-            </div>
           </div>
           
-          {/* Плашка с оценкой пользователя */}
+          {/* Плашка с оценкой пользователя - НЕ входит в кликабельную область */}
           {showRatingBadge && status === 'watched' && (
             <div className={`mt-0 px-2 py-1.5 rounded-b-lg text-xs font-semibold w-full text-center ${userRating ? 'bg-blue-900/80' : 'bg-gray-800/80'} flex items-center`}>
               {userRating ? (
