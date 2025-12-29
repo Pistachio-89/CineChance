@@ -1,7 +1,9 @@
 // src/app/components/RatingInfoModal.tsx
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+
+type MediaStatus = 'want' | 'watched' | 'dropped' | null;
 
 interface RatingInfoModalProps {
   isOpen: boolean;
@@ -17,8 +19,21 @@ interface RatingInfoModalProps {
   genres?: string[];
   runtime?: number;
   adult?: boolean;
+  productionCountries?: string[];
+  seasonNumber?: string | null;
+  mediaType?: string;
+  currentStatus?: MediaStatus;
+  isBlacklisted?: boolean;
+  onStatusChange?: (status: MediaStatus) => void;
+  onBlacklistToggle?: () => void;
   isMobile: boolean;
 }
+
+const STATUS_OPTIONS: { value: MediaStatus; label: string; icon: string; colorClass: string; hoverClass: string }[] = [
+  { value: 'want', label: 'Хочу посмотреть', icon: '+', colorClass: 'bg-blue-500', hoverClass: 'hover:bg-blue-500' },
+  { value: 'watched', label: 'Просмотрено', icon: '✓', colorClass: 'bg-green-500', hoverClass: 'hover:bg-green-500' },
+  { value: 'dropped', label: 'Брошено', icon: '×', colorClass: 'bg-red-500', hoverClass: 'hover:bg-red-500' },
+];
 
 export default function RatingInfoModal({ 
   isOpen, 
@@ -34,16 +49,25 @@ export default function RatingInfoModal({
   genres,
   runtime,
   adult,
+  productionCountries,
+  seasonNumber,
+  mediaType,
+  currentStatus,
+  isBlacklisted,
+  onStatusChange,
+  onBlacklistToggle,
   isMobile 
 }: RatingInfoModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
 
   // Закрытие при клике вне попапа или на крестик
   const handleClose = (e: React.MouseEvent) => {
     e.stopPropagation();
     onClose();
+    setIsStatusDropdownOpen(false);
   };
 
   // Обработчик клика на затемненный фон
@@ -63,7 +87,6 @@ export default function RatingInfoModal({
 
     if (isOpen) {
       document.addEventListener('keydown', handleEscape);
-      // Блокируем скролл фона
       document.body.style.overflow = 'hidden';
     }
 
@@ -72,6 +95,59 @@ export default function RatingInfoModal({
       document.body.style.overflow = 'unset';
     };
   }, [isOpen, onClose]);
+
+  // Закрываем дропдаун при клике вне его
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (isStatusDropdownOpen && !target.closest('.status-dropdown-container')) {
+        setIsStatusDropdownOpen(false);
+      }
+    };
+
+    if (isStatusDropdownOpen) {
+      document.addEventListener('click', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isStatusDropdownOpen]);
+
+  // Получаем текущий статус для отображения
+  const getCurrentStatusOption = () => {
+    if (currentStatus !== null && currentStatus !== undefined) {
+      return STATUS_OPTIONS.find(opt => opt.value === currentStatus);
+    }
+    return null;
+  };
+
+  const currentStatusOption = getCurrentStatusOption();
+
+  // Обработчик изменения статуса
+  const handleStatusChange = (status: MediaStatus) => {
+    if (onStatusChange) {
+      onStatusChange(status);
+    }
+    setIsStatusDropdownOpen(false);
+  };
+
+  // Обработчик переключения черного списка
+  const handleBlacklistToggle = () => {
+    if (onBlacklistToggle) {
+      onBlacklistToggle();
+    }
+    setIsStatusDropdownOpen(false);
+  };
+
+  // Получаем цвет фона для текущего статуса
+  const getStatusBackgroundColor = () => {
+    if (currentStatus === null || currentStatus === undefined) {
+      return 'bg-gray-500';
+    }
+    const option = STATUS_OPTIONS.find(opt => opt.value === currentStatus);
+    return option ? option.colorClass : 'bg-gray-500';
+  };
 
   if (!isOpen) return null;
 
@@ -139,13 +215,28 @@ export default function RatingInfoModal({
             className="h-full overflow-y-auto"
           >
             <div className="p-4 sm:p-5">
-              {/* Название фильма */}
-              <h3 className="text-lg sm:text-xl font-bold text-white text-left pr-10 mb-3 sm:mb-4 break-words">
-                {title}
-              </h3>
+              {/* Название фильма с типом и страной */}
+              <div className="flex flex-wrap items-center gap-2 text-lg sm:text-xl font-bold text-white text-left pr-10 mb-3 sm:mb-4 break-words">
+                <span>{title}</span>
+                
+                {/* Страна производства */}
+                {productionCountries && productionCountries.length > 0 && (
+                  <span className="text-sm sm:text-base font-normal text-gray-400">
+                    ({productionCountries.join(', ')})
+                  </span>
+                )}
+                
+                {/* Тип фильма */}
+                {mediaType && (
+                  <span className={`text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md ${mediaType === 'movie' ? 'bg-green-500' : 'bg-blue-500'}`}>
+                    {mediaType === 'movie' ? 'Фильм' : 'Сериал'}
+                    {seasonNumber && ` • ${seasonNumber}`}
+                  </span>
+                )}
+              </div>
               
               {/* Рейтинги в строку с увеличенными логотипами */}
-              <div className="flex items-center justify-between gap-2 sm:gap-6 mb-4 sm:mb-6">
+              <div className="flex items-center justify-between gap-2 sm:gap-6 mb-3 sm:mb-4">
                 {/* Общий рейтинг */}
                 <div className="flex items-center gap-1.5 sm:gap-3">
                   <div className={`${isMobile ? 'w-9 h-9' : 'w-10 h-10'} relative flex-shrink-0`}>
@@ -188,6 +279,90 @@ export default function RatingInfoModal({
                   </span>
                 </div>
               </div>
+
+              {/* Компактный селект статуса */}
+              {onStatusChange && (
+                <div className="mb-3 status-dropdown-container relative" style={{ maxWidth: '270px' }}>
+                  <label className="text-xs text-gray-400 block mb-1">Статус</label>
+                  
+                  {/* Текущий выбранный статус */}
+                  <button
+                    onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                    className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer ${currentStatusOption ? currentStatusOption.colorClass : 'bg-gray-500'} text-white`}
+                  >
+                    <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">
+                      {currentStatusOption ? currentStatusOption.icon : '—'}
+                    </span>
+                    <span className="truncate">
+                      {currentStatusOption ? currentStatusOption.label : 'Не просмотрено'}
+                    </span>
+                    {/* Стрелка */}
+                    <svg 
+                      width="12" 
+                      height="12" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="ml-auto"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                  </button>
+                  
+                  {/* Выпадающий список */}
+                  {isStatusDropdownOpen && (
+                    <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-[#1a1f2e] border border-gray-700 rounded-lg shadow-xl overflow-hidden" style={{ maxWidth: '270px' }}>
+                      <div className="py-1">
+                        {/* Статусы */}
+                        {STATUS_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => handleStatusChange(option.value)}
+                            className={`w-full py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer ${
+                              currentStatus === option.value 
+                                ? `${option.colorClass} text-white` 
+                                : 'bg-white/5 text-white hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">
+                              {option.icon}
+                            </span>
+                            <span className="truncate">{option.label}</span>
+                          </button>
+                        ))}
+                        
+                        {/* Разделитель */}
+                        <div className="h-px bg-gray-700 my-1 mx-2"></div>
+                        
+                        {/* В черный список */}
+                        <button
+                          onClick={handleBlacklistToggle}
+                          className="w-full py-1 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer bg-white/5 text-gray-300 hover:bg-orange-900/50 hover:text-orange-300"
+                        >
+                          <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">🚫</span>
+                          <span className="truncate">
+                            {isBlacklisted ? 'Разблокировать' : 'В черный список'}
+                          </span>
+                        </button>
+                        
+                        {/* Убрать из списков */}
+                        {currentStatus && (
+                          <button
+                            onClick={() => handleStatusChange(null)}
+                            className="w-full py-1 px-2 rounded-lg text-xs font-medium transition-all duration-200 flex items-center justify-start text-left cursor-pointer bg-white/5 text-gray-300 hover:bg-white/10 mt-0.5"
+                          >
+                            <span className="text-sm font-bold min-w-[16px] flex justify-center mr-1.5">×</span>
+                            <span className="truncate">Убрать из списков</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Двухколоночная сетка с адаптивным поведением */}
               <div className="space-y-3 sm:space-y-4">
@@ -244,7 +419,7 @@ export default function RatingInfoModal({
             </div>
           </div>
 
-          {/* Индикатор скролла (опционально) */}
+          {/* Индикатор скролла */}
           {!isMobile && (
             <div className="absolute bottom-2 left-0 right-0 flex justify-center">
               <div className="w-20 h-1 bg-blue-500/30 rounded-full"></div>
