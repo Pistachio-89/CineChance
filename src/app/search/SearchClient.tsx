@@ -28,6 +28,7 @@ export default function SearchClient({ initialQuery, blacklistedIds }: SearchCli
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [currentFilters, setCurrentFilters] = useState<FilterState | null>(null);
 
   const ITEMS_PER_PAGE = 20;
   const INITIAL_ITEMS = 30;
@@ -55,14 +56,23 @@ export default function SearchClient({ initialQuery, blacklistedIds }: SearchCli
       const res = await fetch(`/api/search?${params.toString()}`);
       const data: SearchResults = await res.json();
 
-      // Filter out blacklisted items
+      // Filter out blacklisted items and deduplicate
       const blacklistedSet = new Set(blacklistedIds);
-      const filteredResults = data.results.filter((item: Media) => !blacklistedSet.has(item.id));
+      const seen = new Set<string>();
+      const filteredResults = data.results.filter((item: Media) => {
+        const key = `${item.media_type}_${item.id}`;
+        if (seen.has(key) || blacklistedSet.has(item.id)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
 
       setResults(filteredResults);
       setTotalResults(data.totalResults);
       setPage(1);
       setHasMore(filteredResults.length < data.totalResults);
+      setCurrentFilters(filters);
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
@@ -84,9 +94,17 @@ export default function SearchClient({ initialQuery, blacklistedIds }: SearchCli
         const res = await fetch(`/api/search?q=${encodeURIComponent(initialQuery)}&page=1&limit=${INITIAL_ITEMS}`);
         const data: SearchResults = await res.json();
 
-        // Filter out blacklisted items
+        // Filter out blacklisted items and deduplicate
         const blacklistedSet = new Set(blacklistedIds);
-        const filteredResults = data.results.filter((item: Media) => !blacklistedSet.has(item.id));
+        const seen = new Set<string>();
+        const filteredResults = data.results.filter((item: Media) => {
+          const key = `${item.media_type}_${item.id}`;
+          if (seen.has(key) || blacklistedSet.has(item.id)) {
+            return false;
+          }
+          seen.add(key);
+          return true;
+        });
 
         setResults(filteredResults);
         setTotalResults(data.totalResults);
@@ -124,12 +142,39 @@ export default function SearchClient({ initialQuery, blacklistedIds }: SearchCli
     setLoadingMore(true);
 
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(initialQuery)}&page=${nextPage}&limit=${ITEMS_PER_PAGE}`);
+      const params = new URLSearchParams({
+        q: initialQuery,
+        page: String(nextPage),
+        limit: String(ITEMS_PER_PAGE),
+      });
+
+      // Добавляем фильтры, если они есть
+      if (currentFilters) {
+        params.set('type', currentFilters.type);
+        if (currentFilters.yearFrom) params.set('yearFrom', currentFilters.yearFrom);
+        if (currentFilters.yearTo) params.set('yearTo', currentFilters.yearTo);
+        if (currentFilters.quickYear) params.set('quickYear', currentFilters.quickYear);
+        if (currentFilters.genres.length > 0) params.set('genres', currentFilters.genres.join(','));
+        if (currentFilters.ratingFrom > 0) params.set('ratingFrom', String(currentFilters.ratingFrom));
+        params.set('sortBy', currentFilters.sortBy);
+        params.set('sortOrder', currentFilters.sortOrder);
+      }
+
+      const res = await fetch(`/api/search?${params.toString()}`);
       const data: SearchResults = await res.json();
       
-      // Filter out blacklisted items
+      // Filter out blacklisted items and deduplicate
       const blacklistedSet = new Set(blacklistedIds);
-      const newResults = data.results.filter((item: Media) => !blacklistedSet.has(item.id));
+      const seen = new Set<string>();
+      const existingKeys = new Set(results.map(r => `${r.media_type}_${r.id}`));
+      const newResults = data.results.filter((item: Media) => {
+        const key = `${item.media_type}_${item.id}`;
+        if (seen.has(key) || blacklistedSet.has(item.id) || existingKeys.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
       
       setResults(prev => [...prev, ...newResults]);
       setPage(nextPage);

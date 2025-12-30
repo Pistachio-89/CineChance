@@ -39,6 +39,9 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const [isRemoved, setIsRemoved] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [fanartPoster, setFanartPoster] = useState<string | null>(null);
+  const [isTryingFanart, setIsTryingFanart] = useState(false);
   
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
   const [isRatingInfoOpen, setIsRatingInfoOpen] = useState(false);
@@ -58,9 +61,12 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const overlayRef = useRef<HTMLDivElement>(null);
   const posterRef = useRef<HTMLDivElement>(null);
 
-  const imageUrl = movie.poster_path 
-    ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
-    : '/placeholder-poster.svg';
+  const imageUrl = useMemo(() => {
+    if (imageError) return '/placeholder-poster.svg';
+    if (fanartPoster) return fanartPoster;
+    if (movie.poster_path) return `https://image.tmdb.org/t/p/w500${movie.poster_path}`;
+    return '/placeholder-poster.svg';
+  }, [imageError, fanartPoster, movie.poster_path]);
   
   const title = movie.title || movie.name || 'Без названия';
   const date = movie.release_date || movie.first_air_date;
@@ -75,6 +81,25 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
       cineChanceVotes: cineChanceVoteCount,
     });
   }, [movie.vote_average, movie.vote_count, cineChanceRating, cineChanceVoteCount]);
+
+  const handlePosterError = async () => {
+    if (!isTryingFanart && !fanartPoster && movie.poster_path) {
+      setIsTryingFanart(true);
+      try {
+        const res = await fetch(`/api/fanart-poster?tmdbId=${movie.id}&mediaType=${movie.media_type}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.poster) {
+            setFanartPoster(data.poster);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching Fanart.tv poster:', error);
+      }
+    }
+    setImageError(true);
+  };
 
   useEffect(() => {
     if (restoreView) {
@@ -439,6 +464,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
               }`}
               sizes="(max-width: 640px) 48vw, (max-width: 768px) 31vw, (max-width: 1024px) 23vw, (max-width: 1280px) 19vw, 15vw"
               loading={priority ? "eager" : "lazy"}
+              onError={handlePosterError}
             />
           </div>
 

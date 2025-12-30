@@ -23,22 +23,32 @@ export async function GET(request: Request) {
 
   try {
     const apiKey = process.env.TMDB_API_KEY;
-    let results: any[] = [];
+    let allResults: any[] = [];
     let totalResults = 0;
     let totalPages = 1;
 
     if (query) {
-      // Use search/multi for queries with optional filters
-      const url = new URL(`https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&language=ru-RU&page=${page}&include_adult=false`);
-      url.searchParams.set('query', query);
+      // Запрашиваем больше данных с TMDB для пагинации
+      // Получаем несколько страниц, чтобы обеспечить нужное количество для пагинации
+      const pagesToFetch = Math.ceil((page * limit) / 20) + 1; // +1 для запаса
+      
+      for (let apiPage = 1; apiPage <= pagesToFetch; apiPage++) {
+        const url = new URL(`https://api.themoviedb.org/3/search/multi?api_key=${apiKey}&language=ru-RU&page=${apiPage}&include_adult=false`);
+        url.searchParams.set('query', query);
 
-      const res = await fetch(url.toString());
-      const data = await res.json();
-      let searchResults = data.results || [];
+        const res = await fetch(url.toString());
+        const data = await res.json();
+        
+        if (data.results && data.results.length > 0) {
+          allResults = allResults.concat(data.results);
+        } else {
+          break; // Больше нет результатов
+        }
+      }
 
       // Filter results based on type
       if (type && type !== 'all') {
-        searchResults = searchResults.filter((item: any) => item.media_type === type);
+        allResults = allResults.filter((item: any) => item.media_type === type);
       }
 
       // Filter by year
@@ -54,7 +64,7 @@ export async function GET(request: Request) {
         if (yearMatch) {
           const y1 = parseInt(yearMatch[1]);
           const y2 = yearMatch[2] ? parseInt(yearMatch[2]) : y1;
-          searchResults = searchResults.filter((item: any) => {
+          allResults = allResults.filter((item: any) => {
             const releaseDate = item.release_date || item.first_air_date || '';
             const year = parseInt(releaseDate.split('-')[0]) || 0;
             return year >= y1 && year <= y2;
@@ -64,7 +74,7 @@ export async function GET(request: Request) {
 
       if (yearFrom) {
         const yFrom = parseInt(yearFrom);
-        searchResults = searchResults.filter((item: any) => {
+        allResults = allResults.filter((item: any) => {
           const releaseDate = item.release_date || item.first_air_date || '';
           const year = parseInt(releaseDate.split('-')[0]) || 0;
           return year >= yFrom;
@@ -73,7 +83,7 @@ export async function GET(request: Request) {
 
       if (yearTo) {
         const yTo = parseInt(yearTo);
-        searchResults = searchResults.filter((item: any) => {
+        allResults = allResults.filter((item: any) => {
           const releaseDate = item.release_date || item.first_air_date || '';
           const year = parseInt(releaseDate.split('-')[0]) || 0;
           return year <= yTo;
@@ -84,7 +94,7 @@ export async function GET(request: Request) {
       if (genresParam) {
         const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
         if (genreIds.length > 0) {
-          searchResults = searchResults.filter((item: any) => {
+          allResults = allResults.filter((item: any) => {
             const itemGenres = item.genre_ids || [];
             return genreIds.some((gid: number) => itemGenres.includes(gid));
           });
@@ -93,12 +103,12 @@ export async function GET(request: Request) {
 
       // Filter by rating
       if (ratingFrom > 0) {
-        searchResults = searchResults.filter((item: any) => (item.vote_average || 0) >= ratingFrom);
+        allResults = allResults.filter((item: any) => (item.vote_average || 0) >= ratingFrom);
       }
 
       // Sort results
       if (sortBy !== 'popularity') {
-        searchResults.sort((a: any, b: any) => {
+        allResults.sort((a: any, b: any) => {
           const aVal = a.vote_average || 0;
           const bVal = b.vote_average || 0;
           const aDate = parseInt((a.release_date || a.first_air_date || '0').split('-')[0]) || 0;
@@ -112,67 +122,110 @@ export async function GET(request: Request) {
         });
       }
 
-      totalResults = searchResults.length;
+      // Deduplicate results by media_type and id
+      const seen = new Set();
+      allResults = allResults.filter((item: any) => {
+        const key = `${item.media_type}_${item.id}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+
+      totalResults = allResults.length;
       totalPages = Math.ceil(totalResults / limit);
 
       // Apply pagination to filtered results
       const startIndex = (page - 1) * limit;
-      results = searchResults.slice(startIndex, startIndex + limit);
+      const paginatedResults = allResults.slice(startIndex, startIndex + limit);
+
+      return NextResponse.json({
+        results: paginatedResults,
+        totalPages,
+        totalResults
+      });
 
     } else {
       // No query, use discover endpoint with filters
-      const discoverUrl = new URL(`https://api.themoviedb.org/3/discover/${type === 'tv' ? 'tv' : 'movie'}?api_key=${apiKey}&language=ru-RU&page=${page}&include_adult=false`);
+      // Для discover API TMDB также ограничивает 20 результатами на страницу
+      const pagesToFetch = Math.ceil((page * limit) / 20) + 1;
+      let discoverResults: any[] = [];
 
-      // Add year filters
-      let yearFilter = '';
-      if (quickYear === '2020s') yearFilter = '2020-2029';
-      else if (quickYear === '2010s') yearFilter = '2010-2019';
-      else if (quickYear === '2000s') yearFilter = '2000-2009';
-      else if (quickYear === '1990s') yearFilter = '1990-1999';
-      else if (quickYear) yearFilter = quickYear;
+      for (let apiPage = 1; apiPage <= pagesToFetch; apiPage++) {
+        const discoverUrl = new URL(`https://api.themoviedb.org/3/discover/${type === 'tv' ? 'tv' : 'movie'}?api_key=${apiKey}&language=ru-RU&page=${apiPage}&include_adult=false`);
 
-      if (yearFrom) discoverUrl.searchParams.set('primary_release_date.gte', `${yearFrom}-01-01`);
-      if (yearTo) discoverUrl.searchParams.set('primary_release_date.lte', `${yearTo}-12-31`);
-      if (yearFilter && !yearFrom && !yearTo) {
-        const yearMatch = yearFilter.match(/(\d{4})(?:-(\d{4}))?/);
-        if (yearMatch) {
-          discoverUrl.searchParams.set('primary_release_date.gte', `${yearMatch[1]}-01-01`);
-          discoverUrl.searchParams.set('primary_release_date.lte', `${yearMatch[2] || yearMatch[1]}-12-31`);
+        // Add year filters
+        let yearFilter = '';
+        if (quickYear === '2020s') yearFilter = '2020-2029';
+        else if (quickYear === '2010s') yearFilter = '2010-2019';
+        else if (quickYear === '2000s') yearFilter = '2000-2009';
+        else if (quickYear === '1990s') yearFilter = '1990-1999';
+        else if (quickYear) yearFilter = quickYear;
+
+        if (yearFrom) discoverUrl.searchParams.set('primary_release_date.gte', `${yearFrom}-01-01`);
+        if (yearTo) discoverUrl.searchParams.set('primary_release_date.lte', `${yearTo}-12-31`);
+        if (yearFilter && !yearFrom && !yearTo) {
+          const yearMatch = yearFilter.match(/(\d{4})(?:-(\d{4}))?/);
+          if (yearMatch) {
+            discoverUrl.searchParams.set('primary_release_date.gte', `${yearMatch[1]}-01-01`);
+            discoverUrl.searchParams.set('primary_release_date.lte', `${yearMatch[2] || yearMatch[1]}-12-31`);
+          }
+        }
+
+        // Add genre filters
+        if (genresParam) {
+          const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
+          if (genreIds.length > 0) {
+            discoverUrl.searchParams.set('with_genres', genreIds.join('|'));
+          }
+        }
+
+        // Add rating filter
+        if (ratingFrom > 0) {
+          discoverUrl.searchParams.set('vote_average.gte', String(ratingFrom));
+        }
+
+        // Add sort
+        let sortParam = 'popularity.desc';
+        if (sortBy === 'rating') sortParam = `vote_average.${sortOrder}`;
+        else if (sortBy === 'date') sortParam = `primary_release_date.${sortOrder}`;
+        discoverUrl.searchParams.set('sort_by', sortParam);
+
+        const res = await fetch(discoverUrl.toString());
+        const data = await res.json();
+
+        if (data.results && data.results.length > 0) {
+          discoverResults = discoverResults.concat(data.results);
+        } else {
+          break;
         }
       }
 
-      // Add genre filters
-      if (genresParam) {
-        const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
-        if (genreIds.length > 0) {
-          discoverUrl.searchParams.set('with_genres', genreIds.join('|'));
+      // Deduplicate results by media_type and id
+      const seen = new Set();
+      discoverResults = discoverResults.filter((item: any) => {
+        const key = `${item.media_type}_${item.id}`;
+        if (seen.has(key)) {
+          return false;
         }
-      }
+        seen.add(key);
+        return true;
+      });
 
-      // Add rating filter
-      if (ratingFrom > 0) {
-        discoverUrl.searchParams.set('vote_average.gte', String(ratingFrom));
-      }
+      totalResults = discoverResults.length;
+      totalPages = Math.ceil(totalResults / limit);
 
-      // Add sort
-      let sortParam = 'popularity.desc';
-      if (sortBy === 'rating') sortParam = `vote_average.${sortOrder}`;
-      else if (sortBy === 'date') sortParam = `primary_release_date.${sortOrder}`;
-      discoverUrl.searchParams.set('sort_by', sortParam);
+      // Apply pagination
+      const startIndex = (page - 1) * limit;
+      const paginatedResults = discoverResults.slice(startIndex, startIndex + limit);
 
-      const res = await fetch(discoverUrl.toString());
-      const data = await res.json();
-
-      results = data.results || [];
-      totalResults = data.total_results || 0;
-      totalPages = data.total_pages || 1;
+      return NextResponse.json({
+        results: paginatedResults,
+        totalPages,
+        totalResults
+      });
     }
-
-    return NextResponse.json({
-      results,
-      totalPages,
-      totalResults
-    });
   } catch (error) {
     console.error('Search API error:', error);
     return NextResponse.json({ results: [], totalPages: 1, totalResults: 0 });
