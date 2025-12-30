@@ -5,11 +5,16 @@ import { useState } from 'react';
 import MovieCard from '../components/MovieCard';
 import { Media } from '@/lib/tmdb';
 
+interface MovieWithStatus extends Media {
+  statusName?: string;
+  isBlacklisted?: boolean;
+}
+
 interface MyMoviesClientProps {
-  watched: (Media & { statusName: string })[];
-  wantToWatch: (Media & { statusName: string })[];
-  dropped: (Media & { statusName: string })[];
-  hidden: Media[]; // Добавляем проп
+  watched: MovieWithStatus[];
+  wantToWatch: MovieWithStatus[];
+  dropped: MovieWithStatus[];
+  hidden: Media[];
 }
 
 export default function MyMoviesClient({
@@ -33,7 +38,7 @@ export default function MyMoviesClient({
     },
   ];
 
-  const tabData = {
+  const tabData: Record<string, MovieWithStatus[]> = {
     watched,
     wantToWatch,
     dropped,
@@ -83,8 +88,13 @@ export default function MyMoviesClient({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
             {currentMovies.map((movie, index) => (
               <div key={movie.id} className="p-1">
-                {/* Передаем флаг restoreView */}
-                <MovieCard movie={movie} restoreView={isRestoreView} showRatingBadge priority={index < 6} />
+                {/* MovieCard сам загрузит статус и isBlacklisted из API */}
+                <MovieCard 
+                  movie={movie} 
+                  restoreView={isRestoreView}
+                  showRatingBadge 
+                  priority={index < 6} 
+                />
               </div>
             ))}
           </div>

@@ -450,7 +450,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
         className="w-full h-full min-w-0 relative"
       >
         <div className="relative">
-          <div className={`${movie.media_type === 'movie' ? 'bg-green-500' : 'bg-blue-500'} text-white text-xs font-semibold px-2 py-1.5 rounded-t-lg w-full text-center`}>
+          <div className={`${movieDetails?.isAnime || isAnimeQuick ? 'bg-[#9C40FE]' : (movie.media_type === 'movie' ? 'bg-green-500' : 'bg-blue-500')} text-white text-xs font-semibold px-2 py-1.5 rounded-t-lg w-full text-center`}>
             {movieDetails?.isAnime || isAnimeQuick ? 'Аниме' : (movie.media_type === 'movie' ? 'Фильм' : 'Сериал')}
           </div>
           
@@ -595,7 +595,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
           </div>
           
           {/* Плашка с оценкой пользователя - НЕ входит в кликабельную область */}
-          {(showRatingBadge === undefined || showRatingBadge) && (status === 'watched' || status === 'dropped') && (
+          {showRatingBadge && (status === 'watched' || status === 'dropped') && (
             <div className={`mt-0 px-2 py-1.5 rounded-b-lg text-xs font-semibold w-full text-center ${userRating ? 'bg-blue-900/80' : 'bg-gray-800/80'} flex items-center`}>
               {userRating ? (
                 <>

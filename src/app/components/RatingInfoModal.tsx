@@ -235,7 +235,7 @@ export default function RatingInfoModal({
                 
                 {/* Тип фильма */}
                 {mediaType && (
-                  <span className={`text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md ${mediaType === 'movie' ? 'bg-green-500' : 'bg-blue-500'}`}>
+                  <span className={`text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md ${isAnime ? 'bg-[#9C40FE]' : (mediaType === 'movie' ? 'bg-green-500' : 'bg-blue-500')}`}>
                     {isAnime ? 'Аниме' : (mediaType === 'movie' ? 'Фильм' : 'Сериал')}
                     {seasonNumber && ` • ${seasonNumber}`}
                   </span>
