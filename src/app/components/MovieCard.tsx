@@ -55,6 +55,9 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
     adult: boolean;
     productionCountries: string[];
     seasonNumber: string | null;
+    isAnime: boolean;
+    collectionName: string | null;
+    collectionId: number | null;
   } | null>(null);
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -71,6 +74,10 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
   const title = movie.title || movie.name || 'Без названия';
   const date = movie.release_date || movie.first_air_date;
   const year = date ? date.split('-')[0] : '—';
+
+  // Быстрая проверка аниме (по жанру Animation + японский язык)
+  // ID жанра Animation = 16
+  const isAnimeQuick = movie.genre_ids?.includes(16) && movie.original_language === 'ja';
 
   // Вычисляем взвешенный рейтинг Cine-chance
   const combinedRating = useMemo(() => {
@@ -157,6 +164,9 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
             adult: data.adult || false,
             productionCountries: data.productionCountries || [],
             seasonNumber: data.seasonNumber || null,
+            isAnime: data.isAnime || false,
+            collectionName: data.collectionName || null,
+            collectionId: data.collectionId || null,
           });
         }
       } catch (error) {
@@ -424,6 +434,9 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
         productionCountries={movieDetails?.productionCountries}
         seasonNumber={movieDetails?.seasonNumber}
         mediaType={movie.media_type}
+        isAnime={movieDetails?.isAnime ?? isAnimeQuick}
+        collectionName={movieDetails?.collectionName}
+        collectionId={movieDetails?.collectionId}
         currentStatus={status}
         onStatusChange={(newStatus) => {
           handleStatusChange(newStatus);
@@ -438,7 +451,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
       >
         <div className="relative">
           <div className={`${movie.media_type === 'movie' ? 'bg-green-500' : 'bg-blue-500'} text-white text-xs font-semibold px-2 py-1.5 rounded-t-lg w-full text-center`}>
-            {movie.media_type === 'movie' ? 'Фильм' : 'Сериал'}
+            {movieDetails?.isAnime || isAnimeQuick ? 'Аниме' : (movie.media_type === 'movie' ? 'Фильм' : 'Сериал')}
           </div>
           
           <div 
@@ -582,7 +595,7 @@ export default function MovieCard({ movie, restoreView = false, initialIsBlackli
           </div>
           
           {/* Плашка с оценкой пользователя - НЕ входит в кликабельную область */}
-          {showRatingBadge && (status === 'watched' || status === 'dropped') && (
+          {(showRatingBadge === undefined || showRatingBadge) && (status === 'watched' || status === 'dropped') && (
             <div className={`mt-0 px-2 py-1.5 rounded-b-lg text-xs font-semibold w-full text-center ${userRating ? 'bg-blue-900/80' : 'bg-gray-800/80'} flex items-center`}>
               {userRating ? (
                 <>

@@ -40,12 +40,31 @@ export async function GET(req: Request) {
       ? `${data.number_of_seasons} ${getSeasonWord(data.number_of_seasons)}`
       : null;
 
+    // Проверяем, является ли контент аниме (по keyword "anime" ID 210024)
+    // Делаем отдельный запрос к keywords endpoint
+    let isAnime = false;
+    try {
+      const keywordsRes = await fetch(
+        `https://api.themoviedb.org/3/${mediaType}/${tmdbId}/keywords?api_key=${apiKey}`
+      );
+      if (keywordsRes.ok) {
+        const keywordsData = await keywordsRes.json();
+        const keywords = keywordsData.keywords || keywordsData.results || [];
+        isAnime = keywords.some((k: any) => k.id === 210024 || k.name?.toLowerCase() === 'anime');
+      }
+    } catch (kwError) {
+      console.error('Failed to fetch keywords:', kwError);
+    }
+
     return NextResponse.json({
       genres: data.genres?.map((g: any) => g.name) || [],
       runtime: data.runtime || data.episode_run_time?.[0] || 0,
       adult: data.adult || false,
       productionCountries,
       seasonNumber,
+      isAnime,
+      collectionName: data.belongs_to_collection?.name || null,
+      collectionId: data.belongs_to_collection?.id || null,
     });
   } catch (error) {
     console.error('Movie details error:', error);

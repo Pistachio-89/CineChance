@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 
 type MediaStatus = 'want' | 'watched' | 'dropped' | null;
 
@@ -22,6 +23,9 @@ interface RatingInfoModalProps {
   productionCountries?: string[];
   seasonNumber?: string | null;
   mediaType?: string;
+  isAnime?: boolean;
+  collectionName?: string | null;
+  collectionId?: number | null;
   currentStatus?: MediaStatus;
   isBlacklisted?: boolean;
   onStatusChange?: (status: MediaStatus) => void;
@@ -52,6 +56,9 @@ export default function RatingInfoModal({
   productionCountries,
   seasonNumber,
   mediaType,
+  isAnime,
+  collectionName,
+  collectionId,
   currentStatus,
   isBlacklisted,
   onStatusChange,
@@ -229,7 +236,7 @@ export default function RatingInfoModal({
                 {/* Тип фильма */}
                 {mediaType && (
                   <span className={`text-xs sm:text-sm font-semibold px-2 py-0.5 rounded-md ${mediaType === 'movie' ? 'bg-green-500' : 'bg-blue-500'}`}>
-                    {mediaType === 'movie' ? 'Фильм' : 'Сериал'}
+                    {isAnime ? 'Аниме' : (mediaType === 'movie' ? 'Фильм' : 'Сериал')}
                     {seasonNumber && ` • ${seasonNumber}`}
                   </span>
                 )}
@@ -373,6 +380,22 @@ export default function RatingInfoModal({
                     <p className="text-xs sm:text-sm text-white leading-relaxed">
                       {overview}
                     </p>
+                  </div>
+                )}
+
+                {/* Франшиза / Серия фильмов */}
+                {collectionName && collectionId && (
+                  <div className="space-y-1">
+                    <span className="text-xs sm:text-sm text-gray-400">Серия</span>
+                    <div className="flex items-center gap-2">
+                      <Link 
+                        href={`/collection/${collectionId}`}
+                        className="text-xs sm:text-sm text-indigo-400 font-medium hover:text-indigo-300 transition-colors flex items-center gap-1"
+                      >
+                        📚 {collectionName}
+                        <span className="text-gray-500">→</span>
+                      </Link>
+                    </div>
                   </div>
                 )}
 

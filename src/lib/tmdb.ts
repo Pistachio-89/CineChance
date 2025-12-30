@@ -10,6 +10,8 @@ export interface Media {
   release_date?: string;
   first_air_date?: string;
   overview: string;
+  genre_ids?: number[];
+  original_language?: string;
 }
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
@@ -141,6 +143,8 @@ export const searchMedia = async (query: string, page: number = 1): Promise<Medi
       release_date: item.release_date || item.first_air_date,
       first_air_date: item.first_air_date || item.release_date,
       overview: item.overview,
+      genre_ids: item.genre_ids,
+      original_language: item.original_language,
     }));
 
     return media.slice(0, 100); // Ограничиваем 100 результатами
