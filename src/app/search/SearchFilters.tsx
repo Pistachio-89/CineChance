@@ -9,7 +9,7 @@ interface SearchFiltersProps {
 }
 
 export interface FilterState {
-  type: 'all' | 'movie' | 'tv';
+  type: 'all' | 'movie' | 'tv' | 'anime';
   yearFrom: string;
   yearTo: string;
   quickYear: string;
@@ -43,14 +43,14 @@ const GENRES = [
 
 const YEAR_QUICK_FILTERS = [
   { value: '', label: 'Любой' },
-  { value: '2024', label: '2024' },
-  { value: '2023', label: '2023' },
-  { value: '2022', label: '2022' },
-  { value: '2021', label: '2021' },
-  { value: '2020s', label: '2020-е' },
-  { value: '2010s', label: '2010-е' },
-  { value: '2000s', label: '2000-е' },
-  { value: '1990s', label: '1990-е' },
+  { value: '2025', label: '2025' },
+  { value: '2020s', label: '20-е' },
+  { value: '2010s', label: '10-е' },
+  { value: '2000s', label: '00-е' },
+  { value: '1990s', label: '90-е' },
+  { value: '1980s', label: '80-е' },
+  { value: '1970s', label: '70-е' },
+  { value: '1960s', label: '60-е' },
 ];
 
 export default function SearchFilters({ onFiltersChange, totalResults }: SearchFiltersProps) {
@@ -152,6 +152,7 @@ export default function SearchFilters({ onFiltersChange, totalResults }: SearchF
                 { value: 'all', label: 'Все' },
                 { value: 'movie', label: 'Фильмы' },
                 { value: 'tv', label: 'Сериалы' },
+                { value: 'anime', label: 'Аниме' },
               ].map((option) => (
                 <button
                   key={option.value}
