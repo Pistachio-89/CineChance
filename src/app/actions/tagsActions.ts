@@ -398,6 +398,82 @@ export async function getMoviesByTags(
   }
 }
 
+/**
+ * Получение приватной заметки к фильму
+ */
+export async function getMovieNote(
+  tmdbId: number,
+  mediaType: string
+): Promise<{ success: boolean; data?: string; error?: string }> {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Не авторизован' };
+    }
+
+    const userId = session.user.id as string;
+
+    const watchListItem = await prisma.watchList.findUnique({
+      where: {
+        userId_tmdbId_mediaType: {
+          userId,
+          tmdbId,
+          mediaType,
+        },
+      },
+      select: {
+        note: true,
+      },
+    });
+
+    return { success: true, data: watchListItem?.note || '' };
+  } catch (error) {
+    console.error('Error fetching movie note:', error);
+    return { success: false, error: 'Ошибка при получении заметки' };
+  }
+}
+
+/**
+ * Обновление приватной заметки к фильму
+ * Автосохранение при потере фокуса
+ */
+export async function updateMovieNote(
+  tmdbId: number,
+  mediaType: string,
+  note: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return { success: false, error: 'Не авторизован' };
+    }
+
+    const userId = session.user.id as string;
+
+    await prisma.watchList.update({
+      where: {
+        userId_tmdbId_mediaType: {
+          userId,
+          tmdbId,
+          mediaType,
+        },
+      },
+      data: {
+        note: note || null, // Сохраняем null вместо пустой строки
+      },
+    });
+
+    // Инвалидируем кэш
+    revalidatePath('/my-movies');
+    revalidatePath('/');
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating movie note:', error);
+    return { success: false, error: 'Ошибка при сохранении заметки' };
+  }
+}
+
 // Вспомогательная функция для upsert с инкрементом счётчика
 async function upsertTagWithIncrement(tx: any, userId: string, name: string) {
   // Пытаемся найти существующий тег

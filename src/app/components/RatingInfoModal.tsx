@@ -8,6 +8,8 @@ import {
   addTagsToMovie, 
   removeTagsFromMovie, 
   searchUserTags,
+  getMovieNote,
+  updateMovieNote,
   TagData 
 } from '@/app/actions/tagsActions';
 
@@ -90,10 +92,21 @@ export default function RatingInfoModal({
   const [isSavingTags, setIsSavingTags] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  // Загрузка тегов при открытии модального окна
+  // Состояние заметки
+  const [note, setNote] = useState('');
+  const [originalNote, setOriginalNote] = useState('');
+  const [isLoadingNote, setIsLoadingNote] = useState(false);
+  const [isSavingNote, setIsSavingNote] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isNoteExpanded, setIsNoteExpanded] = useState(false);
+
+  // Загрузка тегов и заметки при открытии модального окна
   useEffect(() => {
     if (isOpen && tmdbId && mediaType) {
       loadMovieTags();
+      loadMovieNote();
+      // Сбрасываем состояние раскрытия при открытии
+      setIsNoteExpanded(false);
     }
   }, [isOpen, tmdbId, mediaType]);
 
@@ -111,6 +124,48 @@ export default function RatingInfoModal({
       console.error('Error loading tags:', error);
     } finally {
       setIsLoadingTags(false);
+    }
+  };
+
+  // Загрузка заметки фильма
+  const loadMovieNote = async () => {
+    if (!tmdbId || !mediaType) return;
+    
+    setIsLoadingNote(true);
+    try {
+      const result = await getMovieNote(tmdbId, mediaType);
+      if (result.success && result.data !== undefined) {
+        setNote(result.data);
+        setOriginalNote(result.data);
+        setLastSaved(null);
+        // Если есть заметка — раскрываем секцию
+        if (result.data) {
+          setIsNoteExpanded(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading note:', error);
+    } finally {
+      setIsLoadingNote(false);
+    }
+  };
+
+  // Проверка, есть ли несохранённые изменения
+  const hasUnsavedChanges = note !== originalNote;
+
+  // Сохранение заметки вручную
+  const saveNote = async () => {
+    if (!tmdbId || !mediaType || !hasUnsavedChanges) return;
+    
+    setIsSavingNote(true);
+    try {
+      await updateMovieNote(tmdbId, mediaType, note);
+      setOriginalNote(note);
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Error saving note:', error);
+    } finally {
+      setIsSavingNote(false);
     }
   };
 
@@ -199,10 +254,14 @@ export default function RatingInfoModal({
     if (e) e.stopPropagation();
     onClose();
     setIsStatusDropdownOpen(false);
-    // Сбрасываем состояние тегов
+    // Сбрасываем состояние тегов и заметки
     setTagInput('');
     setSuggestions([]);
     setShowSuggestions(false);
+    setNote('');
+    setOriginalNote('');
+    setLastSaved(null);
+    setIsNoteExpanded(false);
   };
 
   // Обработчик клика на затемненный фон
@@ -595,6 +654,76 @@ export default function RatingInfoModal({
                           </button>
                         </span>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Приватная заметка */}
+              {currentStatus && (
+                <div className="mt-4 pt-3 border-t border-gray-800">
+                  {/* Кнопка раскрытия */}
+                  <button
+                    onClick={() => setIsNoteExpanded(!isNoteExpanded)}
+                    className="flex items-center justify-between w-full text-xs text-gray-400 hover:text-white transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={`transition-transform duration-200 ${isNoteExpanded ? 'rotate-90' : ''}`}
+                      >
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                      <span>Личная заметка</span>
+                    </div>
+                    {/* Дата сохранения и кнопка - только когда раскрыто */}
+                    {isNoteExpanded && (
+                      <div className="flex items-center gap-2">
+                        {lastSaved && (
+                          <span className="text-[10px] text-gray-600">
+                            {lastSaved.toLocaleString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        )}
+                        <button
+                          onClick={saveNote}
+                          disabled={!hasUnsavedChanges || isSavingNote || isLoadingNote}
+                          className={`
+                            px-3 py-0.5 rounded-lg text-xs font-medium transition-all duration-200 flex-shrink-0
+                            ${hasUnsavedChanges && !isSavingNote
+                              ? 'bg-blue-500 text-white hover:bg-blue-600'
+                              : 'bg-gray-700/50 text-gray-500 cursor-not-allowed'}
+                            ${isSavingNote ? 'opacity-50' : ''}
+                          `}
+                        >
+                          {isSavingNote ? 'Сохранение...' : 'Сохранить'}
+                        </button>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Раскрывающееся поле */}
+                  {isNoteExpanded && (
+                    <div className="mt-2 ml-4">
+                      <div className="relative">
+                        <textarea
+                          value={note}
+                          onChange={(e) => setNote(e.target.value.slice(0, 100))}
+                          maxLength={100}
+                          placeholder="Введите заметку..."
+                          disabled={isLoadingNote}
+                          className="w-full min-h-[80px] py-2 px-3 pr-14 rounded-lg bg-[#1a1f2e] border border-gray-700 text-white text-xs placeholder-gray-500 focus:outline-none focus:border-blue-500 disabled:opacity-50 resize-y"
+                        />
+                        <span className="absolute bottom-2 right-3 text-[10px] text-gray-500">
+                          {note.length}/100
+                        </span>
+                      </div>
                     </div>
                   )}
                 </div>
