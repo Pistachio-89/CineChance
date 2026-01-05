@@ -122,7 +122,13 @@ export async function getMovieTags(
       return { success: true, data: [] };
     }
 
-    return { success: true, data: watchListItem.tags };
+    const tags: TagData[] = watchListItem.tags.map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      usageCount: t.usageCount ?? 0,
+    }));
+
+    return { success: true, data: tags };
   } catch (error) {
     console.error('Error fetching movie tags:', error);
     return { success: false, error: 'Ошибка при получении тегов фильма' };
