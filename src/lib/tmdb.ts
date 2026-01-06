@@ -24,7 +24,7 @@ if (!TMDB_API_KEY) {
 
 export const fetchTrendingMovies = async (timeWindow: 'day' | 'week' = 'week'): Promise<Media[]> => {
   try {
-    // Формируем URL с API ключом как параметром запроса
+    // Формируем URL с API ключом как параметр запроса
     const url = new URL(`${BASE_URL}/trending/movie/${timeWindow}`);
     url.searchParams.append('api_key', TMDB_API_KEY || '');
     url.searchParams.append('language', 'ru-RU');
@@ -151,5 +151,66 @@ export const searchMedia = async (query: string, page: number = 1): Promise<Medi
   } catch (error) {
     console.error('Ошибка при поиске:', error);
     return [];
+  }
+};
+
+// Интерфейс для расширенных данных о фильме
+export interface MovieDetails {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  release_date?: string | null;
+  first_air_date?: string | null;
+  overview: string;
+  runtime?: number;
+  episode_run_time?: number[];
+  genres?: { id: number; name: string }[];
+  original_language?: string;
+}
+
+// Получение деталей конкретного фильма/сериала
+export const fetchMediaDetails = async (
+  tmdbId: number,
+  mediaType: 'movie' | 'tv'
+): Promise<MovieDetails | null> => {
+  try {
+    const url = new URL(`${BASE_URL}/${mediaType}/${tmdbId}`);
+    url.searchParams.append('api_key', TMDB_API_KEY || '');
+    url.searchParams.append('language', 'ru-RU');
+    url.searchParams.append('append_to_response', 'credits');
+
+    const response = await fetch(url.toString(), {
+      headers: { 'accept': 'application/json' },
+      next: { revalidate: 86400 }, // Кэшируем на 24 часа
+    });
+
+    if (!response.ok) {
+      console.error('Ошибка TMDB details:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+
+    return {
+      id: data.id,
+      title: data.title,
+      name: data.name,
+      poster_path: data.poster_path,
+      vote_average: data.vote_average || 0,
+      vote_count: data.vote_count || 0,
+      release_date: data.release_date,
+      first_air_date: data.first_air_date,
+      overview: data.overview || '',
+      runtime: data.runtime,
+      episode_run_time: data.episode_run_time,
+      genres: data.genres || [],
+      original_language: data.original_language,
+    };
+  } catch (error) {
+    console.error('Ошибка при получении деталей:', error);
+    return null;
   }
 };

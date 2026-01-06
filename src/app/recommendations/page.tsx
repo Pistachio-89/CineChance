@@ -1,10 +1,15 @@
-export default function RecommendationsPage() {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl sm:text-4xl font-bold mb-8 mt-4">Что посмотреть</h1>
-      <p className="text-gray-400">
-        Здесь будут персонализированные рекомендации на основе ваших предпочтений.
-      </p>
-    </div>
-  );
+import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/auth';
+import RecommendationsClient from './RecommendationsClient';
+
+export default async function RecommendationsPage() {
+  // Проверяем сессию на сервере
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    redirect('/');
+  }
+
+  return <RecommendationsClient userId={session.user.id} />;
 }

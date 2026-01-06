@@ -5,9 +5,10 @@ import { useState, useCallback, useEffect, useRef, useLayoutEffect } from 'react
 import MovieCard from '../components/MovieCard';
 import Loader from '../components/Loader';
 import FilmFilters, { FilmFilterState, SortState, AdditionalFilters } from './FilmFilters';
-import { MovieWithStatus, fetchMoviesByStatus, getMoviesCounts, getUserGenres } from './actions';
+import { MovieWithStatus, fetchMoviesByStatus, getMoviesCounts, getUserGenres, updateWatchStatus } from './actions';
 import { getUserTags } from '../actions/tagsActions';
 import { Media } from '@/lib/tmdb';
+import RatingModal from '../components/RatingModal';
 
 interface MyMoviesClientProps {
   initialWatched: MovieWithStatus[];
@@ -21,6 +22,14 @@ interface MyMoviesClientProps {
     hidden: number;
   };
   userId: string;
+}
+
+interface AcceptedRecommendation {
+  tmdbId: number;
+  mediaType: 'movie' | 'tv';
+  title: string;
+  year: string;
+  logId: string;
 }
 
 const ITEMS_PER_PAGE = 20;
@@ -76,6 +85,11 @@ export default function MyMoviesClient({
   const [userTags, setUserTags] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const isInitialMount = useRef(true);
   
+  // Состояние для popup о просмотре фильма
+  const [showWatchedPopup, setShowWatchedPopup] = useState(false);
+  const [acceptedRecommendation, setAcceptedRecommendation] = useState<AcceptedRecommendation | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+
   // Sentinel для infinite scroll
   const sentinelRef = useRef<HTMLDivElement>(null);
   
@@ -103,6 +117,129 @@ export default function MyMoviesClient({
     window.addEventListener('resize', updateItemsPerRow);
     return () => window.removeEventListener('resize', updateItemsPerRow);
   }, []);
+  
+  // Проверка: пришел ли пользователь со страницы рекомендаций
+  useEffect(() => {
+    const recommendationData = sessionStorage.getItem('recommendationAccepted');
+    if (recommendationData) {
+      try {
+        const data = JSON.parse(recommendationData) as AcceptedRecommendation;
+        setAcceptedRecommendation(data);
+        setShowWatchedPopup(true);
+        // Удаляем из storage после прочтения
+        sessionStorage.removeItem('recommendationAccepted');
+      } catch (e) {
+        console.error('Error parsing recommendation data:', e);
+      }
+    }
+  }, []);
+
+  // Логирование действия
+  const logRecommendationAction = async (action: 'accepted_no' | 'accepted_yes') => {
+    if (!acceptedRecommendation?.logId) return;
+    
+    try {
+      await fetch(`/api/recommendations/${acceptedRecommendation.logId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+    } catch (err) {
+      console.error('Error logging recommendation action:', err);
+    }
+  };
+
+  // Обработчик "Нет" - закрыть popup
+  const handleWatchedNo = async () => {
+    await logRecommendationAction('accepted_no');
+    setShowWatchedPopup(false);
+    setAcceptedRecommendation(null);
+  };
+
+  // Обработчик "Да" - открыть RatingModal
+  const handleWatchedYes = async () => {
+    setShowWatchedPopup(false);
+    setShowRatingModal(true);
+  };
+
+  // Обработчик сохранения оценки из RatingModal
+  const handleRatingSave = async (rating: number, _date: string) => {
+    if (!acceptedRecommendation) return;
+
+    // Определяем новый статус
+    const newStatus = acceptedRecommendation.title.includes('(пересмотр)') 
+      ? 'Просмотрено' 
+      : 'Пересмотрено';
+
+    try {
+      await updateWatchStatus(
+        userId,
+        acceptedRecommendation.tmdbId,
+        acceptedRecommendation.mediaType,
+        newStatus,
+        rating,
+        acceptedRecommendation.logId
+      );
+      
+      await logRecommendationAction('accepted_yes');
+      
+      // Обновляем счетчики
+      const newCounts = await getMoviesCounts(userId);
+      setCurrentCounts(newCounts);
+      
+      // Перезагружаем текущую вкладку
+      await refreshCurrentTab();
+    } catch (error) {
+      console.error('Error updating watch status:', error);
+    } finally {
+      setShowRatingModal(false);
+      setAcceptedRecommendation(null);
+    }
+  };
+
+  // Функция перезагрузки текущей вкладки
+  const refreshCurrentTab = async () => {
+    setLoadingMore(true);
+    try {
+      let statusName: string | string[] | null = null;
+      if (activeTab === 'watched') statusName = ['Просмотрено', 'Пересмотрено'];
+      else if (activeTab === 'wantToWatch') statusName = 'Хочу посмотреть';
+      else if (activeTab === 'dropped') statusName = 'Брошено';
+
+      const includeHidden = activeTab === 'hidden';
+
+      const result = await fetchMoviesByStatus(
+        userId,
+        statusName,
+        includeHidden,
+        1,
+        sort.sortBy,
+        sort.sortOrder,
+        itemsPerRow
+      );
+
+      const filteredMovies = filterMovies(result.movies);
+
+      setDisplayedMovies(prev => ({
+        ...prev,
+        [activeTab]: filteredMovies,
+      }));
+
+      setPage(prev => ({
+        ...prev,
+        [activeTab]: 1,
+      }));
+
+      setHasMore(prev => ({
+        ...prev,
+        [activeTab]: result.hasMore,
+      }));
+    } catch (error) {
+      console.error('Error refreshing tab:', error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   
   // Загружаем доступные жанры из коллекции пользователя
   useEffect(() => {
@@ -187,7 +324,6 @@ export default function MyMoviesClient({
   }, [filmFilters, additionalFilters, selectedGenres]);
 
   // Функция фильтрации отображаемых фильмов
-  // Сортировка выполняется на сервере в fetchMoviesByStatus, поэтому здесь только фильтрация
   const getFilteredMovies = useCallback((movies: MovieWithStatus[]) => {
     return filterMovies(movies);
   }, [filterMovies]);
@@ -203,7 +339,7 @@ export default function MyMoviesClient({
       },
       {
         root: null,
-        rootMargin: '200px', // Загружать за 200px до конца
+        rootMargin: '200px',
         threshold: 0.1,
       }
     );
@@ -221,9 +357,7 @@ export default function MyMoviesClient({
   }, [activeTab, hasMore, loadingMore, page, sort, userId, filterMovies, itemsPerRow]);
 
   // Эффект: перезагрузка данных при изменении сортировки
-  // Сбрасываем пагинацию и загружаем данные заново с новыми параметрами сортировки
   useEffect(() => {
-    // При первом рендере пропсы уже содержат отсортированные данные, пропускаем
     if (isInitialMount.current) {
       isInitialMount.current = false;
       return;
@@ -232,7 +366,6 @@ export default function MyMoviesClient({
     const reloadWithNewSort = async () => {
       setLoadingMore(true);
       try {
-        // Для watched показываем и "Просмотрено" и "Пересмотрено"
         let statusName: string | string[] | null = null;
         if (activeTab === 'watched') statusName = ['Просмотрено', 'Пересмотрено'];
         else if (activeTab === 'wantToWatch') statusName = 'Хочу посмотреть';
@@ -250,7 +383,6 @@ export default function MyMoviesClient({
           itemsPerRow
         );
 
-        // Фильтруем полученные фильмы
         const filteredMovies = filterMovies(result.movies);
 
         setDisplayedMovies(prev => ({
@@ -294,7 +426,6 @@ export default function MyMoviesClient({
 
       const includeHidden = activeTab === 'hidden';
 
-      // Загружаем адаптивное количество (1 ряд карточек)
       const result = await fetchMoviesByStatus(
         userId,
         statusName,
@@ -305,10 +436,8 @@ export default function MyMoviesClient({
         itemsPerRow
       );
 
-      // Фильтруем новые фильмы
       const filteredNewMovies = filterMovies(result.movies);
       
-      // Исключаем дубликаты по ID
       const existingIds = new Set(displayedMovies[activeTab].map(m => m.id));
       const uniqueNewMovies = filteredNewMovies.filter(m => !existingIds.has(m.id));
       
@@ -333,7 +462,7 @@ export default function MyMoviesClient({
     }
   };
 
-  // Переключение вкладки - сброс пагинации и перезагрузка данных
+  // Переключение вкладки
   const handleTabChange = async (newTab: typeof activeTab) => {
     if (newTab === activeTab) return;
 
@@ -341,8 +470,6 @@ export default function MyMoviesClient({
     setLoadingMore(true);
 
     try {
-      // Получаем актуальные данные для новой вкладки
-      // Для watched показываем и "Просмотрено" и "Пересмотрено"
       let statusName: string | string[] | null = null;
       if (newTab === 'watched') statusName = ['Просмотрено', 'Пересмотрено'];
       else if (newTab === 'wantToWatch') statusName = 'Хочу посмотреть';
@@ -360,7 +487,6 @@ export default function MyMoviesClient({
         itemsPerRow
       );
 
-      // Фильтруем полученные фильмы
       const filteredMovies = filterMovies(result.movies);
 
       setDisplayedMovies(prev => ({
@@ -378,7 +504,6 @@ export default function MyMoviesClient({
         [newTab]: result.hasMore,
       }));
 
-      // Обновляем счетчики
       const newCounts = await getMoviesCounts(userId);
       setCurrentCounts(newCounts);
     } catch (error) {
@@ -388,8 +513,6 @@ export default function MyMoviesClient({
     }
   };
 
-  // Отображаемые фильмы для текущей вкладки
-  // Фильтруем данные (сортировка уже применена на сервере)
   const currentMovies = getFilteredMovies(displayedMovies[activeTab]);
   const isRestoreView = activeTab === 'hidden';
   const showLoadingSpinner = hasMore[activeTab] && loadingMore;
@@ -414,6 +537,50 @@ export default function MyMoviesClient({
 
   return (
     <div className="min-h-screen bg-gray-950 py-3 sm:py-4">
+      {/* Popup: Вы просмотрели фильм? */}
+      {showWatchedPopup && acceptedRecommendation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-gray-900 rounded-2xl p-6 max-w-sm w-full border border-gray-700">
+            <h3 className="text-xl font-bold text-white text-center mb-4">
+              Вы просмотрели фильм
+            </h3>
+            <p className="text-gray-300 text-center mb-6">
+              {acceptedRecommendation.title} ({acceptedRecommendation.year})?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={handleWatchedNo}
+                className="flex-1 py-3 px-4 bg-gray-700 text-white rounded-xl font-medium hover:bg-gray-600 transition"
+              >
+                Нет
+              </button>
+              <button
+                onClick={handleWatchedYes}
+                className="flex-1 py-3 px-4 bg-green-600 text-white rounded-xl font-medium hover:bg-green-500 transition"
+              >
+                Да
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* RatingModal - используем существующий компонент */}
+      {acceptedRecommendation && (
+        <RatingModal
+          isOpen={showRatingModal}
+          onClose={() => {
+            setShowRatingModal(false);
+            setAcceptedRecommendation(null);
+          }}
+          onSave={handleRatingSave}
+          title={acceptedRecommendation.title}
+          releaseDate={acceptedRecommendation.year}
+          defaultRating={6}
+          showWatchedDate={true}
+        />
+      )}
+
       <div className="container mx-auto px-2 sm:px-3">
         <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">
           Мои фильмы
@@ -470,10 +637,8 @@ export default function MyMoviesClient({
               ))}
             </div>
 
-            {/* Sentinel для infinite scroll */}
             <div ref={sentinelRef} className="h-4" />
 
-            {/* Индикатор загрузки */}
             {showLoadingSpinner && (
               <Loader size="small" />
             )}

@@ -302,3 +302,91 @@ export async function getUserGenres(userId: string): Promise<{ id: number; name:
     name: genreNames.get(id) || 'Неизвестно',
   })).sort((a, b) => a.name.localeCompare(b.name));
 }
+
+// Функция для обновления статуса просмотра (из рекомендаций)
+export async function updateWatchStatus(
+  userId: string,
+  tmdbId: number,
+  mediaType: 'movie' | 'tv',
+  newStatus: 'Просмотрено' | 'Пересмотрено',
+  rating?: number,
+  recommendationLogId?: string
+) {
+  // Находим или создаем запись в WatchList
+  let watchListEntry = await prisma.watchList.findUnique({
+    where: {
+      userId_tmdbId_mediaType: { userId, tmdbId, mediaType },
+    },
+  });
+
+  if (!watchListEntry) {
+    // Если записи нет, создаем новую
+    const tmdbData = await fetchMediaDetails(tmdbId, mediaType);
+    const status = await prisma.movieStatus.findUnique({
+      where: { name: newStatus },
+    });
+
+    if (!status) {
+      throw new Error(`Статус ${newStatus} не найден`);
+    }
+
+    watchListEntry = await prisma.watchList.create({
+      data: {
+        userId,
+        tmdbId,
+        mediaType,
+        title: tmdbData?.title || tmdbData?.name || 'Без названия',
+        voteAverage: tmdbData?.vote_average || 0,
+        statusId: status.id,
+        watchCount: 1,
+        watchedDate: new Date(),
+      },
+    });
+  } else {
+    // Обновляем существующую запись
+    const previousWatchCount = watchListEntry.watchCount;
+    await prisma.watchList.update({
+      where: { id: watchListEntry.id },
+      data: {
+        watchCount: previousWatchCount + 1,
+        watchedDate: new Date(),
+        // Если был статус "Хочу посмотреть" или "Брошено", меняем на "Просмотрено"
+        // Если уже был "Просмотрено", меняем на "Пересмотрено"
+        status: { connect: { name: newStatus } },
+      },
+    });
+  }
+
+  // Создаем запись в RewatchLog с ссылкой на рекомендацию
+  await prisma.rewatchLog.create({
+    data: {
+      userId,
+      tmdbId,
+      mediaType,
+      watchedAt: new Date(),
+      previousWatchCount: watchListEntry.watchCount,
+      recommendationLogId: recommendationLogId || null,
+    },
+  });
+
+  // Если оценка передана, создаем запись в RatingHistory
+  if (rating !== undefined) {
+    await prisma.ratingHistory.create({
+      data: {
+        userId,
+        tmdbId,
+        mediaType,
+        rating,
+        actionType: 'rewatch',
+      },
+    });
+
+    // Также обновляем userRating в WatchList
+    await prisma.watchList.update({
+      where: { id: watchListEntry.id },
+      data: { userRating: rating },
+    });
+  }
+
+  return { success: true };
+}

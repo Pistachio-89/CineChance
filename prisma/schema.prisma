@@ -17,13 +17,50 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  accounts Account[]
-  sessions Session[]
-  watchList     WatchList[]
-  blacklists    Blacklist[]
-  tags          Tag[]        // Теги, созданные пользователем
-  rewatchLogs   RewatchLog[]
-  ratingHistory RatingHistory[]
+  accounts            Account[]
+  sessions            Session[]
+  watchList           WatchList[]
+  blacklists          Blacklist[]
+  tags                Tag[]        // Теги, созданные пользователем
+  rewatchLogs         RewatchLog[]
+  ratingHistory       RatingHistory[]
+  recommendationLogs  RecommendationLog[]
+  recommendationSettings RecommendationSettings?
+}
+
+// Модель для логирования показов рекомендаций
+// Является единственным источником правды о взаимодействии пользователя с рекомендациями
+model RecommendationLog {
+  id          String   @id @default(cuid())
+  userId      String
+  tmdbId      Int
+  mediaType   String   // "movie" или "tv"
+  algorithm   String   // Версия алгоритма, например "random_v1", "smart_v2"
+  score       Float?   // Опциональный рассчитанный вес релевантности
+  action      String?  // Действие пользователя: 'shown', 'opened', 'skipped', 'watched', 'added_to_list'
+  context     Json?    // Контекст показа: время суток, устройство, сессия и т.д.
+  shownAt     DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewatchLogs RewatchLog[]  // Обратная связь для отслеживания просмотров из этой рекомендации
+
+  @@index([userId, shownAt])
+  @@index([userId, tmdbId, mediaType])
+}
+
+// Пользовательские настройки рекомендаций
+// Фундамент для персонализации алгоритма подбора
+model RecommendationSettings {
+  userId             String   @id
+  preferHighRating   Boolean  @default(true)   // Предпочитать фильмы с высоким рейтингом
+  avoidRewatches     Boolean  @default(false)  // Исключать пересмотры из рекомендаций
+  preferUnwatched    Boolean  @default(true)   // Приоритет непросмотренного контента
+  noveltyWeight      Float    @default(1.0)    // Вес новизны (1.0 = нейтрально)
+  randomnessWeight   Float    @default(1.0)    // Вес случайности (1.0 = нейтрально)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
@@ -97,22 +134,25 @@ model WatchList {
 
 // Таблица пересмотров фильмов
 model RewatchLog {
-  id                  String    @id @default(cuid())
-  userId              String
-  tmdbId              Int
-  mediaType           String
-  watchedAt           DateTime  @default(now()) // Дата пересмотра
-  ratingBefore        Float?    // Оценка до пересмотра
-  ratingAfter         Float?    // Оценка после пересмотра (если изменилась)
-  previousWatchCount  Int       // Счётчик просмотров до этого пересмотра
+  id                    String    @id @default(cuid())
+  userId                String
+  tmdbId                Int
+  mediaType             String
+  watchedAt             DateTime  @default(now()) // Дата пересмотра
+  ratingBefore          Float?    // Оценка до пересмотра
+  ratingAfter           Float?    // Оценка после пересмотра (если изменилась)
+  previousWatchCount    Int       // Счётчик просмотров до этого пересмотра
+  recommendationLogId   String?   // Ссылка на RecommendationLog, которая привела к просмотру
 
-  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  watchList           WatchList? @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
+  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchList             WatchList? @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
+  recommendation        RecommendationLog? @relation(fields: [recommendationLogId], references: [id])
 
   @@index([userId])
   @@index([tmdbId, mediaType])
   @@index([watchedAt])
   @@index([userId, watchedAt])
+  @@index([recommendationLogId])
 }
 
 // Таблица истории оценок

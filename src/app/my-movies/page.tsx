@@ -1,11 +1,16 @@
 // src/app/my-movies/page.tsx
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import MyMoviesClient from './MyMoviesClient';
 import { fetchMoviesByStatus, getMoviesCounts } from './actions';
 
-export default async function MyMoviesPage() {
+function MyMoviesContent() {
+  return <MyMoviesClientWrapper />;
+}
+
+async function MyMoviesClientWrapper() {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -40,5 +45,13 @@ export default async function MyMoviesPage() {
       counts={counts}
       userId={userId}
     />
+  );
+}
+
+export default function MyMoviesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-white">Загрузка...</p></div>}>
+      <MyMoviesContent />
+    </Suspense>
   );
 }
