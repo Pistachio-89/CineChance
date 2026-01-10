@@ -4,11 +4,25 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    const { email, password, name, birthDate } = await req.json();
+    const { email, password, name, birthDate, agreedToTerms } = await req.json();
 
-    if (!email || !password || !birthDate) {
+    if (!email || !password || !birthDate || !name) {
       return NextResponse.json(
-        { error: "Email, пароль и дата рождения обязательны" },
+        { error: "Email, пароль, никнейм и дата рождения обязательны" },
+        { status: 400 }
+      );
+    }
+
+    if (name.length < 2 || name.length > 30) {
+      return NextResponse.json(
+        { error: "Никнейм должен содержать от 2 до 30 символов" },
+        { status: 400 }
+      );
+    }
+
+    if (!agreedToTerms) {
+      return NextResponse.json(
+        { error: "Необходимо согласиться с Пользовательским соглашением" },
         { status: 400 }
       );
     }
@@ -35,6 +49,7 @@ export async function POST(req: Request) {
         name,
         hashedPassword,
         birthDate: birthDate ? new Date(birthDate) : null,
+        agreedToTerms: Boolean(agreedToTerms),
       },
     });
 

@@ -15,6 +15,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -43,7 +44,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, birthDate }),
+        body: JSON.stringify({ email, password, name, birthDate, agreedToTerms }),
       });
 
       const data = await res.json();
@@ -105,12 +106,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {mode === 'register' && (
               <>
                 <div className="mb-4">
-                  <label className="block text-sm font-medium mb-2">Имя (необязательно)</label>
+                  <label className="block text-sm font-medium mb-2 text-purple-400">Никнейм *</label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     className="w-full p-3 bg-gray-800 rounded-lg outline-none focus:ring-2 focus:ring-purple-500"
+                    required
+                    minLength={2}
+                    maxLength={30}
+                    placeholder="Придумайте никнейм"
                   />
                 </div>
 
@@ -151,16 +156,27 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             </div>
 
             {mode === 'register' && (
-              <p className="text-xs text-gray-500 mb-4 text-center">
-                Регистрируясь, вы соглашаетесь с{' '}
-                <button 
-                  type="button"
-                  onClick={() => setShowTerms(true)}
-                  className="text-purple-400 hover:text-purple-300 underline"
-                >
-                  Пользовательским соглашением
-                </button>
-              </p>
+              <div className="mb-4">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={agreedToTerms}
+                    onChange={(e) => setAgreedToTerms(e.target.checked)}
+                    className="mt-1 w-5 h-5 rounded border-gray-600 bg-gray-800 text-purple-600 focus:ring-purple-500 focus:ring-offset-gray-900 cursor-pointer flex-shrink-0"
+                    required
+                  />
+                  <span className="text-sm text-gray-400 leading-relaxed">
+                    Я даю согласие на обработку моих персональных данных и принимаю{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowTerms(true)}
+                      className="text-purple-400 hover:text-purple-300 underline"
+                    >
+                      Пользовательское соглашение
+                    </button>
+                  </span>
+                </label>
+              </div>
             )}
 
             <button
