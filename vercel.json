@@ -5,12 +5,8 @@
       "schedule": "0 4 * * *"
     },
     {
-      "path": "/api/recommendations/data-lifecycle/cleanup-signal",
+      "path": "/api/recommendations/data-lifecycle/weekly",
       "schedule": "0 3 * * 0"
-    },
-    {
-      "path": "/api/recommendations/data-lifecycle/cleanup-events",
-      "schedule": "0 5 * * *"
     }
   ]
 }
