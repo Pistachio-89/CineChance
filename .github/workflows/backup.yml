@@ -1,0 +1,92 @@
+name: Database Backup to GitHub Releases
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client gzip
+      
+      - name: Create database dump
+        id: dump
+        run: |
+          DATE=$(date +%Y%m%d)
+          FILENAME="cinechance_backup_${DATE}.sql.gz"
+          
+          pg_dump "${{ secrets.DATABASE_URL }}" | gzip > "$FILENAME"
+          
+          echo "Backup created: $FILENAME"
+          ls -lh "$FILENAME"
+          
+          # Сохраняем как step outputs
+          echo "file=$FILENAME" >> $GITHUB_OUTPUT
+          echo "tag=backup-$DATE" >> $GITHUB_OUTPUT
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          tag_name: ${{ steps.dump.outputs.tag }}
+          release_name: Database Backup ${{ steps.dump.outputs.tag }}
+          body: |
+            Автоматический бэкап базы данных CineChance
+            Дата: $(date '+%Y-%m-%d %H:%M:%S UTC')
+            Размер файла: $(ls -lh ${{ steps.dump.outputs.file }} | awk '{print $5}')
+          draft: false
+          prerelease: false
+      
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.dump.outputs.file }}
+          asset_name: ${{ steps.dump.outputs.file }}
+          asset_content_type: application/gzip
+      
+      - name: Clean old releases
+        run: |
+          DAYS_TO_KEEP=14
+          REPO="${{ github.repository }}"
+          
+          sudo apt-get install -y jq
+          
+          for release in $(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+            "https://api.github.com/repos/${REPO}/releases" | \
+            jq -r '.[] | select(.tag_name | startswith("backup-")) | .id'); do
+              
+            CREATED_AT=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+              "https://api.github.com/repos/${REPO}/releases/$release" | \
+              jq -r '.created_at')
+            
+            RELEASE_DATE=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -u -d "$CREATED_AT" +%s)
+            CURRENT_DATE=$(date +%s)
+            DAYS_OLD=$(( (CURRENT_DATE - RELEASE_DATE) / 86400 ))
+            
+            if [ $DAYS_OLD -gt $DAYS_TO_KEEP ]; then
+              echo "Deleting release $release (older than $DAYS_OLD days)"
+              curl -s -X DELETE -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+                "https://api.github.com/repos/${REPO}/releases/$release"
+            fi
+          done

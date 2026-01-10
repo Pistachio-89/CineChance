@@ -2,33 +2,25 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Sliders, Trash2, X, AlertTriangle, Loader2 } from 'lucide-react';
+import { Settings, Sliders, Trash2, X, AlertTriangle, Loader2, FileText } from 'lucide-react';
 import { deleteAccount } from '@/app/actions/deleteAccount';
+import TermsOfServiceModal from '@/app/components/TermsOfServiceModal';
 
 interface RecommendationSettings {
   trackingEnabled: boolean;
-  collectEvents: boolean;
-  useHistory: boolean;
-  showAdult: boolean;
   minRating: number;
-  diversityLevel: number;
-  preferNew: boolean;
 }
 
 export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [recSettings, setRecSettings] = useState<RecommendationSettings>({
     trackingEnabled: true,
-    collectEvents: true,
-    useHistory: true,
-    showAdult: false,
     minRating: 6,
-    diversityLevel: 50,
-    preferNew: false,
   });
 
   const handleDeleteAccount = async () => {
@@ -79,24 +71,21 @@ export default function SettingsPage() {
               checked={recSettings.trackingEnabled}
               onChange={(v) => setRecSettings({ ...recSettings, trackingEnabled: v })}
             />
-            <ToggleSetting
-              title="Использовать историю"
-              description="Учитывать историю просмотров для рекомендаций"
-              checked={recSettings.useHistory}
-              onChange={(v) => setRecSettings({ ...recSettings, useHistory: v })}
-            />
-            <ToggleSetting
-              title="Предпочитать новинки"
-              description="Рекомендовать более новые фильмы"
-              checked={recSettings.preferNew}
-              onChange={(v) => setRecSettings({ ...recSettings, preferNew: v })}
-            />
-            <ToggleSetting
-              title="Взрослый контент"
-              description="Показывать рекомендации с возрастным рейтингом 18+"
-              checked={recSettings.showAdult}
-              onChange={(v) => setRecSettings({ ...recSettings, showAdult: v })}
-            />
+            
+            {/* Пользовательское соглашение */}
+            <div className="flex items-center justify-between py-3">
+              <div>
+                <p className="text-white font-medium">Пользовательское соглашение</p>
+                <p className="text-gray-500 text-sm">Просмотр условий использования сервиса</p>
+              </div>
+              <button
+                onClick={() => setShowTermsModal(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition"
+              >
+                <FileText className="w-4 h-4" />
+                Открыть
+              </button>
+            </div>
           </div>
 
           {/* Ползунок - Минимальный рейтинг */}
@@ -118,30 +107,6 @@ export default function SettingsPage() {
               <span>1</span>
               <span>5</span>
               <span>10</span>
-            </div>
-          </div>
-
-          {/* Ползунок - Разнообразие */}
-          <div className="p-4 bg-gray-800/50 rounded-lg">
-            <div className="flex justify-between mb-3">
-              <label className="text-white font-medium">Разнообразие</label>
-              <span className="text-blue-400 font-medium">
-                {recSettings.diversityLevel < 33 ? 'Похожее' : recSettings.diversityLevel < 66 ? 'Сбалансировано' : 'Разное'}
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="10"
-              value={recSettings.diversityLevel}
-              onChange={(e) => setRecSettings({ ...recSettings, diversityLevel: parseInt(e.target.value) })}
-              className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
-            <div className="flex justify-between mt-2 text-xs text-gray-500">
-              <span>Похожее</span>
-              <span>Сбалансировано</span>
-              <span>Разное</span>
             </div>
           </div>
 
@@ -181,7 +146,7 @@ export default function SettingsPage() {
       </div>
 
       {/* Опасная зона */}
-      <div className="bg-gray-900 rounded-xl p-6 border border-red-800/30">
+      <div className="bg-gray-900 rounded-xl p-6 border-red-800/30">
         <h3 className="text-lg font-semibold text-red-400 mb-4">Опасная зона</h3>
         <p className="text-gray-400 text-sm mb-4">
           Эти действия нельзя отменить. Будьте внимательны.
@@ -291,6 +256,9 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* Модальное окно пользовательского соглашения */}
+      <TermsOfServiceModal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // src/app/profile/monitoring/page.tsx
 import RecommendationStats from '@/app/components/RecommendationStats';
-import { Activity, Database, Clock, AlertTriangle } from 'lucide-react';
+import { Activity, Database, Clock } from 'lucide-react';
 
 export default function MonitoringPage() {
   return (
@@ -85,29 +85,6 @@ export default function MonitoringPage() {
             <span className="px-3 py-1 bg-green-400/10 text-green-400 rounded-full text-xs border border-green-400/30">
               Активна
             </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Индикаторы */}
-      <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-        <div className="flex items-center gap-3 mb-6">
-          <AlertTriangle className="w-5 h-5 text-blue-400" />
-          <h3 className="text-lg font-semibold text-white">Индикаторы статуса</h3>
-        </div>
-        
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-green-400/10 rounded-lg border border-green-400/30">
-            <p className="text-2xl font-bold text-green-400">OK</p>
-            <p className="text-gray-400 text-sm">Система работает</p>
-          </div>
-          <div className="text-center p-4 bg-yellow-400/10 rounded-lg border border-yellow-400/30">
-            <p className="text-2xl font-bold text-yellow-400">Внимание</p>
-            <p className="text-gray-400 text-sm">Требуется проверка</p>
-          </div>
-          <div className="text-center p-4 bg-red-400/10 rounded-lg border border-red-400/30">
-            <p className="text-2xl font-bold text-red-400">Критично</p>
-            <p className="text-gray-400 text-sm">Немедленное внимание</p>
           </div>
         </div>
       </div>

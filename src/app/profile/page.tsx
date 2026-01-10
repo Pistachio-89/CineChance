@@ -52,11 +52,9 @@ export default async function ProfilePage() {
               {userName}
             </h3>
             <p className="text-gray-400">{userEmail}</p>
-            {formattedBirthDate && (
-              <p className="text-gray-500 text-sm mt-1">
-                Дата рождения: <span className="text-gray-300">{formattedBirthDate}</span>
-              </p>
-            )}
+            <p className="text-gray-500 text-sm mt-1">
+              Дата рождения: <span className="text-gray-300">{formattedBirthDate || '-'}</span>
+            </p>
           </div>
         </div>
       </div>
