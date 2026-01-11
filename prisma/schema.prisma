@@ -41,9 +41,34 @@ model User {
   predictions         PredictionLog[]
   userEmbedding       UserEmbedding?
 
+  // Приглашения
+  sentInvitations     Invitation[] @relation("InvitedBy")
+  usedInvitations     Invitation[] @relation("UsedBy")
+
   @@index([updatedAt])
   @@index([createdAt])
   @@index([email])
+}
+
+// Модель приглашений на регистрацию
+model Invitation {
+  id          String    @id @default(cuid())
+  email       String    // Email, на который отправлено приглашение
+  token       String    @unique // Уникальный токен приглашения
+  expiresAt   DateTime  // Срок действия приглашения
+  createdAt   DateTime  @default(now())
+  usedAt      DateTime? // Когда было использовано
+  usedById    String?   // Кем было использовано
+
+  // Связи
+  createdById String    // Кто создал приглашение
+  createdBy   User      @relation("InvitedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  usedBy      User?     @relation("UsedBy", fields: [usedById], references: [id])
+
+  @@index([email])
+  @@index([token])
+  @@index([createdById])
+  @@index([expiresAt])
 }
 
 // Модель для логирования показов рекомендаций

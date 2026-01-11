@@ -1,15 +1,17 @@
 'use client';
 
 import { signIn } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import TermsOfServiceModal from './TermsOfServiceModal';
 
 type AuthModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialEmail?: string;
+  inviteCode?: string;
 };
 
-export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, initialEmail = '', inviteCode = '' }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,6 +21,21 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+
+  // Установка начальных значений при открытии модального окна
+  useEffect(() => {
+    if (isOpen) {
+      if (initialEmail) {
+        setEmail(initialEmail);
+        // Если есть inviteCode, переключаем в режим регистрации
+        if (inviteCode) {
+          setMode('register');
+        }
+      }
+      // Сбрасываем ошибку при открытии
+      setError('');
+    }
+  }, [isOpen, initialEmail, inviteCode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,10 +58,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         window.location.reload();
       }
     } else {
+      // Передаем inviteToken если пользователь регистрируется по приглашению
+      const signupData = {
+        email,
+        password,
+        name,
+        birthDate,
+        agreedToTerms,
+        ...(inviteCode && { inviteToken: inviteCode }),
+      };
+
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, name, birthDate, agreedToTerms }),
+        body: JSON.stringify(signupData),
       });
 
       const data = await res.json();

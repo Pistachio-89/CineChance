@@ -20,65 +20,121 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client gzip
       
+      - name: Debug - Show connection info
+        run: |
+          echo "=== Database Connection Debug ==="
+          echo "DATABASE_URL is set: ${{ secrets.DATABASE_URL != '' }}"
+          # Показываем только хост для диагностики, без кредов
+          HOST=$(echo "${{ secrets.DATABASE_URL }}" | sed -n 's/.*@\([^/]*\).*/\1/p')
+          echo "Host: $HOST"
+          echo "================================"
+      
+      - name: Test database connection
+        run: |
+          echo "=== Testing database connection ==="
+          # Пробуем подключиться без выполнения команд
+          pg_isready -d "${{ secrets.DATABASE_URL }}" || echo "Connection test returned: $?"
+          echo "===================================="
+      
       - name: Create database dump
         id: dump
         run: |
           DATE=$(date +%Y%m%d)
           FILENAME="cinechance_backup_${DATE}.sql.gz"
           
-          pg_dump "${{ secrets.DATABASE_URL }}" | gzip > "$FILENAME"
+          echo "=== Starting dump ==="
+          echo "Output file: $FILENAME"
           
-          echo "Backup created: $FILENAME"
-          ls -lh "$FILENAME"
+          # Запускаем дамп с максимальной диагностикой
+          set -x
+          pg_dump "${{ secrets.DATABASE_URL }}" 2>&1 | tee /tmp/dump_stdout.log | gzip > "$FILENAME"
+          DUMP_EXIT=${PIPESTATUS[0]}
+          GZIP_EXIT=${PIPESTATUS[1]}
+          set +x
           
-          # Сохраняем как step outputs
+          echo "=== Dump completed ==="
+          echo "pg_dump exit code: $DUMP_EXIT"
+          echo "gzip exit code: $GZIP_EXIT"
+          
+          if [ -f "$FILENAME" ]; then
+            echo "File created: $FILENAME"
+            ls -lh "$FILENAME"
+            FILE_SIZE=$(stat -c%s "$FILENAME")
+            echo "File size bytes: $FILE_SIZE"
+            
+            if [ $FILE_SIZE -gt 100 ]; then
+              echo "File size is OK (>100 bytes)"
+            else
+              echo "WARNING: File too small, might be empty or error page"
+            fi
+          else
+            echo "ERROR: File was not created!"
+          fi
+          
+          cat /tmp/dump_stdout.log | head -20
+          echo "=== End of dump log ==="
+          
           echo "file=$FILENAME" >> $GITHUB_OUTPUT
           echo "tag=backup-$DATE" >> $GITHUB_OUTPUT
       
-      - name: Configure Git
+      - name: Install gh CLI
+        run: sudo apt-get install -y gh
+      
+      - name: Configure gh
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "${{ secrets.GH_TOKEN }}" | gh auth login --with-token
+          gh api user
       
       - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          tag_name: ${{ steps.dump.outputs.tag }}
-          release_name: Database Backup ${{ steps.dump.outputs.tag }}
-          body: |
-            Автоматический бэкап базы данных CineChance
-            Дата: $(date '+%Y-%m-%d %H:%M:%S UTC')
-            Размер файла: $(ls -lh ${{ steps.dump.outputs.file }} | awk '{print $5}')
-          draft: false
-          prerelease: false
+        run: |
+          FILE_SIZE=$(ls -lh "${{ steps.dump.outputs.file }}" | awk '{print $5}')
+          DATE_TIME=$(date '+%Y-%m-%d %H:%M:%S UTC')
+          TAG="${{ steps.dump.outputs.tag }}"
+          
+          echo "Creating release with tag: $TAG"
+          
+          echo "Автоматический бэкап базы данных CineChance - Дата: ${DATE_TIME} - Размер: ${FILE_SIZE}" > /tmp/release_notes.txt
+          
+          gh release create "$TAG" \
+            --title "Database Backup $TAG" \
+            --notes-file /tmp/release_notes.txt \
+            --repo "${{ github.repository }}"
+          
+          echo "Release created successfully"
+      
+      - name: Verify release exists
+        run: |
+          TAG="${{ steps.dump.outputs.tag }}"
+          echo "Checking if release exists: $TAG"
+          gh release view "$TAG" --repo "${{ github.repository }}" || echo "Release not found!"
       
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ${{ steps.dump.outputs.file }}
-          asset_name: ${{ steps.dump.outputs.file }}
-          asset_content_type: application/gzip
+        run: |
+          TAG="${{ steps.dump.outputs.tag }}"
+          FILE="${{ steps.dump.outputs.file }}"
+          
+          echo "Uploading $FILE to release $TAG"
+          ls -lh "$FILE"
+          
+          gh release upload "$TAG" "$FILE" \
+            --repo "${{ github.repository }}"
+          
+          echo "Upload completed"
+      
+      - name: Verify upload
+        run: |
+          TAG="${{ steps.dump.outputs.tag }}"
+          echo "Verifying release assets for: $TAG"
+          gh release view "$TAG" --repo "${{ github.repository }}" --json assets -q '.assets[].name'
       
       - name: Clean old releases
         run: |
           DAYS_TO_KEEP=14
-          REPO="${{ github.repository }}"
           
-          sudo apt-get install -y jq
+          echo "Checking for releases older than $DAYS_TO_KEEP days..."
           
-          for release in $(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-            "https://api.github.com/repos/${REPO}/releases" | \
-            jq -r '.[] | select(.tag_name | startswith("backup-")) | .id'); do
-              
-            CREATED_AT=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-              "https://api.github.com/repos/${REPO}/releases/$release" | \
-              jq -r '.created_at')
+          for release in $(gh release list --repo "${{ github.repository }}" --json createdAt,tagName -q '.[] | select(.tagName | startswith("backup-")) | .tagName'); do
+            CREATED_AT=$(gh release view "$release" --repo "${{ github.repository }}" --json createdAt -q '.createdAt')
             
             RELEASE_DATE=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -u -d "$CREATED_AT" +%s)
             CURRENT_DATE=$(date +%s)
@@ -86,7 +142,8 @@ jobs:
             
             if [ $DAYS_OLD -gt $DAYS_TO_KEEP ]; then
               echo "Deleting release $release (older than $DAYS_OLD days)"
-              curl -s -X DELETE -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
-                "https://api.github.com/repos/${REPO}/releases/$release"
+              gh release delete "$release" --repo "${{ github.repository }}" --yes
+            else
+              echo "Keeping release $release ($DAYS_OLD days old)"
             fi
           done
