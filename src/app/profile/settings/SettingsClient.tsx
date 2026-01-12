@@ -94,22 +94,12 @@ export default function SettingsClient() {
           <h3 className="text-lg font-semibold text-white">Очистка данных</h3>
         </div>
 
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-800/50 rounded-lg">
-            <p className="text-gray-400 text-sm mb-3">История рекомендаций</p>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 rounded-lg text-red-400 text-sm transition">
-              <Trash2 className="w-4 h-4" />
-              Очистить историю рекомендаций
-            </button>
-          </div>
-
-          <div className="p-4 bg-gray-800/50 rounded-lg">
-            <p className="text-gray-400 text-sm mb-3">История просмотров</p>
-            <button className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 rounded-lg text-red-400 text-sm transition">
-              <Trash2 className="w-4 h-4" />
-              Очистить историю просмотров
-            </button>
-          </div>
+        <div className="p-4 bg-gray-800/50 rounded-lg">
+          <p className="text-gray-400 text-sm mb-3">История рекомендаций</p>
+          <button className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-900/70 rounded-lg text-red-400 text-sm transition">
+            <Trash2 className="w-4 h-4" />
+            Очистить историю рекомендаций
+          </button>
         </div>
       </div>
 

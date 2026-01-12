@@ -107,20 +107,40 @@ export default function ProfileOverviewClient({
         </div>
       </div>
 
-      {/* Сбор данных и Пользовательское соглашение */}
+      {/* Сбор данных и Пользовательское соглашение - ИСПРАВЛЕНО */}
       <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-6 border border-gray-800">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white font-medium text-sm md:text-base">Сбор данных</p>
-            <p className="text-gray-500 text-xs md:text-sm">Разрешён сбор событий взаимодействия</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 md:gap-4">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <p className="text-white font-medium text-sm md:text-base">Сбор данных</p>
+            </div>
+            <p className="text-gray-500 text-xs md:text-sm">
+              Разрешён сбор событий взаимодействия
+            </p>
           </div>
+          
           <button
             onClick={() => setShowTermsModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition"
+            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white text-sm transition w-full sm:w-auto"
           >
-            <FileText className="w-4 h-4" />
-            Открыть соглашение
+            <FileText className="w-4 h-4 flex-shrink-0" />
+            <span>Открыть соглашение</span>
           </button>
+        </div>
+        
+        {/* Дополнительная информация на мобильных */}
+        <div className="mt-3 pt-3 border-t border-gray-800 sm:hidden">
+          <div className="flex items-start gap-2">
+            <div className="w-5 h-5 rounded bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <p className="text-gray-400 text-xs">
+              Мы собираем только данные о взаимодействиях с сервисом для улучшения рекомендаций
+            </p>
+          </div>
         </div>
       </div>
 
