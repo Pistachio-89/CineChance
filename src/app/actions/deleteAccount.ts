@@ -3,7 +3,7 @@
 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/auth';
 import { redirect } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 
@@ -17,6 +17,15 @@ export async function deleteAccount() {
   const userId = session.user.id;
 
   try {
+    // Сначала проверяем, существует ли пользователь
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return { success: false, error: 'Пользователь не найден' };
+    }
+
     // Удаляем все связанные данные пользователя в правильном порядке
     // (из-за foreign key constraints)
     
@@ -65,7 +74,53 @@ export async function deleteAccount() {
       where: { userId },
     });
 
-    // 10. Удаляем самого пользователя
+    // 10. Удаляем эмбединги пользователя
+    await prisma.userEmbedding.deleteMany({
+      where: { userId },
+    });
+
+    // 11. Удаляем теги пользователя
+    await prisma.tag.deleteMany({
+      where: { userId },
+    });
+
+    // 12. Удаляем логи пересмотров
+    await prisma.rewatchLog.deleteMany({
+      where: { userId },
+    });
+
+    // 13. Удаляем историю оценок
+    await prisma.ratingHistory.deleteMany({
+      where: { userId },
+    });
+
+    // 14. Удаляем настройки рекомендаций
+    await prisma.recommendationSettings.deleteMany({
+      where: { userId },
+    });
+
+    // 15. Удаляем приглашения, созданные пользователем
+    await prisma.invitation.deleteMany({
+      where: { createdById: userId },
+    });
+
+    // 16. Удаляем аккаунты (NextAuth)
+    await prisma.account.deleteMany({
+      where: { userId },
+    });
+
+    // 17. Удаляем сессии (NextAuth)
+    await prisma.session.deleteMany({
+      where: { userId },
+    });
+
+    // 18. Удаляем приглашения, использованные пользователем
+    await prisma.invitation.updateMany({
+      where: { usedById: userId },
+      data: { usedById: null },
+    });
+
+    // 19. Удаляем самого пользователя
     await prisma.user.delete({
       where: { id: userId },
     });
@@ -78,7 +133,9 @@ export async function deleteAccount() {
     console.error('Ошибка удаления аккаунта:', error);
     return { 
       success: false, 
-      error: 'Не удалось удалить аккаунт. Попробуйте позже.' 
+      error: error instanceof Error && error.message.includes('P2025')
+        ? 'Аккаунт уже удалён'
+        : 'Не удалось удалить аккаунт. Попробуйте позже.' 
     };
   }
 }
