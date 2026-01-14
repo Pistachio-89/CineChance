@@ -1,7 +1,7 @@
 // src/app/actions/tagsActions.ts
 'use server';
 
-import { prisma } from '@/auth';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { revalidatePath } from 'next/cache';

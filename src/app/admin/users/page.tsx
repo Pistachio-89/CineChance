@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import AdminSidebar from "../AdminSidebar";
 import { Users, Calendar, Mail, Shield } from 'lucide-react';
 

@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import { prisma } from '@/auth';
+import { prisma } from '@/lib/prisma';
 import { Media } from '@/lib/tmdb';
 
 type StatusType = 'wantToWatch' | 'watched' | 'dropped' | null;

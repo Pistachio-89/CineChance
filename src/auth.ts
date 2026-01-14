@@ -3,29 +3,7 @@ import { NextAuthOptions, getServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
-import { PrismaClient } from "@prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { neon } from "@neondatabase/serverless";
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is not set");
-}
-
-const sql = neon(process.env.DATABASE_URL);
-const adapter = new PrismaNeon(sql);
-
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
-
-export const prisma =
-  globalForPrisma.prisma ||
-  new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"],
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-}
+import { prisma } from "@/lib/prisma";
 
 // Секретный ключ для JWT — обязателен!
 const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET;
