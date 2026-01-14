@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/logger';
 
 // Типы для возвращаемых данных
 export interface TagData {
@@ -79,7 +80,10 @@ export async function getUserTags(userId: string): Promise<UserTagsResult> {
 
     return { success: true, data: tags };
   } catch (error) {
-    console.error('Error fetching user tags:', error);
+    logger.error('Error fetching user tags', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при получении тегов' };
   }
 }
@@ -130,7 +134,10 @@ export async function getMovieTags(
 
     return { success: true, data: tags };
   } catch (error) {
-    console.error('Error fetching movie tags:', error);
+    logger.error('Error fetching movie tags', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при получении тегов фильма' };
   }
 }
@@ -228,7 +235,10 @@ export async function addTagsToMovie(
 
     return { success: true, data: result };
   } catch (error) {
-    console.error('Error adding tags to movie:', error);
+    logger.error('Error adding tags to movie', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при добавлении тегов' };
   }
 }
@@ -306,7 +316,10 @@ export async function removeTagsFromMovie(
 
     return { success: true, data: [] };
   } catch (error) {
-    console.error('Error removing tags from movie:', error);
+    logger.error('Error removing tags from movie', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при удалении тегов' };
   }
 }
@@ -350,7 +363,10 @@ export async function searchUserTags(
 
     return { success: true, data: tags };
   } catch (error) {
-    console.error('Error searching tags:', error);
+    logger.error('Error searching tags', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при поиске тегов' };
   }
 }
@@ -399,7 +415,10 @@ export async function getMoviesByTags(
 
     return { success: true, data: movies };
   } catch (error) {
-    console.error('Error fetching movies by tags:', error);
+    logger.error('Error fetching movies by tags', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при получении фильмов' };
   }
 }
@@ -434,7 +453,10 @@ export async function getMovieNote(
 
     return { success: true, data: watchListItem?.note || '' };
   } catch (error) {
-    console.error('Error fetching movie note:', error);
+    logger.error('Error fetching movie note', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при получении заметки' };
   }
 }
@@ -475,7 +497,10 @@ export async function updateMovieNote(
 
     return { success: true };
   } catch (error) {
-    console.error('Error updating movie note:', error);
+    logger.error('Error updating movie note', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'TagsActions'
+    });
     return { success: false, error: 'Ошибка при сохранении заметки' };
   }
 }

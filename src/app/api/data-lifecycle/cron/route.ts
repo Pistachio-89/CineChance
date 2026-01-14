@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * Cron endpoint for daily data lifecycle cleanup
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
   const expectedSecret = process.env.CRON_SECRET;
   
   if (expectedSecret && authHeader !== `Bearer ${expectedSecret}`) {
-    console.error('Unauthorized cron access attempt');
+    logger.warn('Unauthorized cron access attempt', { context: 'Cron' });
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -54,11 +55,11 @@ export async function GET(request: NextRequest) {
       try {
         const deleted = await deleteOldRecords(table, dateField, cutoff);
         results[table] = { deleted };
-        console.log(`Cleaned ${deleted} records from ${table} (older than ${days} days)`);
+        logger.info('Daily cleanup completed', { table, deleted, days, context: 'Cron' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results[table] = { deleted: 0, error: errorMessage };
-        console.error(`Error cleaning ${table}:`, error);
+        logger.error('Error cleaning table', { table, error: errorMessage, context: 'Cron' });
       }
     }
 
@@ -72,7 +73,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Cron cleanup failed:', error);
+    logger.error('Cron cleanup failed', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Cron'
+    });
     return NextResponse.json(
       { success: false, error: 'Cleanup failed' },
       { status: 500 }

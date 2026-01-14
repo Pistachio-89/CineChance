@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/recommendations/[id]/action
@@ -110,7 +111,10 @@ export async function POST(
       logId: updatedLog.id,
     });
   } catch (error) {
-    console.error('Recommendation action error:', error);
+    logger.error('Recommendation action error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Ошибка при записи действия' },
       { status: 500 }
@@ -172,7 +176,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Get recommendation log error:', error);
+    logger.error('Get recommendation log error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Ошибка при получении записи' },
       { status: 500 }

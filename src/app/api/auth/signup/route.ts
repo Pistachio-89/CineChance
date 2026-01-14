@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
 
@@ -6,10 +7,11 @@ export async function POST(req: Request) {
   try {
     const { email, password, name, birthDate, agreedToTerms, inviteToken } = await req.json();
 
-    console.log('[SIGNUP] Request received:', { 
+    logger.debug('SIGNUP: Request received', { 
       email, 
       hasInviteToken: !!inviteToken,
-      inviteToken: inviteToken ? inviteToken.substring(0, 20) + '...' : null 
+      inviteToken: inviteToken ? inviteToken.substring(0, 20) + '...' : null,
+      context: 'Auth'
     });
 
     if (!email || !password || !birthDate) {
@@ -37,16 +39,15 @@ export async function POST(req: Request) {
     // Валидация приглашения, если токен предоставлен
     let invitation = null;
     if (inviteToken) {
-      console.log('[SIGNUP] Looking up invitation with token...');
+      logger.debug('SIGNUP: Looking up invitation with token', { context: 'Auth' });
       invitation = await prisma.invitation.findUnique({
         where: { token: inviteToken },
       });
-      console.log('[SIGNUP] Invitation found:', invitation ? { 
-        id: invitation.id, 
-        email: invitation.email, 
-        usedAt: invitation.usedAt,
-        expiresAt: invitation.expiresAt 
-      } : 'NOT FOUND');
+      logger.debug('SIGNUP: Invitation lookup result', { 
+        found: !!invitation,
+        invitationId: invitation?.id,
+        context: 'Auth'
+      });
 
       if (!invitation) {
         return NextResponse.json(
@@ -71,9 +72,10 @@ export async function POST(req: Request) {
 
       // Проверяем, что email совпадает с приглашением
       if (invitation.email.toLowerCase() !== email.toLowerCase()) {
-        console.log('[SIGNUP] Email mismatch:', { 
+        logger.debug('SIGNUP: Email mismatch', { 
           invitationEmail: invitation.email, 
-          submittedEmail: email 
+          submittedEmail: email,
+          context: 'Auth'
         });
         return NextResponse.json(
           { error: "Email не соответствует приглашению" },
@@ -81,7 +83,7 @@ export async function POST(req: Request) {
         );
       }
       
-      console.log('[SIGNUP] Invitation validation passed, proceeding to create user');
+      logger.debug('SIGNUP: Invitation validation passed, proceeding to create user', { context: 'Auth' });
     }
 
     // 1️⃣ Проверка существующего пользователя
@@ -100,7 +102,7 @@ export async function POST(req: Request) {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // 3️⃣ Создаём пользователя
-    console.log('[SIGNUP] Creating user...');
+    logger.debug('SIGNUP: Creating user', { context: 'Auth' });
     const user = await prisma.user.create({
       data: {
         email,
@@ -112,11 +114,11 @@ export async function POST(req: Request) {
         emailVerified: inviteToken ? new Date() : null,
       },
     });
-    console.log('[SIGNUP] User created:', { userId: user.id, email: user.email });
+    logger.info('SIGNUP: User created', { userId: user.id, email: user.email, context: 'Auth' });
 
     // 4️⃣ Если было приглашение, помечаем его как использованное
     if (inviteToken && invitation) {
-      console.log('[SIGNUP] Marking invitation as used...');
+      logger.debug('SIGNUP: Marking invitation as used', { context: 'Auth' });
       const updated = await prisma.invitation.update({
         where: { token: inviteToken },
         data: {
@@ -124,10 +126,11 @@ export async function POST(req: Request) {
           usedById: user.id,
         },
       });
-      console.log('[SIGNUP] Invitation marked as used:', { 
+      logger.debug('SIGNUP: Invitation marked as used', { 
         invitationId: updated.id, 
         usedAt: updated.usedAt,
-        usedById: updated.usedById 
+        usedById: updated.usedById,
+        context: 'Auth'
       });
     }
 
@@ -136,7 +139,10 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("SIGNUP ERROR:", error);
+    logger.error('SIGNUP: Error during registration', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Auth'
+    });
 
     return NextResponse.json(
       { error: "Internal server error" },

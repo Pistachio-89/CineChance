@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ContextualFactors, CorrectiveAction } from '@/lib/recommendation-types';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для записи негативной обратной связи от пользователя
@@ -113,7 +114,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error recording negative feedback:', error);
+    logger.error('Error recording negative feedback', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
 
     // Обработка ошибок Prisma
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
@@ -182,7 +186,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching negative feedback:', error);
+    logger.error('Error fetching negative feedback', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to fetch feedback' },
       { status: 500 }
@@ -233,7 +240,10 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating negative feedback:', error);
+    logger.error('Error updating negative feedback', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to update feedback' },
       { status: 500 }

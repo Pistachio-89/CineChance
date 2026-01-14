@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ElementContext, SignalTemporalContext, PredictedIntent } from '@/lib/recommendation-types';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для записи неявных сигналов намерений пользователя
@@ -86,7 +87,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error recording intent signal:', error);
+    logger.error('Error recording intent signal', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
 
     // Обработка ошибок Prisma
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
@@ -157,7 +161,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching intent signals:', error);
+    logger.error('Error fetching intent signals', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to fetch signals' },
       { status: 500 }
@@ -206,7 +213,10 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating intent signals:', error);
+    logger.error('Error updating intent signals', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to update signals' },
       { status: 500 }

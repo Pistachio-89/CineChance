@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint for recommendation system statistics
@@ -73,7 +74,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Stats error:', error);
+    logger.error('Stats error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { success: false, error: 'Failed to fetch stats' },
       { status: 500 }

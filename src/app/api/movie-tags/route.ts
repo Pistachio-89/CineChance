@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   try {
@@ -46,7 +47,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, data: watchListItem.tags });
   } catch (error) {
-    console.error('Error fetching movie tags:', error);
+    logger.error('Error fetching movie tags', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'MovieTags'
+    });
     return NextResponse.json({ success: false, error: 'Ошибка сервера' }, { status: 500 });
   }
 }

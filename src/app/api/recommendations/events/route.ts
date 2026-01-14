@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { RecommendationEventData, FilterChangeEventData, ActionClickEventData, HoverEventData } from '@/lib/recommendation-types';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для записи событий взаимодействия с рекомендациями
@@ -91,7 +92,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error recording recommendation event:', error);
+    logger.error('Error recording recommendation event', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
 
     // Обработка ошибок Prisma
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
@@ -157,7 +161,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching recommendation events:', error);
+    logger.error('Error fetching recommendation events', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to fetch events' },
       { status: 500 }

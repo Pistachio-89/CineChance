@@ -1,5 +1,6 @@
 // src/app/api/person/[id]/route.ts
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   request: Request,
@@ -89,7 +90,10 @@ export async function GET(
       filmography,
     });
   } catch (error) {
-    console.error('Person API error:', error);
+    logger.error('Person API error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Person'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для логирования ML-предсказаний
@@ -89,7 +90,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error logging prediction:', error);
+    logger.error('Error logging prediction', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
 
     // Обработка ошибок Prisma
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
@@ -165,7 +169,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching predictions:', error);
+    logger.error('Error fetching predictions', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to fetch predictions' },
       { status: 500 }
@@ -207,7 +214,10 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating prediction:', error);
+    logger.error('Error updating prediction', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to update prediction' },
       { status: 500 }
@@ -257,7 +267,10 @@ export async function PUT(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error calculating accuracy:', error);
+    logger.error('Error calculating accuracy', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to calculate accuracy' },
       { status: 500 }

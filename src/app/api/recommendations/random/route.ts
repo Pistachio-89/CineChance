@@ -4,6 +4,7 @@ import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { fetchMediaDetails } from '@/lib/tmdb';
 import { shouldFilterAdult } from '@/lib/age-utils';
+import { logger } from '@/lib/logger';
 import {
   FiltersSnapshot,
   CandidatePoolMetrics,
@@ -618,7 +619,10 @@ export async function GET(req: Request) {
       message: 'Рекомендация получена',
     });
   } catch (error) {
-    console.error('Recommendations API error:', error);
+    logger.error('Recommendations API error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { success: false, message: 'Ошибка при получении рекомендации', movie: null },
       { status: 500 }

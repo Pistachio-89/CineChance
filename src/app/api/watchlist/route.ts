@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 // Маппинг: Код клиента -> Название в БД
 const STATUS_TO_DB: Record<string, string> = {
@@ -62,7 +63,10 @@ export async function GET(req: Request) {
       watchCount: record?.watchCount || 0,
     });
   } catch (error) {
-    console.error('WatchList GET error:', error);
+    logger.error('WatchList GET error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Watchlist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -330,7 +334,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, record });
   } catch (error) {
-    console.error('WatchList POST error:', error);
+    logger.error('WatchList POST error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Watchlist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -361,7 +368,10 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('WatchList DELETE error:', error);
+    logger.error('WatchList DELETE error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Watchlist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

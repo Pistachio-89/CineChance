@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/recommendations/reset-logs
@@ -27,7 +28,10 @@ export async function POST(req: Request) {
       message: `Удалено ${deletedCount.count} записей истории рекомендаций`,
     });
   } catch (error) {
-    console.error('Reset logs error:', error);
+    logger.error('Reset logs error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Ошибка при сбросе истории' },
       { status: 500 }

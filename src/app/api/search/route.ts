@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { isUnder18 } from '@/lib/age-utils';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -461,7 +462,10 @@ export async function GET(request: Request) {
       });
     }
   } catch (error) {
-    console.error('Search API error:', error);
+    logger.error('Search API error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Search'
+    });
     return NextResponse.json({ results: [], totalPages: 1, totalResults: 0 });
   }
 }

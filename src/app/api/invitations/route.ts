@@ -93,7 +93,7 @@ export async function POST(req: Request) {
       logger.warn(`[INVITE] Email не отправлен для ${email}, но приглашение создано`);
     }
 
-    logger.info(`[INVITE] Created invite for ${email}: ${inviteLink} (email sent: ${emailSent})`);
+    logger.info('Created invite', { email, inviteLink, emailSent, context: 'Invitations' });
 
     return NextResponse.json(
       {
@@ -109,7 +109,10 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error) {
-    console.error("CREATE INVITE ERROR:", error);
+    logger.error('Error creating invite', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Invitations'
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -196,7 +199,10 @@ export async function GET(req: Request) {
       { status: 400 }
     );
   } catch (error) {
-    console.error("GET INVITE ERROR:", error);
+    logger.error('Error getting invite', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Invitations'
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

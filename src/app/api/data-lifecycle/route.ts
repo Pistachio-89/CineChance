@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для очистки старых данных и управления жизненным циклом
@@ -61,7 +62,10 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error in data cleanup:', error);
+    logger.error('Error in data cleanup', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'DataLifecycle'
+    });
     return NextResponse.json(
       { error: 'Failed to cleanup data' },
       { status: 500 }
@@ -217,7 +221,7 @@ async function aggregateNegativeFeedback(cutoffDate: Date) {
 
   // Здесь можно обновить статистику пользователя
   // Пока просто логируем
-  console.log('Aggregated negative feedback stats:', feedbackStats);
+  logger.info('Aggregated negative feedback stats', { stats: feedbackStats, context: 'DataLifecycle' });
 }
 
 /**
@@ -237,7 +241,7 @@ async function aggregateUserSessions(cutoffDate: Date) {
     },
   });
 
-  console.log('Aggregated session stats:', sessionStats);
+  logger.info('Aggregated session stats', { stats: sessionStats, context: 'DataLifecycle' });
 }
 
 /**
@@ -299,7 +303,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error getting data lifecycle status:', error);
+    logger.error('Error getting data lifecycle status', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'DataLifecycle'
+    });
     return NextResponse.json(
       { error: 'Failed to get status' },
       { status: 500 }

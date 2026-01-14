@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 /**
  * Weekly cron endpoint for data lifecycle cleanup
@@ -47,11 +48,11 @@ export async function GET(request: NextRequest) {
 
         const deleted = await deleteOldRecords(table, dateField, cutoff);
         results[table] = { deleted, aggregated: false };
-        console.log(`Weekly cleanup: ${deleted} records from ${table} (older than ${days} days)`);
+        logger.info('Weekly cleanup completed', { table, deleted, days, context: 'DataLifecycle' });
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         results[table] = { deleted: 0, aggregated: false, error: errorMessage };
-        console.error(`Error cleaning ${table}:`, error);
+        logger.error('Error cleaning table', { table, error: errorMessage, context: 'DataLifecycle' });
       }
     }
 
@@ -66,7 +67,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Weekly cron cleanup failed:', error);
+    logger.error('Weekly cron cleanup failed', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'DataLifecycle'
+    });
     return NextResponse.json(
       { success: false, error: 'Weekly cleanup failed' },
       { status: 500 }
@@ -88,7 +92,7 @@ async function aggregateNegativeFeedback(cutoffDate: Date) {
 
   // Здесь можно сохранить агрегированные данные в отдельную таблицу
   // или обновить статистику пользователя
-  console.log('Aggregated negative feedback stats:', feedbackStats);
+  logger.info('Aggregated negative feedback stats', { stats: feedbackStats, context: 'DataLifecycle' });
   
   return feedbackStats;
 }

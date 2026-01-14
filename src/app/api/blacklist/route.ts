@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 // GET: Проверить, заблокирован ли фильм (опционально, можно использовать для карточки)
 export async function GET(req: Request) {
@@ -32,7 +33,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ isBlacklisted: !!record });
   } catch (error) {
-    console.error('Blacklist GET error:', error);
+    logger.error('Blacklist GET error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Blacklist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -66,7 +70,10 @@ export async function POST(req: Request) {
     if ((error as any).code === 'P2002') {
        return NextResponse.json({ success: true });
     }
-    console.error('Blacklist POST error:', error);
+    logger.error('Blacklist POST error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Blacklist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
@@ -96,7 +103,10 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Blacklist DELETE error:', error);
+    logger.error('Blacklist DELETE error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Blacklist'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

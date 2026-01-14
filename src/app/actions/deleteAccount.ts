@@ -4,6 +4,7 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function deleteAccount() {
   const session = await getServerSession(authOptions);
@@ -125,7 +126,10 @@ export async function deleteAccount() {
 
     return { success: true };
   } catch (error) {
-    console.error('Ошибка удаления аккаунта:', error);
+    logger.error('Error deleting account', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'DeleteAccount'
+    });
     return { 
       success: false, 
       error: error instanceof Error && error.message.includes('P2025')

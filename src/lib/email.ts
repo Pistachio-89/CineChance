@@ -1,4 +1,5 @@
 // Email-сервис для отправки писем через Яндекс SMTP
+import { logger } from '@/lib/logger';
 import nodemailer from 'nodemailer';
 
 // Инициализация nodemailer для Yandex
@@ -21,10 +22,10 @@ function checkConfiguration() {
   );
 
   if (isConfigured) {
-    console.log('✓ Email провайдер: Яндекс SMTP');
+    logger.info('Email провайдер: Яндекс SMTP', { context: 'Email' });
   } else {
-    console.warn('⚠️ Yandex SMTP настройки неполные');
-    console.warn('   Требуются: SMTP_USER, SMTP_PASS, SMTP_FROM');
+    logger.warn('Yandex SMTP настройки неполные', { context: 'Email' });
+    logger.warn('Требуются: SMTP_USER, SMTP_PASS, SMTP_FROM', { context: 'Email' });
   }
   return isConfigured;
 }
@@ -43,7 +44,7 @@ export async function sendInviteEmail({
   inviterName = 'Пользователь',
 }: SendInviteEmailParams): Promise<boolean> {
   if (!isConfigured) {
-    console.warn('[EMAIL] Email сервис не настроен');
+    logger.warn('Email сервис не настроен', { context: 'Email' });
     return false;
   }
 
@@ -150,10 +151,10 @@ ${appUrl}
       html: htmlContent,
     });
 
-    console.log(`[EMAIL] Приглашение отправлено на ${to}`);
+    logger.info('Приглашение отправлено', { to, context: 'Email' });
     return true;
   } catch (error) {
-    console.error('[EMAIL] Ошибка отправки:', error instanceof Error ? error.message : error);
+    logger.error('Ошибка отправки приглашения', { error: error instanceof Error ? error.message : error, context: 'Email' });
     return false;
   }
 }

@@ -1,6 +1,7 @@
 // src/app/api/movie-details/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: Request) {
   try {
@@ -53,7 +54,10 @@ export async function GET(req: Request) {
         isAnime = keywords.some((k: any) => k.id === 210024 || k.name?.toLowerCase() === 'anime');
       }
     } catch (kwError) {
-      console.error('Failed to fetch keywords:', kwError);
+      logger.warn('Failed to fetch keywords for anime detection', { 
+        error: kwError instanceof Error ? kwError.message : String(kwError),
+        context: 'MovieDetails'
+      });
     }
 
     // Получаем первых 5 актеров из cast
@@ -78,7 +82,10 @@ export async function GET(req: Request) {
       cast,
     });
   } catch (error) {
-    console.error('Movie details error:', error);
+    logger.error('Movie details error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'MovieDetails'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

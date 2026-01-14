@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { FilterChange, FilterSessionResultMetrics, AbandonedFilter } from '@/lib/recommendation-types';
+import { logger } from '@/lib/logger';
 
 /**
  * API endpoint для управления сессиями фильтров
@@ -104,7 +105,10 @@ export async function POST(request: NextRequest) {
     );
 
   } catch (error) {
-    console.error('Error recording filter session:', error);
+    logger.error('Error recording filter session', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
 
     // Обработка ошибок Prisma
     if (error instanceof Error && error.name === 'PrismaClientValidationError') {
@@ -174,7 +178,10 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error fetching filter sessions:', error);
+    logger.error('Error fetching filter sessions', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to fetch filter sessions' },
       { status: 500 }
@@ -235,7 +242,10 @@ export async function PATCH(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Error updating filter session:', error);
+    logger.error('Error updating filter session', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Recommendations'
+    });
     return NextResponse.json(
       { error: 'Failed to update filter session' },
       { status: 500 }

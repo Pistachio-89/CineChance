@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function PUT(req: Request) {
   try {
@@ -42,7 +43,10 @@ export async function PUT(req: Request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error("UPDATE PROFILE ERROR:", error);
+    logger.error('Error updating profile', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Profile'
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -94,7 +98,10 @@ export async function GET() {
       { status: 200 }
     );
   } catch (error) {
-    console.error("GET PROFILE ERROR:", error);
+    logger.error('Error getting profile', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Profile'
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -1,5 +1,6 @@
 // src/app/api/collection/[id]/route.ts
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET(
   req: Request,
@@ -55,7 +56,11 @@ export async function GET(
             isBlacklisted = blacklistData.isBlacklisted;
           }
         } catch (error) {
-          console.error(`Error fetching status for movie ${movie.id}:`, error);
+          logger.error('Error fetching status for movie', { 
+            movieId: movie.id,
+            error: error instanceof Error ? error.message : String(error),
+            context: 'Collection'
+          });
         }
 
         // Формируем базовый объект
@@ -95,7 +100,10 @@ export async function GET(
       parts: moviesWithStatus,
     });
   } catch (error) {
-    console.error('Collection error:', error);
+    logger.error('Collection error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Collection'
+    });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

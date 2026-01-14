@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
@@ -51,7 +52,10 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ poster: null });
   } catch (error) {
-    console.error('Fanart.tv API error:', error);
+    logger.error('Fanart.tv API error', { 
+      error: error instanceof Error ? error.message : String(error),
+      context: 'Fanart'
+    });
     return NextResponse.json({ poster: null });
   }
 }

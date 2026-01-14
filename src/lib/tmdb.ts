@@ -1,4 +1,6 @@
 // src/lib/tmdb.ts
+import { logger } from '@/lib/logger';
+
 export interface Media {
   id: number;
   media_type: 'movie' | 'tv';
@@ -20,7 +22,7 @@ const BASE_URL = 'https://api.themoviedb.org/3';
 
 // Убедитесь, что ключ загружен (для отладки)
 if (!TMDB_API_KEY) {
-  console.warn('⚠️ TMDB_API_KEY не найден! Проверьте .env.local');
+  logger.warn('TMDB_API_KEY не найден! Проверьте .env.local', { context: 'TMDB' });
 }
 
 export const fetchTrendingMovies = async (timeWindow: 'day' | 'week' = 'week'): Promise<Media[]> => {
@@ -39,7 +41,7 @@ export const fetchTrendingMovies = async (timeWindow: 'day' | 'week' = 'week'): 
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Ошибка TMDB API:', response.status, errorText);
+      logger.error('Ошибка TMDB API при получении trending movies', { status: response.status, error: errorText, context: 'TMDB' });
       return [];
     }
     
@@ -61,7 +63,7 @@ export const fetchTrendingMovies = async (timeWindow: 'day' | 'week' = 'week'): 
     
     return movies;
   } catch (error) {
-    console.error('❌ Сетевая ошибка при запросе к TMDB:', error);
+    logger.error('Сетевая ошибка при запросе к TMDB (trending)', { error, context: 'TMDB' });
     return [];
   }
 };
@@ -80,7 +82,7 @@ export const fetchPopularMovies = async (page: number = 1): Promise<Media[]> => 
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ Ошибка TMDB API (popular):', response.status, errorText);
+      logger.error('Ошибка TMDB API при получении popular movies', { status: response.status, error: errorText, context: 'TMDB' });
       return [];
     }
     
@@ -102,7 +104,7 @@ export const fetchPopularMovies = async (page: number = 1): Promise<Media[]> => 
     
     return movies;
   } catch (error) {
-    console.error('❌ Ошибка при запросе популярных фильмов:', error);
+    logger.error('Ошибка при запросе популярных фильмов', { error, context: 'TMDB' });
     return [];
   }
 };
@@ -123,7 +125,7 @@ export const searchMedia = async (query: string, page: number = 1): Promise<Medi
     });
 
     if (!response.ok) {
-      console.error('Ошибка TMDB search:', response.status);
+      logger.error('Ошибка TMDB search', { status: response.status, context: 'TMDB' });
       return [];
     }
 
@@ -153,7 +155,7 @@ export const searchMedia = async (query: string, page: number = 1): Promise<Medi
 
     return media.slice(0, 100); // Ограничиваем 100 результатами
   } catch (error) {
-    console.error('Ошибка при поиске:', error);
+    logger.error('Ошибка при поиске медиа', { error, context: 'TMDB' });
     return [];
   }
 };
@@ -193,7 +195,7 @@ export const fetchMediaDetails = async (
     });
 
     if (!response.ok) {
-      console.error('Ошибка TMDB details:', response.status);
+      logger.error('Ошибка TMDB details', { status: response.status, context: 'TMDB' });
       return null;
     }
 
@@ -216,7 +218,7 @@ export const fetchMediaDetails = async (
       adult: data.adult || false,
     };
   } catch (error) {
-    console.error('Ошибка при получении деталей:', error);
+    logger.error('Ошибка при получении деталей медиа', { error, context: 'TMDB' });
     return null;
   }
 };
