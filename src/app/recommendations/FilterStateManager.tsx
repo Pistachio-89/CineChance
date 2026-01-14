@@ -23,6 +23,7 @@ export interface FilterState {
 interface FilterStateManagerProps {
   initialFilters?: Partial<FilterState>;
   onFiltersChange: (filters: FilterState) => void;
+  onFilterChange?: (parameterName: string, previousValue: unknown, newValue: unknown) => void;
   children: (state: {
     filters: FilterState;
     updateFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
@@ -46,6 +47,7 @@ const defaultFilters: FilterState = {
 export default function FilterStateManager({
   initialFilters = {},
   onFiltersChange,
+  onFilterChange,
   children,
 }: FilterStateManagerProps) {
   const [filters, setFilters] = useState<FilterState>({
@@ -57,8 +59,18 @@ export default function FilterStateManager({
     key: K,
     value: FilterState[K]
   ) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  }, []);
+    setFilters(prev => {
+      const previousValue = prev[key];
+      const newValue = value;
+      
+      // Вызываем onFilterChange если он предоставлен
+      if (onFilterChange && JSON.stringify(previousValue) !== JSON.stringify(newValue)) {
+        onFilterChange(key, previousValue, newValue);
+      }
+      
+      return { ...prev, [key]: value };
+    });
+  }, [onFilterChange]);
 
   const resetFilters = useCallback(() => {
     setFilters(defaultFilters);

@@ -1,13 +1,13 @@
 // src/app/recommendations/RecommendationsClient.tsx
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import RecommendationCard from './RecommendationCard';
 import FilterForm from './FilterForm';
 import SessionTracker from './SessionTracker';
-import RecommendationActions from './RecommendationActions';
 import FilterStateManager from './FilterStateManager';
+import { useSessionTracking } from './useSessionTracking';
 
 // Типы данных
 interface MovieData {
@@ -42,6 +42,12 @@ interface RecommendationResponse {
   message?: string;
 }
 
+interface ActionResponse {
+  success: boolean;
+  message: string;
+  logId: string;
+}
+
 interface RecommendationsClientProps {
   userId: string;
 }
@@ -59,6 +65,16 @@ interface AdditionalFilters {
 
 type ViewState = 'filters' | 'loading' | 'result' | 'error';
 
+// Типы для отслеживания
+interface FilterChange {
+  timestamp: string;
+  parameterName: string;
+  previousValue: unknown;
+  newValue: unknown;
+  changeSource: 'user_input' | 'preset' | 'api' | 'reset';
+  [key: string]: unknown;
+}
+
 export default function RecommendationsClient({ userId }: RecommendationsClientProps) {
   const router = useRouter();
   const [viewState, setViewState] = useState<ViewState>('filters');
@@ -75,6 +91,12 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
   const [progress, setProgress] = useState(0);
   const [actionLoading, setActionLoading] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const fetchStartTime = useRef<number>(0);
+  const [currentFilters, setCurrentFilters] = useState<{
+    types: ContentType[];
+    lists: ListType[];
+    additionalFilters?: AdditionalFilters;
+  } | null>(null);
 
   // Получение года из даты
   const getYear = (movieData: MovieData) => {
@@ -82,52 +104,43 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     return date ? date.split('-')[0] : '—';
   };
 
-  // Обработчики действий через SessionTracker
-  const handleTrackEvent = useCallback((eventType: string, data: any) => {
-    // Этот обработчик будет передан через SessionTracker
-  }, []);
+  // Записать действие пользователя
+  const recordAction = useCallback(async (action: string) => {
+    if (!logId) return null;
 
-  const handleRecordSignal = useCallback((signalType: string, data: any) => {
-    // Этот обработчик будет передан через SessionTracker
-  }, []);
-
-  // Обработчики действий с фильмами
-  const handleAddToWatchlist = useCallback(async (movie: MovieData) => {
-    // Логика добавления в список просмотра
-    console.log('Adding to watchlist:', movie.title);
-  }, []);
-
-  const handleRateMovie = useCallback(async (movie: MovieData, rating: number) => {
-    // Логика оценки фильма
-    console.log('Rating movie:', movie.title, rating);
-  }, []);
-
-  const handleMarkAsWatched = useCallback(async (movie: MovieData) => {
-    // Логика отметки как просмотренного
-    console.log('Marking as watched:', movie.title);
-  }, []);
-
-  const handleSkipMovie = useCallback(async (movie: MovieData) => {
-    // Логика пропуска фильма
-    console.log('Skipping movie:', movie.title);
-  }, []);
-
-  const handleGetSimilar = useCallback(async (movie: MovieData) => {
-    // Логика получения похожих фильмов
-    console.log('Getting similar movies for:', movie.title);
-  }, []);
-
-  const handleGetRecommendations = useCallback(async (movie: MovieData) => {
-    // Логика получения рекомендаций на основе фильма
-    console.log('Getting recommendations based on:', movie.title);
-  }, []);
+    try {
+      const res = await fetch(`/api/recommendations/${logId}/action`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data: ActionResponse = await res.json();
+      return data;
+    } catch (err) {
+      console.error('Error recording action:', err);
+      return null;
+    }
+  }, [logId]);
 
   // Получение рекомендации с фильтрами
   const fetchRecommendation = useCallback(async (
     types: ContentType[],
     lists: ListType[],
-    additionalFilters?: AdditionalFilters
+    additionalFilters?: AdditionalFilters,
+    tracking?: ReturnType<typeof useSessionTracking>
   ) => {
+    const isFirstCall = !fetchStartTime.current;
+    if (isFirstCall) {
+      fetchStartTime.current = Date.now();
+      setProgress(0);
+      if (tracking) {
+        tracking.startFilterSession();
+      }
+    }
+
+    // Обновляем текущие фильтры
+    setCurrentFilters({ types, lists, additionalFilters });
+
     setViewState('loading');
     setErrorMessage(null);
     setNoAvailable(false);
@@ -166,6 +179,8 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
 
       const res = await fetch(`/api/recommendations/random?${params.toString()}`);
       const data: RecommendationResponse = await res.json();
+      const fetchEndTime = Date.now();
+      const fetchDuration = fetchEndTime - fetchStartTime.current;
 
       if (data.success && data.movie) {
         setMovie(data.movie);
@@ -181,14 +196,42 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
                             data.movie.original_language === 'ja';
         setIsAnime(isAnimeCheck);
 
+        // Обновляем метрики сессии и записываем событие
+        if (tracking) {
+          tracking.incrementRecommendationsShown();
+          tracking.trackEvent('page_view', {
+            page: 'recommendation_result',
+            fetchDuration,
+          });
+        }
+
         // Анимация progress bar
-        setProgress(100);
-        setTimeout(() => setViewState('result'), 200);
+        if (fetchDuration < 3000) {
+          const remainingTime = 3000 - fetchDuration;
+          const steps = 20;
+          const stepTime = remainingTime / steps;
+          let currentProgress = 0;
+
+          const progressInterval = setInterval(() => {
+            currentProgress += (100 - currentProgress) / (steps - Math.floor(currentProgress / (100 / steps)));
+            if (currentProgress >= 95) {
+              clearInterval(progressInterval);
+              setProgress(100);
+              setViewState('result');
+            } else {
+              setProgress(Math.min(currentProgress, 95));
+            }
+          }, stepTime);
+        } else {
+          setProgress(100);
+          setTimeout(() => setViewState('result'), 200);
+        }
       } else {
         setErrorMessage(data.message || 'Не удалось получить рекомендацию');
         if (data.message?.includes('Нет доступных рекомендаций') ||
             data.message?.includes('пуст') ||
             data.message?.includes('были показаны за последнюю неделю') ||
+            data.message?.includes('показаны за последнюю неделю') ||
             data.message?.includes('Все фильмы из вашего списка') ||
             data.message?.includes('Все доступные рекомендации')) {
           setNoAvailable(true);
@@ -219,6 +262,7 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
       });
 
       if (res.ok) {
+        fetchStartTime.current = 0;
         setViewState('filters');
       } else {
         alert('Ошибка при очистке истории');
@@ -229,213 +273,247 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     }
   };
 
-  // Возврат к фильтрам
-  const handleBackToFilters = () => {
-    setViewState('filters');
-    setMovie(null);
-    setLogId(null);
-    setUserStatus(null);
-    setIsAnime(false);
-    setCineChanceRating(null);
-    setCineChanceVoteCount(0);
-    setUserRating(null);
-    setWatchCount(0);
-  };
-
-  // Обработчик "Пропустить"
-  const handleSkip = async () => {
-    if (actionLoading || !logId || !movie) return;
-
-    setActionLoading(true);
-    await handleSkipMovie(movie);
-    setViewState('filters');
-    setActionLoading(false);
-  };
-
-  // Обработчик "Отлично! Посмотрю"
-  const handleAccept = async () => {
-    if (actionLoading || !logId || !movie) return;
-
-    setActionLoading(true);
-
-    // Сохраняем данные фильма в sessionStorage для передачи на страницу Мои фильмы
-    sessionStorage.setItem('recommendationAccepted', JSON.stringify({
-      tmdbId: movie.id,
-      mediaType: movie.media_type,
-      title: movie.title || movie.name,
-      year: getYear(movie),
-      logId: logId,
-    }));
-
-    router.push('/my-movies');
-  };
-
-  // Передаем обработчик открытия модального окна в дочерние компоненты
-  const handleInfoClick = useCallback(() => {
-    // Логика открытия модального окна
-  }, []);
-
   return (
     <SessionTracker userId={userId} logId={logId}>
-      {(tracking) => (
-        <FilterStateManager
-          onFiltersChange={(filters) => {
-            // Обработка изменений фильтров через tracking
-            // tracking.trackFilterChange('filters_updated', null, filters);
-          }}
-        >
-          {({ filters, updateFilter, resetFilters, hasActiveFilters }) => (
-            <div className="min-h-screen bg-gray-950">
-              <div className="container mx-auto px-3 sm:px-4 py-4">
-                {/* Заголовок */}
-                <h1 className="text-base sm:text-lg font-medium text-white mb-6">
-                  Что посмотреть?
-                </h1>
+      {(tracking) => {
+        // Возврат к фильтрам
+        const handleBackToFilters = () => {
+          // Записываем событие возврата к фильтрам
+          if (logId) {
+            tracking.trackEvent('action_click', {
+              action: 'back_to_filters',
+              timeSinceShownMs: fetchStartTime.current ? Date.now() - fetchStartTime.current : 0,
+            });
+          }
 
-                {/* Состояние: Фильтры */}
-                {viewState === 'filters' && (
-                  <FilterForm
-                    onSubmit={(types, lists, additionalFilters) =>
-                      fetchRecommendation(types as ContentType[], lists as ListType[], additionalFilters)
-                    }
-                    isLoading={false}
-                    onTypeChange={(types) => updateFilter('types', types)}
-                    onListChange={(lists) => updateFilter('lists', lists)}
-                    onAdditionalFilterChange={(additionalFilters) => {
-                      updateFilter('additionalFilters', additionalFilters);
-                    }}
-                  />
-                )}
+          fetchStartTime.current = 0;
+          setViewState('filters');
+          setMovie(null);
+          setLogId(null);
+          setUserStatus(null);
+          setIsAnime(false);
+          setCineChanceRating(null);
+          setCineChanceVoteCount(0);
+          setUserRating(null);
+          setWatchCount(0);
+        };
 
-                {/* Состояние: Загрузка */}
-                {viewState === 'loading' && (
-                  <div className="flex flex-col items-center justify-center min-h-[50vh]">
-                    {/* Прогресс бар */}
-                    <div className="w-full max-w-xs h-1.5 bg-gray-800 rounded-full overflow-hidden mb-3">
-                      <div
-                        className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
-                        style={{ width: `${progress}%` }}
+        // Обработчик "Пропустить"
+        const handleSkip = async () => {
+          if (actionLoading || !logId) return;
+
+          setActionLoading(true);
+
+          // Записываем событие пропуска
+          await tracking.trackEvent('action_click', {
+            action: 'skip',
+            timeSinceShownMs: fetchStartTime.current ? Date.now() - fetchStartTime.current : 0,
+          });
+
+          // Записываем негативную обратную связь (автоматически как "not_interested")
+          await fetch('/api/recommendations/negative-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              recommendationLogId: logId,
+              feedbackType: 'not_interested',
+              contextualFactors: {
+                timeOfDay: new Date().getHours(),
+              },
+            }),
+          }).catch(() => {});
+
+          tracking.incrementActionsCount();
+          tracking.incrementRecommendationsSkipped();
+
+          await recordAction('skipped');
+          fetchStartTime.current = 0;
+          await fetchRecommendation(['movie', 'tv', 'anime'], ['want', 'watched'], undefined, tracking);
+          setActionLoading(false);
+        };
+
+        // Обработчик "Отлично! Посмотрю"
+        const handleAccept = async () => {
+          if (actionLoading || !logId || !movie) return;
+
+          setActionLoading(true);
+
+          // Записываем событие принятия
+          await tracking.trackEvent('action_click', {
+            action: 'accept',
+            timeSinceShownMs: fetchStartTime.current ? Date.now() - fetchStartTime.current : 0,
+          });
+
+          tracking.incrementActionsCount();
+          tracking.incrementRecommendationsAccepted();
+
+          await recordAction('accepted');
+
+          // Сохраняем данные фильма в sessionStorage для передачи на страницу Мои фильмы
+          sessionStorage.setItem('recommendationAccepted', JSON.stringify({
+            tmdbId: movie.id,
+            mediaType: movie.media_type,
+            title: movie.title || movie.name,
+            year: getYear(movie),
+            logId: logId,
+          }));
+
+          router.push('/my-movies');
+        };
+
+        // Передаем обработчик открытия модального окна в дочерние компоненты
+        const handleInfoClick = useCallback(() => {
+          tracking.handleModalOpen();
+        }, [tracking]);
+
+        return (
+          <FilterStateManager
+            onFiltersChange={() => {}}
+            onFilterChange={(parameterName, previousValue, newValue) => {
+              tracking.trackFilterChange(parameterName, previousValue, newValue);
+            }}
+          >
+            {({ filters, updateFilter, resetFilters }) => (
+              <div className="min-h-screen bg-gray-950">
+                <div className="container mx-auto px-3 sm:px-4 py-4">
+                  {/* Заголовок */}
+                  <h1 className="text-base sm:text-lg font-medium text-white mb-6">
+                    Что посмотреть?
+                  </h1>
+
+                  {/* Состояние: Фильтры */}
+                  {viewState === 'filters' && (
+                    <FilterForm
+                      onSubmit={(types, lists, additionalFilters) =>
+                        fetchRecommendation(types as ContentType[], lists as ListType[], additionalFilters, tracking)
+                      }
+                      isLoading={false}
+                      onTypeChange={(types) => updateFilter('types', types)}
+                      onListChange={(lists) => updateFilter('lists', lists)}
+                      onAdditionalFilterChange={(additionalFilters) => {
+                        updateFilter('additionalFilters', additionalFilters);
+                      }}
+                    />
+                  )}
+
+                  {/* Состояние: Загрузка */}
+                  {viewState === 'loading' && (
+                    <div className="flex flex-col items-center justify-center min-h-[50vh]">
+                      {/* Прогресс бар */}
+                      <div className="w-full max-w-xs h-1.5 bg-gray-800 rounded-full overflow-hidden mb-3">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ease-out"
+                          style={{ width: `${progress}%` }}
+                        />
+                      </div>
+                      <p className="text-gray-500 text-sm">Идёт подбор...</p>
+                    </div>
+                  )}
+
+                  {/* Состояние: Результат */}
+                  {viewState === 'result' && movie && (
+                    <div className="max-w-4xl mx-auto">
+                      <RecommendationCard
+                        movie={movie}
+                        userStatus={userStatus}
+                        isAnime={isAnime}
+                        cineChanceRating={cineChanceRating}
+                        cineChanceVoteCount={cineChanceVoteCount}
+                        userRating={userRating}
+                        watchCount={watchCount}
+                        onSkip={handleSkip}
+                        onAccept={handleAccept}
+                        onBack={handleBackToFilters}
+                        onResetFilters={handleBackToFilters}
+                        onInfoClick={handleInfoClick}
+                        actionLoading={actionLoading}
                       />
                     </div>
-                    <p className="text-gray-500 text-sm">Идёт подбор...</p>
-                  </div>
-                )}
+                  )}
 
-                {/* Состояние: Результат */}
-                {viewState === 'result' && movie && (
-                  <div className="max-w-4xl mx-auto">
-                    <RecommendationCard
-                      movie={movie}
-                      userStatus={userStatus}
-                      isAnime={isAnime}
-                      cineChanceRating={cineChanceRating}
-                      cineChanceVoteCount={cineChanceVoteCount}
-                      userRating={userRating}
-                      watchCount={watchCount}
-                      onSkip={handleSkip}
-                      onAccept={handleAccept}
-                      onBack={handleBackToFilters}
-                      onResetFilters={handleBackToFilters}
-                      onInfoClick={handleInfoClick}
-                      actionLoading={actionLoading}
-                    />
+                  {/* Состояние: Ошибка */}
+                  {viewState === 'error' && (
+                    <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+                      <div className="text-5xl mb-3">😕</div>
+                      <h2 className="text-lg font-bold text-white mb-2">
+                        {errorMessage}
+                      </h2>
+                      <p className="text-gray-500 text-sm mb-4 max-w-xs">
+                        {noAvailable
+                          ? 'Все фильмы из вашего списка были показаны за последнюю неделю'
+                          : 'Попробуйте изменить фильтры'}
+                      </p>
 
-                    {/* Действия с рекомендацией */}
-                    <RecommendationActions
-                      movie={movie}
-                      onAddToWatchlist={handleAddToWatchlist}
-                      onRateMovie={handleRateMovie}
-                      onMarkAsWatched={handleMarkAsWatched}
-                      onSkipMovie={handleSkipMovie}
-                      onGetSimilar={handleGetSimilar}
-                      onGetRecommendations={handleGetRecommendations}
-                      onTrackEvent={tracking.trackEvent}
-                      onTrackSignal={tracking.trackSignal}
-                    />
-                  </div>
-                )}
-
-                {/* Состояние: Ошибка */}
-                {viewState === 'error' && (
-                  <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
-                    <div className="text-5xl mb-3">😕</div>
-                    <h2 className="text-lg font-bold text-white mb-2">
-                      {errorMessage}
-                    </h2>
-                    <p className="text-gray-500 text-sm mb-4 max-w-xs">
-                      {noAvailable
-                        ? 'Все фильмы из вашего списка были показаны за последнюю неделю'
-                        : 'Попробуйте изменить фильтры'}
-                    </p>
-
-                    {noAvailable ? (
-                      <div className="flex gap-2 flex-wrap justify-center">
-                        <button
-                          onClick={handleResetLogs}
-                          className="px-4 py-2 bg-yellow-600 text-white text-sm rounded-lg font-medium hover:bg-yellow-500 transition cursor-pointer"
-                        >
-                          Сбросить историю
-                        </button>
+                      {noAvailable ? (
+                        <div className="flex gap-2 flex-wrap justify-center">
+                          <button
+                            onClick={handleResetLogs}
+                            className="px-4 py-2 bg-yellow-600 text-white text-sm rounded-lg font-medium hover:bg-yellow-500 transition cursor-pointer"
+                          >
+                            Сбросить историю
+                          </button>
+                          <button
+                            onClick={handleBackToFilters}
+                            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-500 transition cursor-pointer"
+                          >
+                            Изменить фильтры
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           onClick={handleBackToFilters}
                           className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-500 transition cursor-pointer"
                         >
                           Изменить фильтры
                         </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={handleBackToFilters}
-                        className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg font-medium hover:bg-blue-500 transition cursor-pointer"
-                      >
-                        Изменить фильтры
-                      </button>
-                    )}
-                  </div>
-                )}
+                      )}
+                    </div>
+                  )}
 
-                {/* Модальное окно подтверждения сброса истории */}
-                {isResetConfirmOpen && (
-                  <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-                    <div className="bg-[#0a0e17] border border-gray-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
-                      <div className="text-center">
-                        {/* Иконка предупреждения */}
-                        <div className="w-16 h-16 bg-yellow-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                            <line x1="12" y1="9" x2="12" y2="13"></line>
-                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                          </svg>
-                        </div>
+                  {/* Модальное окно подтверждения сброса истории */}
+                  {isResetConfirmOpen && (
+                    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+                      <div className="bg-[#0a0e17] border border-gray-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                        <div className="text-center">
+                          {/* Иконка предупреждения */}
+                          <div className="w-16 h-16 bg-yellow-600/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-500">
+                              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                              <line x1="12" y1="9" x2="12" y2="13"></line>
+                              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                          </div>
 
-                        <h3 className="text-lg font-bold text-white mb-2">Сбросить историю?</h3>
-                        <p className="text-gray-400 text-sm mb-6">
-                          Это удалит всю историю показов рекомендаций. После этого вы снова сможете получать рекомендации из всех фильмов.
-                        </p>
+                          <h3 className="text-lg font-bold text-white mb-2">Сбросить историю?</h3>
+                          <p className="text-gray-400 text-sm mb-6">
+                            Это удалит всю историю показов рекомендаций. После этого вы снова сможете получать рекомендации из всех фильмов.
+                          </p>
 
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setIsResetConfirmOpen(false)}
-                            className="flex-1 py-2.5 px-3 bg-gray-700/50 border border-gray-600/30 text-gray-300 text-sm rounded-lg font-medium hover:bg-gray-700 hover:text-white transition cursor-pointer"
-                          >
-                            Отмена
-                          </button>
-                          <button
-                            onClick={confirmResetLogs}
-                            className="flex-1 py-2.5 px-3 bg-yellow-600 text-white text-sm rounded-lg font-medium hover:bg-yellow-500 transition cursor-pointer"
-                          >
-                            Сбросить
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setIsResetConfirmOpen(false)}
+                              className="flex-1 py-2.5 px-3 bg-gray-700/50 border border-gray-600/30 text-gray-300 text-sm rounded-lg font-medium hover:bg-gray-700 hover:text-white transition cursor-pointer"
+                            >
+                              Отмена
+                            </button>
+                            <button
+                              onClick={confirmResetLogs}
+                              className="flex-1 py-2.5 px-3 bg-yellow-600 text-white text-sm rounded-lg font-medium hover:bg-yellow-500 transition cursor-pointer"
+                            >
+                              Сбросить
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-        </FilterStateManager>
-      )}
+            )}
+          </FilterStateManager>
+        );
+      }}
     </SessionTracker>
   );
 }
