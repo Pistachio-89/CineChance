@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(req: Request) {
+  const { success } = await rateLimit(req, 'default');
+  if (!success) {
+    return NextResponse.json({ poster: null, error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   const { searchParams } = new URL(req.url);
   const tmdbId = searchParams.get('tmdbId');
   const mediaType = searchParams.get('mediaType'); // 'movie' or 'tv'

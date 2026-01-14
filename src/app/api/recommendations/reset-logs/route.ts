@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * POST /api/recommendations/reset-logs
@@ -10,6 +11,11 @@ import { logger } from '@/lib/logger';
  * Удаляет все записи из RecommendationLog
  */
 export async function POST(req: Request) {
+  const { success } = await rateLimit(req, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

@@ -2,9 +2,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
-import { prisma } from "@/lib/prisma"; // Убедитесь, что импорт отсюда
+import { prisma } from "@/lib/prisma";
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET() {
+  const req = new Request('GET');
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) return NextResponse.json([]);

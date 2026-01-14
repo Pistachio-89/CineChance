@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * API endpoint для логирования ML-предсказаний
@@ -10,6 +11,14 @@ import { logger } from '@/lib/logger';
  * Позволяет отслеживать качество моделей и проводить A/B тестирование.
  */
 export async function POST(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 
@@ -115,6 +124,14 @@ export async function POST(request: NextRequest) {
  * Получение логов предсказаний для аналитики моделей
  */
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -185,6 +202,14 @@ export async function GET(request: NextRequest) {
  * Обновление фактического результата для оценки качества модели
  */
 export async function PATCH(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 
@@ -230,6 +255,14 @@ export async function PATCH(request: NextRequest) {
  * Получение метрик точности модели
  */
 export async function PUT(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const modelVersion = searchParams.get('modelVersion');

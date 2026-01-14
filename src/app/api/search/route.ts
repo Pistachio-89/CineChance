@@ -4,8 +4,15 @@ import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { isUnder18 } from '@/lib/age-utils';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(request: Request) {
+  // Apply rate limiting
+  const { success } = await rateLimit(request, '/api/search');
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+  
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
   const page = parseInt(searchParams.get('page') || '1');

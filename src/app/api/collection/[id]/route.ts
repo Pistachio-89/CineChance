@@ -1,11 +1,17 @@
 // src/app/api/collection/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { success } = await rateLimit(req, 'default');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const { id } = await params;
     const collectionId = parseInt(id);

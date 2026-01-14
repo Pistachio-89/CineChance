@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from "@/middleware/rateLimit";
 
 // Маппинг: Код клиента -> Название в БД
 const STATUS_TO_DB: Record<string, string> = {
@@ -23,6 +24,12 @@ const STATUS_FROM_DB: Record<string, string> = {
 
 // GET: Получить статус фильма для текущего пользователя
 export async function GET(req: Request) {
+  // Apply rate limiting
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     
@@ -73,6 +80,12 @@ export async function GET(req: Request) {
 
 // POST: Добавить или обновить статус
 export async function POST(req: Request) {
+  // Apply rate limiting
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     
@@ -344,6 +357,12 @@ export async function POST(req: Request) {
 
 // DELETE: Удалить из списка
 export async function DELETE(req: Request) {
+  // Apply rate limiting
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     

@@ -3,8 +3,14 @@ import { logger } from '@/lib/logger';
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(req: Request) {
+  const { success } = await rateLimit(req, 'default');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const { searchParams } = new URL(req.url);
     const tmdbId = parseInt(searchParams.get('tmdbId') || '0');

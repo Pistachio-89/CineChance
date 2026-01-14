@@ -5,6 +5,7 @@ import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email";
 import crypto from "crypto";
+import { rateLimit } from '@/middleware/rateLimit';
 
 // Срок действия приглашения по умолчанию - 7 дней
 const INVITE_EXPIRY_DAYS = 7;
@@ -15,6 +16,11 @@ function generateToken(): string {
 }
 
 export async function POST(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -121,6 +127,11 @@ export async function POST(req: Request) {
 }
 
 export async function GET(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+  
   try {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("token");

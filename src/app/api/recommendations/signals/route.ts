@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ElementContext, SignalTemporalContext, PredictedIntent } from '@/lib/recommendation-types';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * API endpoint для записи неявных сигналов намерений пользователя
@@ -11,6 +12,14 @@ import { logger } from '@/lib/logger';
  * которые позволяют ML-моделям предсказывать интерес к контенту.
  */
 export async function POST(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 
@@ -112,6 +121,14 @@ export async function POST(request: NextRequest) {
  * Получение сигналов для аналитики и ML-пайплайнов
  */
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -177,6 +194,14 @@ export async function GET(request: NextRequest) {
  * Обновление статуса обработки сигналов (для ML-пайплайнов)
  */
 export async function PATCH(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 

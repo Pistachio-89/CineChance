@@ -1,11 +1,17 @@
 // src/app/api/person/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(
   request: Request,
   props: { params: Promise<{ id: string }> }
 ) {
+  const { success } = await rateLimit(request, 'default');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const { id } = await props.params;
     const personId = parseInt(id);

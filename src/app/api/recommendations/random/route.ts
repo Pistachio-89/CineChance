@@ -5,6 +5,7 @@ import { prisma } from '@/lib/prisma';
 import { fetchMediaDetails } from '@/lib/tmdb';
 import { shouldFilterAdult } from '@/lib/age-utils';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 import {
   FiltersSnapshot,
   CandidatePoolMetrics,
@@ -204,6 +205,12 @@ function createFiltersSnapshot(
  * Пример: /api/recommendations/random?types=movie,anime&lists=want,watched
  */
 export async function GET(req: Request) {
+  // Apply rate limiting
+  const { success } = await rateLimit(req, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json({ success: false, message: 'Too many requests' }, { status: 429 });
+  }
+  
   try {
     // Проверка аутентификации
     const session = await getServerSession(authOptions);

@@ -2,8 +2,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(req: Request) {
+  const { success } = await rateLimit(req, 'default');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const { searchParams } = new URL(req.url);
     const tmdbId = parseInt(searchParams.get('tmdbId') || '0');

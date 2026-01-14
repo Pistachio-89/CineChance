@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { FilterChange, FilterSessionResultMetrics, AbandonedFilter } from '@/lib/recommendation-types';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * API endpoint для управления сессиями фильтров
@@ -11,6 +12,14 @@ import { logger } from '@/lib/logger';
  * и связывает их с результатами рекомендаций.
  */
 export async function POST(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 
@@ -130,6 +139,14 @@ export async function POST(request: NextRequest) {
  * Получение сессий фильтров для аналитики
  */
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -194,6 +211,14 @@ export async function GET(request: NextRequest) {
  * Обновление результатов и метрик сессии
  */
 export async function PATCH(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 

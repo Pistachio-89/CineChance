@@ -4,6 +4,7 @@ import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
+import { rateLimit } from '@/middleware/rateLimit';
 
 // Маппинг: Название в БД -> Код клиента
 const STATUS_FROM_DB: Record<string, string> = {
@@ -14,6 +15,11 @@ const STATUS_FROM_DB: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;

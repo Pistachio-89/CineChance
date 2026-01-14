@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ContextualFactors, CorrectiveAction } from '@/lib/recommendation-types';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * API endpoint для записи негативной обратной связи от пользователя
@@ -11,6 +12,14 @@ import { logger } from '@/lib/logger';
  * и исключения нерелевантных рекомендаций из будущих предложений.
  */
 export async function POST(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 
@@ -139,6 +148,14 @@ export async function POST(request: NextRequest) {
  * Получение негативной обратной связи для аналитики
  */
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -202,6 +219,14 @@ export async function GET(request: NextRequest) {
  * Применение корректирующего действия (для админ-панели)
  */
 export async function PUT(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
 

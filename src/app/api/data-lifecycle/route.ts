@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * API endpoint для очистки старых данных и управления жизненным циклом
  * POST /api/recommendations/data-lifecycle/cleanup
  */
 export async function POST(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const body = await request.json();
     const { 
@@ -249,6 +258,14 @@ async function aggregateUserSessions(cutoffDate: Date) {
  * Получение статистики размера данных
  */
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return NextResponse.json(
+      { error: 'Too Many Requests' },
+      { status: 429 }
+    );
+  }
+  
   try {
     const counts = await Promise.all([
       prisma.recommendationEvent.count(),

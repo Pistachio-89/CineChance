@@ -2,8 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import bcrypt from "bcryptjs";
 import { NextResponse } from "next/server";
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function POST(req: Request) {
+  const { success } = await rateLimit(req, '/api/search');
+  if (!success) {
+    return NextResponse.json(
+      { error: "Too Many Requests. Пожалуйста, подождите перед повторной попыткой." },
+      { status: 429 }
+    );
+  }
+  
   try {
     const { email, password, name, birthDate, agreedToTerms, inviteToken } = await req.json();
 

@@ -3,8 +3,14 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from '@/middleware/rateLimit';
 
 export async function PUT(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
 
@@ -55,6 +61,12 @@ export async function PUT(req: Request) {
 }
 
 export async function GET() {
+  const req = new Request('GET');
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: "Too Many Requests" }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
 

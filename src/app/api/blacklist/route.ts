@@ -4,9 +4,15 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { rateLimit } from '@/middleware/rateLimit';
 
 // GET: Проверить, заблокирован ли фильм (опционально, можно использовать для карточки)
 export async function GET(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -43,6 +49,11 @@ export async function GET(req: Request) {
 
 // POST: Добавить в черный список
 export async function POST(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -80,6 +91,11 @@ export async function POST(req: Request) {
 
 // DELETE: Удалить из черного списка
 export async function DELETE(req: Request) {
+  const { success } = await rateLimit(req, '/api/user');
+  if (!success) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
+  }
+  
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

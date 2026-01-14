@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { rateLimit } from '@/middleware/rateLimit';
 
 /**
  * Cron endpoint for daily data lifecycle cleanup
@@ -32,6 +33,11 @@ const RETENTION_DAYS: Record<string, number> = {
 };
 
 export async function GET(request: NextRequest) {
+  const { success } = await rateLimit(request, '/api/recommendations');
+  if (!success) {
+    return new NextResponse('Too Many Requests', { status: 429 });
+  }
+  
   // 1. Проверка безопасности - Vercel добавляет CRON_SECRET автоматически
   const authHeader = request.headers.get('authorization');
   const expectedSecret = process.env.CRON_SECRET;
