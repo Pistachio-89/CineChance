@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build && npm run postbuild",
-      "postbuild": "mkdir -p public/analyze && cp -f .next/analyze/client.html public/analyze/client.html",
+    "build": "next build",
+    "build:analyze": "ANALYZE=true next build --webpack && mkdir -p public/analyze && cp -f .next/analyze/client.html public/analyze/client.html",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
