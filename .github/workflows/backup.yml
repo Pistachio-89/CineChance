@@ -14,25 +14,36 @@ jobs:
           echo "Timestamp: $(date +%Y%m%d_%H%M%S)" >> test_file.txt
           cat test_file.txt
 
-      - name: Upload to Yandex Disk via API
+      - name: Create folder on Yandex Disk
+        run: |
+          TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
+          FOLDER_PATH="/CineChanceBackups"
+
+          echo "=== Creating folder $FOLDER_PATH ==="
+          curl -X PUT \
+            -H "Authorization: OAuth $TOKEN" \
+            "https://cloud-api.yandex.net/v1/disk/resources?path=$FOLDER_PATH" \
+            -w "\nHTTP Status: %{http_code}\n"
+
+      - name: Upload file to folder
         run: |
           TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
           FILENAME="test_file.txt"
-          UPLOAD_URL="https://cloud-api.yandex.net/v1/disk/resources/test_file.txt"
+          DEST_PATH="/CineChanceBackups/test_file.txt"
 
-          # Загружаем файл через Yandex Disk API
-          echo "=== Uploading $FILENAME to Yandex Disk ==="
+          echo "=== Uploading $FILENAME to $DEST_PATH ==="
           curl -X PUT \
             -H "Authorization: OAuth $TOKEN" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"$FILENAME" \
-            "$UPLOAD_URL" \
-            -v 2>&1 | head -50
+            "https://cloud-api.yandex.net/v1/disk/resources?path=$DEST_PATH" \
+            -w "\nHTTP Status: %{http_code}\n"
 
-      - name: Check if file exists
+      - name: Verify file exists
         run: |
           TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
-          CHECK_URL="https://cloud-api.yandex.net/v1/disk/resources/test_file.txt"
 
-          echo "=== Checking file ==="
-          curl -H "Authorization: OAuth $TOKEN" "$CHECK_URL" 2>/dev/null | head -10
+          echo "=== List files in /CineChanceBackups ==="
+          curl -H "Authorization: OAuth $TOKEN" \
+            "https://cloud-api.yandex.net/v1/disk/resources?path=/CineChanceBackups" \
+            2>/dev/null | grep -o '"name":"[^"]*"' | head -5
