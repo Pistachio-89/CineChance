@@ -1,18 +1,70 @@
-name: Test Yandex Disk API
+name: Database Backup to Yandex Disk
 
 on:
-  workflow_dispatch
+  schedule:
+    # Run daily at 03:00 UTC
+    - cron: '0 3 * * *'
+  workflow_dispatch:
 
 jobs:
-  test-yandex-disk:
+  backup:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Create test file
+      - name: Install PostgreSQL 17 client
         run: |
-          echo "Test from GitHub Actions - $(date)" > test_file.txt
-          echo "Timestamp: $(date +%Y%m%d_%H%M%S)" >> test_file.txt
-          cat test_file.txt
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg2 lsb-release curl gzip
+          wget -qO - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+          echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-17
+
+          echo "=== PostgreSQL Version ==="
+          /usr/lib/postgresql/17/bin/pg_dump --version
+
+      - name: Check DATABASE_URL
+        run: |
+          if [ "${{ secrets.DATABASE_URL }}" == "" ]; then
+            echo "ERROR: DATABASE_URL secret is not set!"
+            exit 1
+          fi
+          echo "DATABASE_URL is configured"
+
+      - name: Create database backup
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          FILENAME="cinechance_backup_${TIMESTAMP}.sql.gz"
+
+          echo "=== Creating backup ==="
+          echo "Timestamp: $TIMESTAMP"
+          echo "Output: $FILENAME"
+
+          # Create compressed dump
+          /usr/lib/postgresql/17/bin/pg_dump "${{ secrets.DATABASE_URL }}" \
+            --clean \
+            --if-exists \
+            --no-owner \
+            --no-privileges \
+            2>&1 | gzip > "$FILENAME"
+
+          # Verify file
+          if [ -f "$FILENAME" ]; then
+            SIZE=$(stat -c%s "$FILENAME")
+            echo "File created: $FILENAME ($SIZE bytes)"
+            if [ $SIZE -gt 100 ]; then
+              echo "Backup size OK"
+            else
+              echo "WARNING: Backup file too small!"
+              exit 1
+            fi
+          else
+            echo "ERROR: Backup file not created!"
+            exit 1
+          fi
+
+          echo "backup_file=$FILENAME" >> $GITHUB_OUTPUT
+          echo "backup_size=$SIZE" >> $GITHUB_OUTPUT
 
       - name: Create folder on Yandex Disk
         run: |
@@ -23,35 +75,52 @@ jobs:
           curl -X PUT \
             -H "Authorization: OAuth $TOKEN" \
             "https://cloud-api.yandex.net/v1/disk/resources?path=$FOLDER_PATH" \
-            -w "\nHTTP Status: %{http_code}\n"
+            -s -w "\nHTTP Status: %{http_code}\n" || echo "Folder may already exist"
 
-      - name: Get upload URL and upload file
+      - name: Upload backup to Yandex Disk
         run: |
           TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
-          FILENAME="test_file.txt"
-          DEST_PATH="/CineChanceBackups/test_file.txt"
+          FILENAME="${{ steps.create-backup.outputs.backup_file }}"
+          DEST_PATH="/CineChanceBackups/$FILENAME"
 
-          echo "=== Step 1: Getting upload URL ==="
-          UPLOAD_URL=$(curl -X GET \
+          echo "=== Uploading $FILENAME to Yandex Disk ==="
+
+          # Step 1: Get upload URL
+          echo "Getting upload URL..."
+          UPLOAD_RESPONSE=$(curl -X GET \
             -H "Authorization: OAuth $TOKEN" \
-            "https://cloud-api.yandex.net/v1/disk/resources/upload?path=$DEST_PATH" \
-            2>/dev/null | grep -o '"href":"[^"]*"' | cut -d'"' -f4)
+            "https://cloud-api.yandex.net/v1/disk/resources/upload?path=$DEST_PATH")
 
-          echo "Upload URL: $UPLOAD_URL"
+          UPLOAD_URL=$(echo "$UPLOAD_RESPONSE" | grep -o '"href":"[^"]*"' | cut -d'"' -f4)
 
-          echo ""
-          echo "=== Step 2: Uploading file ==="
-          curl -X PUT \
-            -H "Authorization: OAuth $TOKEN" \
+          if [ -z "$UPLOAD_URL" ]; then
+            echo "ERROR: Could not get upload URL"
+            echo "Response: $UPLOAD_RESPONSE"
+            exit 1
+          fi
+
+          # Step 2: Upload file
+          echo "Uploading..."
+          UPLOAD_STATUS=$(curl -X PUT \
             --data-binary @"$FILENAME" \
             "$UPLOAD_URL" \
-            -w "\nHTTP Status: %{http_code}\n"
+            -w "%{http_code}" -o /dev/null)
 
-      - name: Verify file exists
+          if [ "$UPLOAD_STATUS" = "201" ]; then
+            echo "SUCCESS: Backup uploaded to Yandex Disk!"
+            echo "Location: Yandex Disk$CineChanceBackups/$FILENAME"
+          else
+            echo "ERROR: Upload failed with status $UPLOAD_STATUS"
+            exit 1
+          fi
+
+      - name: Verify backup on Yandex Disk
         run: |
           TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
+          FILENAME="${{ steps.create-backup.outputs.backup_file }}"
 
-          echo "=== Files in /CineChanceBackups ==="
+          echo "=== Verifying backup ==="
           curl -H "Authorization: OAuth $TOKEN" \
             "https://cloud-api.yandex.net/v1/disk/resources?path=/CineChanceBackups" \
-            2>/dev/null | grep -o '"name":"[^"]*"'
+            -s | grep -o "\"name\":\"[^\"]*\"" | grep "$FILENAME" && \
+            echo "VERIFIED: File found on Yandex Disk!" || echo "WARNING: File not found in listing"
