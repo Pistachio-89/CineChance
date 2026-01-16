@@ -85,7 +85,6 @@ jobs:
           DEST_PATH="/CineChanceBackups/$FILENAME"
 
           echo "=== Uploading $FILENAME to Yandex Disk ==="
-          echo "Destination: $DEST_PATH"
 
           # Step 1: Get upload URL
           echo "Getting upload URL..."
@@ -115,6 +114,49 @@ jobs:
             echo "ERROR: Upload failed with status $UPLOAD_STATUS"
             exit 1
           fi
+
+      - name: Clean old backups (keep last 30 days)
+        run: |
+          TOKEN="${{ secrets.YANDEX_DISK_TOKEN }}"
+          FOLDER_PATH="/CineChanceBackups"
+          DAYS_TO_KEEP=30
+
+          echo "=== Cleaning old backups (keep last $DAYS_TO_KEEP days) ==="
+
+          # Get list of files in folder
+          FILES_JSON=$(curl -H "Authorization: OAuth $TOKEN" \
+            "https://cloud-api.yandex.net/v1/disk/resources?path=$FOLDER_PATH" \
+            -s)
+
+          # Extract file names and dates
+          echo "$FILES_JSON" | grep -o '"name":"[^"]*\.sql\.gz"' | while read line; do
+            FILENAME=$(echo "$line" | grep -o '"name":"[^"]*"' | cut -d'"' -f4)
+
+            # Get file metadata
+            FILE_JSON=$(curl -H "Authorization: OAuth $TOKEN" \
+              "https://cloud-api.yandex.net/v1/disk/resources?path=$FOLDER_PATH/$FILENAME" \
+              -s)
+
+            # Extract created date
+            CREATED_AT=$(echo "$FILE_JSON" | grep -o '"created":"[^"]*"' | cut -d'"' -f4)
+
+            if [ -n "$CREATED_AT" ]; then
+              # Convert to timestamp
+              FILE_DATE=$(date -d "$CREATED_AT" +%s 2>/dev/null || date -u -d "$CREATED_AT" +%s 2>/dev/null)
+              CURRENT_DATE=$(date +%s)
+              DAYS_OLD=$(( (CURRENT_DATE - FILE_DATE) / 86400 ))
+
+              if [ $DAYS_OLD -gt $DAYS_TO_KEEP ]; then
+                echo "Deleting $FILENAME (${DAYS_OLD} days old)"
+                curl -X DELETE \
+                  -H "Authorization: OAuth $TOKEN" \
+                  "https://cloud-api.yandex.net/v1/disk/resources?path=$FOLDER_PATH/$FILENAME" \
+                  -s -w " => HTTP %{http_code}\n"
+              else
+                echo "Keeping $FILENAME (${DAYS_OLD} days old)"
+              fi
+            fi
+          done
 
       - name: Verify backup on Yandex Disk
         run: |
