@@ -118,13 +118,7 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
   } | null>(null);
 
   // Дебаунсим fetchRecommendation для предотвращения race conditions
-  // Используем useRef для хранения ссылки на функцию
-  const debouncedFetchRecommendationRef = useRef<typeof fetchRecommendation>();
-  
-  // Обновляем ссылку при изменении fetchRecommendation
-  useEffect(() => {
-    debouncedFetchRecommendationRef.current = useDebounce(fetchRecommendation, 300);
-  }, [fetchRecommendation]);
+  const debouncedFetchRecommendationRef = useRef<((...args: Parameters<typeof fetchRecommendation>) => void) | undefined>();
   
   const debouncedFetchRecommendation = useCallback((...args: Parameters<typeof fetchRecommendation>) => {
     if (debouncedFetchRecommendationRef.current) {
@@ -356,6 +350,11 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
       setViewState('error');
     }
   }, []);
+
+  // Устанавливаем дебаунс после определения fetchRecommendation
+  useEffect(() => {
+    debouncedFetchRecommendationRef.current = useDebounce(fetchRecommendation, 300);
+  }, [fetchRecommendation]);
 
   // Сброс логов рекомендаций
   const handleResetLogs = async () => {
