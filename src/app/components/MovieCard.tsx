@@ -7,28 +7,10 @@ import { Media } from '@/lib/tmdb';
 import RatingModal from './RatingModal';
 import RatingInfoModal from './RatingInfoModal';
 import { calculateCineChanceScore } from '@/lib/calculateCineChanceScore';
-import MoviePoster from './MoviePoster';
-import MoviePosterFallback from './MoviePosterFallback';
 import MoviePosterProxy from './MoviePosterProxy';
 import StatusOverlay from './StatusOverlay';
 import { logger } from '@/lib/logger';
 import { useBlacklist } from './BlacklistContext';
-
-// Детекция мобильного устройства
-const isMobileDevice = () => {
-  if (typeof window === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-// Используем разные стратегии для разных устройств
-const getPosterStrategy = () => {
-  const useFallback = isMobileDevice() || process.env.NEXT_PUBLIC_USE_FALLBACK_POSTER === 'true';
-  const useProxy = process.env.NEXT_PUBLIC_USE_IMAGE_PROXY === 'true';
-  
-  if (useProxy) return 'proxy';
-  if (useFallback) return 'fallback';
-  return 'default';
-};
 
 const RATING_TEXTS: Record<number, string> = {
   1: 'Хуже некуда',
@@ -587,56 +569,18 @@ export default function MovieCard({
             
             {getStatusIcon()}
 
-            {(() => {
-              const strategy = getPosterStrategy();
-              switch (strategy) {
-                case 'proxy':
-                  return (
-                    <MoviePosterProxy
-                      key={movie.id}
-                      movie={movie}
-                      priority={priority}
-                      isBlacklisted={isBlacklisted}
-                      restoreView={restoreView}
-                      isHovered={isHovered && !showOverlay}
-                      showOverlay={showOverlay}
-                      onClick={handlePosterClick}
-                      onMouseEnter={handlePosterMouseEnter}
-                      onMouseLeave={handlePosterMouseLeave}
-                    />
-                  );
-                case 'fallback':
-                  return (
-                    <MoviePosterFallback
-                      key={movie.id}
-                      movie={movie}
-                      priority={priority}
-                      isBlacklisted={isBlacklisted}
-                      restoreView={restoreView}
-                      isHovered={isHovered && !showOverlay}
-                      showOverlay={showOverlay}
-                      onClick={handlePosterClick}
-                      onMouseEnter={handlePosterMouseEnter}
-                      onMouseLeave={handlePosterMouseLeave}
-                    />
-                  );
-                default:
-                  return (
-                    <MoviePoster
-                      key={movie.id}
-                      movie={movie}
-                      priority={priority}
-                      isBlacklisted={isBlacklisted}
-                      restoreView={restoreView}
-                      isHovered={isHovered && !showOverlay}
-                      showOverlay={showOverlay}
-                      onClick={handlePosterClick}
-                      onMouseEnter={handlePosterMouseEnter}
-                      onMouseLeave={handlePosterMouseLeave}
-                    />
-                  );
-              }
-            })()}
+            <MoviePosterProxy
+              key={movie.id}
+              movie={movie}
+              priority={priority}
+              isBlacklisted={isBlacklisted}
+              restoreView={restoreView}
+              isHovered={isHovered && !showOverlay}
+              showOverlay={showOverlay}
+              onClick={handlePosterClick}
+              onMouseEnter={handlePosterMouseEnter}
+              onMouseLeave={handlePosterMouseLeave}
+            />
           </div>
 
           {showOverlay && (
