@@ -36,13 +36,30 @@ const MoviePosterProxy = memo(({
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showSlowLoadingWarning, setShowSlowLoadingWarning] = useState(false);
 
   // При изменении movie сбрасываем все состояния загрузки
   useEffect(() => {
     setImageError(false);
     setImageLoaded(false);
     setRetryCount(0);
+    setIsLoading(true);
+    setShowSlowLoadingWarning(false);
   }, [movie.id, movie.poster_path]);
+
+  // Показываем предупреждение о медленной загрузке через 3 секунды
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    const timer = setTimeout(() => {
+      if (isLoading && !imageLoaded) {
+        setShowSlowLoadingWarning(true);
+      }
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [isLoading, imageLoaded]);
 
   const handlePosterError = () => {
     logger.warn('Poster load failed (proxy), trying next source', { 
@@ -50,19 +67,20 @@ const MoviePosterProxy = memo(({
       retryCount 
     });
     
-    if (retryCount < 2) {
-      // Пробуем следующую попытку
+    if (retryCount < 1) { // Уменьшили количество попыток для скорости
       setRetryCount(prev => prev + 1);
     } else {
-      // Все попытки исчерпаны
       logger.warn('All poster attempts failed (proxy), showing placeholder', { tmdbId: movie.id });
       setImageError(true);
+      setIsLoading(false);
       onError?.();
     }
   };
 
   const handleImageLoad = () => {
     setImageLoaded(true);
+    setIsLoading(false);
+    setShowSlowLoadingWarning(false);
     logger.info('Poster loaded successfully (proxy)', { tmdbId: movie.id, retryCount });
   };
 
@@ -74,7 +92,7 @@ const MoviePosterProxy = memo(({
       return '/placeholder-poster.svg';
     }
 
-    // Добавляем timestamp для cache busting при retry
+    // Добавляем timestamp только при retry
     const timestamp = retryCount > 0 ? `&t=${Date.now()}` : '';
     
     return `/api/image-proxy?url=${encodeURIComponent(tmdbUrl)}${timestamp}`;
@@ -95,30 +113,46 @@ const MoviePosterProxy = memo(({
     >
       {children}
 
-      {/* Loading indicator */}
+      {/* Loading indicator с улучшенным UX */}
       {!imageLoaded && !imageError && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-          <div className="w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin"></div>
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-800">
+          <div className="w-8 h-8 border-2 border-gray-600 border-t-blue-500 rounded-full animate-spin mb-2"></div>
+          {showSlowLoadingWarning && (
+            <div className="text-center">
+              <span className="text-gray-400 text-xs">Медленная загрузка...</span>
+              <div className="mt-1">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setRetryCount(prev => prev + 1);
+                  }}
+                  className="text-blue-400 text-xs hover:text-blue-300 underline"
+                >
+                  Попробовать снова
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Используем Next.js Image с прокси URL */}
+      {/* Используем Next.js Image с оптимизациями */}
       <Image
         key={`${movie.id}-proxy-${retryCount}`}
         src={imageUrl}
         alt={movie.title || movie.name || 'Poster'}
         fill
-        className={`object-cover transition-transform duration-500 ${
+        className={`object-cover transition-opacity duration-300 ${
           isHovered && !showOverlay ? 'scale-105' : ''
         } ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+        sizes="(max-width: 640px) 40vw, (max-width: 768px) 30vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
         loading={priority ? "eager" : "lazy"}
         placeholder="blur"
         blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54b6bk+h0R//2Q=="
         onError={handlePosterError}
         onLoad={handleImageLoad}
         unoptimized={true}
-        quality={85}
+        quality={75} // Снижаем качество для скорости
       />
     </div>
   );
