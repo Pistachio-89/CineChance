@@ -65,6 +65,8 @@ interface RecommendationsClientProps {
   userId: string;
 }
 
+const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
+
 interface AdditionalFilters {
   minRating: number;
   yearFrom: string;
@@ -270,15 +272,17 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     setWatchCount(0);
 
     // Запускаем анимацию прогресса сразу после начала загрузки
-    const progressInterval = setInterval(() => {
-      // Эта функция будет переопределена ниже
-    }, 200);
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
     
     const progressAnimation = () => {
       let currentProgress = 0;
-      clearInterval(progressInterval); // Очищаем начальный интервал
       
-      const newInterval = setInterval(() => {
+      // Очищаем предыдущий интервал если есть
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      
+      progressIntervalRef.current = setInterval(() => {
         // Медленный прогресс до 70% во время загрузки
         if (currentProgress < 70) {
           currentProgress += Math.random() * 3 + 1; // 1-4% каждые 200мс
@@ -289,9 +293,6 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
           setProgress(Math.min(currentProgress, 75));
         }
       }, 200);
-      
-      // Сохраняем интервал для доступа извне
-      (progressInterval as any) = newInterval;
     };
     progressAnimation();
 
@@ -310,6 +311,7 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
       const params = new URLSearchParams();
       params.set('types', types.join(','));
       params.set('lists', lists.join(','));
+      params.set('userId', userId); // Добавляем userId для проверки прав
 
       // Добавляем дополнительные фильтры
       if (additionalFilters) {
@@ -347,7 +349,9 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
 
       if (data.success && data.movie) {
         // Останавливаем анимацию прогресса
-        clearInterval((progressInterval as any));
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
         
         setMovie(data.movie);
         setLogId(data.logId);
@@ -377,7 +381,9 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
         setTimeout(() => setViewState('result'), 300); // Небольшая задержка для визуала
       } else {
         // Останавливаем анимацию прогресса
-        clearInterval((progressInterval as any));
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
         
         if (data.message?.includes('Выбранные списки пусты') ||
             data.message?.includes('Все доступные рекомендации')) {
@@ -388,7 +394,9 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
       }
     } catch (err) {
       // Останавливаем анимацию прогресса
-      clearInterval((progressInterval as any));
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
       
       logger.error('Failed to fetch recommendation', { error: err, filters: currentFilterState });
       setErrorMessage('Ошибка при загрузке рекомендации');
@@ -633,7 +641,7 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
                       </div>
                       
                       {/* Техническое окно для отладки */}
-                      {process.env.NODE_ENV === 'development' && (
+                      {process.env.NODE_ENV === 'development' && userId === ADMIN_USER_ID && (
                         <div className="mt-6 p-3 bg-gray-900 border border-gray-700 rounded-lg text-xs">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-gray-400 font-mono">🔧 DEBUG MODE</span>

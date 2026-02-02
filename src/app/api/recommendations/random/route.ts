@@ -214,6 +214,7 @@ function createFiltersSnapshot(
  */
 export async function GET(req: Request) {
   const startTime = Date.now();
+  const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
   
   // Apply rate limiting
   const { success } = await rateLimit(req, '/api/recommendations');
@@ -231,6 +232,9 @@ export async function GET(req: Request) {
     const userId = session.user.id as string;
     const url = new URL(req.url);
     const { types, lists, minRating, yearFrom, yearTo, genres, tags } = parseFilterParams(url);
+    
+    // Проверяем права администратора для debug информации
+    const isAdmin = userId === ADMIN_USER_ID && process.env.NODE_ENV === 'development';
 
     // 1. Получаем настройки пользователя
     const settings = await prisma.recommendationSettings.findUnique({
@@ -727,8 +731,8 @@ export async function GET(req: Request) {
       userRating: watchListData?.userRating || null,
       watchCount: watchListData?.watchCount || 0,
       message: 'Рекомендация получена',
-      // Debug информация для разработки
-      ...(process.env.NODE_ENV === 'development' && {
+      // Debug информация для разработки (только для администратора)
+      ...(isAdmin && {
         debug: {
           tmdbCalls: watchListItems.length,
           dbRecords: watchListItems.length,
