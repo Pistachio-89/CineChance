@@ -1,8 +1,9 @@
 // src/app/api/user/stats/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(req: Request) {
@@ -25,16 +26,16 @@ export async function GET(req: Request) {
       prisma.watchList.count({
         where: {
           userId,
-          status: { name: { in: ['Просмотрено', 'Пересмотрено'] } },
+          statusId: { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED] },
         },
       }),
       // Хочу посмотреть
       prisma.watchList.count({
-        where: { userId, status: { name: 'Хочу посмотреть' } },
+        where: { userId, statusId: MOVIE_STATUS_IDS.WANT_TO_WATCH },
       }),
       // Брошено
       prisma.watchList.count({
-        where: { userId, status: { name: 'Брошено' } },
+        where: { userId, statusId: MOVIE_STATUS_IDS.DROPPED },
       }),
       // Скрыто (blacklist)
       prisma.blacklist.count({ where: { userId } }),
@@ -45,7 +46,7 @@ export async function GET(req: Request) {
       by: ['mediaType'],
       where: {
         userId,
-        status: { name: { in: ['Просмотрено', 'Пересмотрено'] } },
+        statusId: { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED] },
       },
       _count: { mediaType: true },
     });

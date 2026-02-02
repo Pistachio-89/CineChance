@@ -8,6 +8,7 @@ import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rateLimit';
 import { calculateCineChanceScore } from '@/lib/calculateCineChanceScore';
 import { shouldFilterAdult } from '@/lib/ageFilter';
+import { getRecommendationStatusIds } from '@/lib/movieStatusConstants';
 import {
   FiltersSnapshot,
   CandidatePoolMetrics,
@@ -245,20 +246,10 @@ export async function GET(req: Request) {
     // Проверяем, нужно ли фильтровать взрослый контент
     const filterAdult = shouldFilterAdult((user as any)?.birthDate ?? null, true);
 
-    // 3. Формируем условия для статусов
-    const statusConditions: string[] = [];
-    if (lists.includes('want')) {
-      statusConditions.push('Хочу посмотреть');
-    }
-    if (lists.includes('watched')) {
-      statusConditions.push('Просмотрено');
-      statusConditions.push('Пересмотрено');
-    }
-    if (lists.includes('dropped')) {
-      statusConditions.push('Брошено');
-    }
+    // 3. Формируем условия для статусов используя ID вместо имен
+    const statusIds = getRecommendationStatusIds(lists);
 
-    if (statusConditions.length === 0) {
+    if (statusIds.length === 0) {
       return NextResponse.json({
         success: false,
         message: 'Выберите хотя бы один список',
@@ -270,9 +261,7 @@ export async function GET(req: Request) {
     const watchListItems = await prisma.watchList.findMany({
       where: {
         userId,
-        status: {
-          name: { in: statusConditions },
-        },
+        statusId: { in: statusIds },
       },
       select: {
         id: true,
@@ -282,11 +271,7 @@ export async function GET(req: Request) {
         voteAverage: true,
         addedAt: true,
         userRating: true,
-        status: {
-          select: {
-            name: true,
-          },
-        },
+        statusId: true,
       },
     });
 

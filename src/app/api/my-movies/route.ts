@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { MOVIE_STATUS_IDS, getStatusIdByName } from '@/lib/movieStatusConstants';
 import { calculateCineChanceScore } from '@/lib/calculateCineChanceScore';
 
 const ITEMS_PER_PAGE = 20;
@@ -81,7 +82,10 @@ export async function GET(request: NextRequest) {
 
     if (statusNameParam) {
       const statusNames = statusNameParam.split(',');
-      whereClause.status = { name: { in: statusNames } };
+      const statusIds = statusNames.map(name => getStatusIdByName(name)).filter(id => id !== null) as number[];
+      if (statusIds.length > 0) {
+        whereClause.statusId = { in: statusIds };
+      }
     }
 
     if (includeHidden) {

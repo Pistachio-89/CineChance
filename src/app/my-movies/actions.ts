@@ -2,6 +2,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { MOVIE_STATUS_IDS, getStatusIdByName } from '@/lib/movieStatusConstants';
 import { calculateCineChanceScore } from '@/lib/calculateCineChanceScore';
 
 // Вспомогательная функция для получения деталей с TMDB
@@ -91,9 +92,15 @@ export async function fetchMoviesByStatus(
   const whereClause: any = { userId };
   if (statusName) {
     if (Array.isArray(statusName)) {
-      whereClause.status = { name: { in: statusName } };
+      const statusIds = statusName.map(name => getStatusIdByName(name)).filter(id => id !== null) as number[];
+      if (statusIds.length > 0) {
+        whereClause.statusId = { in: statusIds };
+      }
     } else {
-      whereClause.status = { name: statusName };
+      const statusId = getStatusIdByName(statusName);
+      if (statusId) {
+        whereClause.statusId = statusId;
+      }
     }
   }
 

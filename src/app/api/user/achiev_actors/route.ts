@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -104,7 +105,7 @@ export async function GET(request: Request) {
     const watchedMoviesData = await prisma.watchList.findMany({
       where: {
         userId: targetUserId,
-        status: { name: { in: ['Просмотрено', 'Пересмотрено'] } },
+        statusId: { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED] },
         mediaType: 'movie',
       },
       select: {

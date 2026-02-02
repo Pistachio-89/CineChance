@@ -46,8 +46,24 @@ export default async function MovieHistoryPage({ searchParams }: PageProps) {
         mediaType,
       },
     },
-    include: {
-      status: true,
+    select: {
+      id: true,
+      tmdbId: true,
+      mediaType: true,
+      title: true,
+      voteAverage: true,
+      userRating: true,
+      statusId: true,
+      addedAt: true,
+      watchedDate: true,
+      note: true,
+      watchCount: true,
+      status: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     },
   });
 
