@@ -13,7 +13,7 @@ export default async function UsersAdminPage() {
     redirect("/?auth=required");
   }
 
-  // Проверка доступа только для特定ного пользователя
+  // Проверка доступа только для определённого пользователя
   const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
   if (session.user.id !== ADMIN_USER_ID) {
     redirect('/');
