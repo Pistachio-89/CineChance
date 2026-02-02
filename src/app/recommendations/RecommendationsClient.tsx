@@ -122,6 +122,10 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     tmdbCalls: 0,
     dbRecords: 0
   });
+  
+  // Refs для управления интервалами и таймаутами
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const fetchStartTime = useRef<number>(0);
   const [userMinRating, setUserMinRating] = useState<number>(6.0); // Настройка minRating пользователя
   const [userListPreferences, setUserListPreferences] = useState<{
     includeWant: boolean;
@@ -135,7 +139,6 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
   const [availableGenres, setAvailableGenres] = useState<{ id: number; name: string }[]>([]);
   const [userTags, setUserTags] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true); // Флаг загрузки настроек
-  const fetchStartTime = useRef<number>(0);
   const [currentFilters, setCurrentFilters] = useState<{
     types: ContentType[];
     lists: ListType[];
@@ -272,8 +275,6 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     setWatchCount(0);
 
     // Запускаем анимацию прогресса сразу после начала загрузки
-    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
-    
     const progressAnimation = () => {
       let currentProgress = 0;
       
