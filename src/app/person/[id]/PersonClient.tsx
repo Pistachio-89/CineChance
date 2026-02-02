@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import ImageWithProxy from '@/app/components/ImageWithProxy';
 import { useRouter } from 'next/navigation';
 import MovieCard from '@/app/components/MovieCard';
 import { MovieCardErrorBoundary } from '@/app/components/ErrorBoundary';
@@ -249,12 +249,12 @@ export default function PersonClient({ personId }: PersonClientProps) {
             {/* Фото актера */}
             {person.profile_path && (
               <div className="flex-shrink-0 mx-auto sm:mx-0 relative w-32 h-40 sm:w-40 sm:h-56">
-                <Image
+                <ImageWithProxy
                   src={`https://image.tmdb.org/t/p/w300${person.profile_path}`}
                   alt={person.name}
                   fill
                   className="object-cover rounded-lg shadow-lg"
-                  sizes="(max-width: 640px) 128px, (max-width: 768px) 160px, 160px"
+                  sizes="(max-width: 640px) 128px, 160px"
                 />
               </div>
             )}

@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import Link from 'next/link';
 import { User } from 'lucide-react';
@@ -158,15 +159,12 @@ export default function ActorsClient({ userId }: ActorsClientProps) {
                 <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-amber-500/50 transition-all relative">
                   {actor.profile_path ? (
                     <div className="w-full h-full relative">
-                      <Image
+                      <ImageWithProxy
                         src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`}
                         alt={actor.name}
                         fill
                         className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
-                        sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                        style={{ 
-                          filter: `grayscale(${grayscaleValue}%) saturate(${saturateValue}%)`
-                        }}
+                        sizes="120px"
                       />
                     </div>
                   ) : (

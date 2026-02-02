@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { STATIC_BLUR_PLACEHOLDER } from '@/lib/blurPlaceholder';
@@ -180,18 +181,16 @@ export default function RecommendationCard({
           onMouseLeave={() => handleHoverEnd('poster')}
           className={`relative w-full aspect-[2/3] bg-gradient-to-br from-gray-800 to-gray-900 overflow-hidden shadow-lg cursor-pointer`}
         >
-          {movie.poster_path && !imageError ? (
-            <Image
+          {movie.poster_path ? (
+            <ImageWithProxy
               src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`}
               alt={movie.title || movie.name}
               fill
               className="object-cover"
               priority
-              placeholder="blur"
-              blurDataURL={STATIC_BLUR_PLACEHOLDER}
               sizes="(max-width: 640px) 80vw, (max-width: 1024px) 50vw, 33vw"
               quality={85}
-              onError={handleImageError}
+              onError={() => setImageError(true)}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-800">

@@ -1,7 +1,8 @@
 // src/app/collection/[id]/CollectionClient.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import MovieCard from '@/app/components/MovieCard';
@@ -148,7 +149,7 @@ export default function CollectionClient({ collectionId }: { collectionId: strin
             {/* Постер коллекции */}
             {collection.poster_path && (
               <div className="flex-shrink-0 mx-auto sm:mx-0 relative w-32 h-48 sm:w-44 sm:h-66">
-                <Image
+                <ImageWithProxy
                   src={`https://image.tmdb.org/t/p/w300${collection.poster_path}`}
                   alt={collection.name}
                   fill

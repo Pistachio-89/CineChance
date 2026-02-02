@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
@@ -600,12 +601,12 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                       <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-purple-500/50 transition-all relative">
                         {collection.poster_path ? (
                           <div className="w-full h-full relative">
-                            <Image
+                            <ImageWithProxy
                               src={`https://image.tmdb.org/t/p/w300${collection.poster_path}`}
                               alt={collection.name}
                               fill
                               className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
-                              sizes="(max-width: 640px) 112px, (max-width: 768px) 144px, 144px"
+                              sizes="120px"
                               style={{ 
                                 filter: `grayscale(${grayscaleValue}%) saturate(${saturateValue}%)`
                               }}
@@ -724,7 +725,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                       <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-amber-500/50 transition-all relative">
                         {actor.profile_path ? (
                           <div className="w-full h-full relative">
-                            <Image
+                            <ImageWithProxy
                               src={`https://image.tmdb.org/t/p/w185${actor.profile_path}`}
                               alt={actor.name}
                               fill

@@ -1,8 +1,8 @@
 // src/app/components/RatingInfoModal.tsx
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import Image from 'next/image';
+import { useState, useEffect, useRef } from 'react';
+import ImageWithProxy from './ImageWithProxy';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 const RatingModal = dynamic(() => import('./RatingModal'), { ssr: false });
@@ -918,7 +918,7 @@ export default function RatingInfoModal({
                           {/* Фото актера */}
                           {actor.profilePath ? (
                             <div className="w-6 h-8 relative flex-shrink-0">
-                              <Image
+                              <ImageWithProxy
                                 src={`https://image.tmdb.org/t/p/w92${actor.profilePath}`}
                                 alt={actor.name}
                                 fill
