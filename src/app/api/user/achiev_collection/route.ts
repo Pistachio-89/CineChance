@@ -92,6 +92,7 @@ export async function GET(request: Request) {
     // Параметры пагинации
     const limit = Math.min(parseInt(searchParams.get('limit') || '24'), 50); // Максимум 50
     const offset = Math.max(parseInt(searchParams.get('offset') || '0'), 0);
+    const singleLoad = searchParams.get('singleLoad') === 'true'; // Единовременная загрузка
 
     // Получаем все фильмы пользователя со статусом "Просмотрено"
     const watchedMovies = await prisma.watchList.findMany({
@@ -206,6 +207,20 @@ export async function GET(request: Request) {
       
       return a.name.localeCompare(b.name, 'ru');
     });
+
+    // Единовременная загрузка - возвращаем все коллекции сразу
+    if (singleLoad) {
+      console.log(`Starting singleLoad for collections, returning top ${limit}`);
+      
+      const result = achievements.slice(0, limit);
+      
+      return NextResponse.json({
+        collections: result,
+        hasMore: false, // При единовременной загрузке нет пагинации
+        total: achievements.length,
+        singleLoad: true,
+      });
+    }
 
     // Применяем пагинацию
     const paginatedAchievements = achievements.slice(offset, offset + limit);

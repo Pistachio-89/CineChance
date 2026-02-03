@@ -6,7 +6,6 @@ import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Film } from 'lucide-react';
-import { useCollections } from '@/hooks/useCollections';
 import Loader from '@/app/components/Loader';
 import '@/app/profile/components/AchievementCards.css';
 
@@ -25,8 +24,8 @@ interface CollectionsClientProps {
   userId: string;
 }
 
-const ITEMS_PER_PAGE = 12;
-const INITIAL_ITEMS = 24;
+const TOP_COLLECTIONS_COUNT = 50; // Оптимальное количество для балансировки производительности и сортировки
+const DISPLAY_COUNT = 50; // Показываем все 50
 
 // Skeleton для карточки коллекции
 function CollectionCardSkeleton() {
@@ -39,95 +38,169 @@ function CollectionCardSkeleton() {
   );
 }
 
-// Skeleton для всей страницы
-function PageSkeleton() {
-  const skeletonCount = 12;
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-      {Array.from({ length: skeletonCount }).map((_, i) => (
-        <CollectionCardSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
-
 export default function CollectionsClient({ userId }: CollectionsClientProps) {
-  const [visibleCount, setVisibleCount] = useState(INITIAL_ITEMS);
-  const sentinelRef = useRef<HTMLDivElement>(null);
-  const isFetchingRef = useRef(false);
+  const [collections, setCollections] = useState<CollectionAchievement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [loadedImages, setLoadedImages] = useState<Set<number>>(new Set());
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Use our optimized hook for infinite query
-  const collectionsQuery = useCollections(userId);
-
-  // Loading states
-  const isLoading = collectionsQuery.isLoading;
-  const isFetchingNextPage = collectionsQuery.isFetchingNextPage;
-  const hasNextPage = collectionsQuery.hasNextPage ?? false;
-  const collections = collectionsQuery.collections;
-  const totalCount = collectionsQuery.totalCount;
-
-  // Fetch next page handler with safeguards
-  const handleFetchNextPage = useCallback(() => {
-    if (hasNextPage && !isFetchingNextPage && !isFetchingRef.current) {
-      isFetchingRef.current = true;
-      collectionsQuery.fetchNextPage();
-    }
-  }, [hasNextPage, isFetchingNextPage, collectionsQuery]);
-
-  // Infinite scroll observer
+  // Загрузка коллекций с прогресс-баром
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const sentinel = entries[0];
-        if (sentinel.isIntersecting && hasNextPage && !isFetchingNextPage && !isFetchingRef.current) {
-          isFetchingRef.current = true;
-          collectionsQuery.fetchNextPage();
+    const fetchCollections = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        setProgress(0);
+
+        // Запускаем анимацию прогресса с информативными сообщениями
+        progressIntervalRef.current = setInterval(() => {
+          setProgress(prev => {
+            if (prev < 70) {
+              return Math.min(prev + Math.random() * 3 + 1, 70);
+            } else if (prev < 85) {
+              return Math.min(prev + Math.random() * 1 + 0.5, 85);
+            } else {
+              return prev;
+            }
+          });
+        }, 200);
+
+        // Добавляем таймаут для предотвращения зависания
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 секунд таймаут
+
+        const response = await fetch(`/api/user/achiev_collection?limit=${TOP_COLLECTIONS_COUNT}&singleLoad=true`, {
+          signal: controller.signal,
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('API Error:', response.status, errorText);
+          throw new Error(`API Error: ${response.status} - ${errorText}`);
         }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: '200px',
-      }
-    );
 
-    const currentSentinel = sentinelRef.current;
-    if (currentSentinel) {
-      observer.observe(currentSentinel);
-    }
+        const data = await response.json();
+        
+        // Останавливаем анимацию прогресса
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
 
-    return () => {
-      if (currentSentinel) {
-        observer.unobserve(currentSentinel);
+        setCollections(data.collections ? data.collections.slice(0, DISPLAY_COUNT) : []);
+        setProgress(100);
+        
+        // Небольшая задержка для визуала
+        setTimeout(() => setLoading(false), 300);
+        
+      } catch (err) {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+        }
+        
+        console.error('Failed to fetch collections:', err);
+        
+        // Детальная обработка ошибок
+        let errorMessage = 'Не удалось загрузить коллекции';
+        if (err instanceof Error) {
+          if (err.name === 'AbortError') {
+            errorMessage = 'Превышено время ожидания загрузки. Попробуйте обновить страницу.';
+          } else if (err.message.includes('API Error')) {
+            errorMessage = 'Ошибка сервера при загрузке коллекций. Попробуйте позже.';
+          } else if (err.message.includes('Failed to fetch')) {
+            errorMessage = 'Проблемы с соединением. Проверьте интернет-соединение.';
+          }
+        }
+        
+        setError(errorMessage);
+        setProgress(100);
+        setLoading(false);
       }
     };
-  }, [hasNextPage, isFetchingNextPage, collectionsQuery]);
 
-  // Reset fetching ref when fetch completes
-  useEffect(() => {
-    if (!isFetchingNextPage) {
-      isFetchingRef.current = false;
-    }
-  }, [isFetchingNextPage]);
+    fetchCollections();
 
-  const visibleCollections = collections.slice(0, visibleCount);
-  const hasMoreVisible = visibleCount < collections.length;
-  const isLoadingMore = false;
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, [userId]);
 
-  if (isLoading) {
+  // Получаем информативное сообщение на основе прогресса
+  const getProgressMessage = () => {
+    if (progress < 20) return '🎬 Собираем информацию о коллекциях...';
+    if (progress < 40) return '📊 Анализируем кинофраншизы...';
+    if (progress < 60) return '⭐ Формируем рейтинги...';
+    if (progress < 80) return '🎭 Готовим списки лучших...';
+    if (progress < 95) return '📸 Загружаем постеры...';
+    return '✨ Почти готово...';
+  };
+
+  const getProgressSubtext = () => {
+    if (progress < 20) return 'Изучаем ваши предпочтения в кино';
+    if (progress < 40) return 'Считаем просмотренные фильмы каждой франшизы';
+    if (progress < 60) return 'Упорядочиваем по вашим оценкам';
+    if (progress < 80) return 'Отбираем самые любимые серии';
+    if (progress < 95) return 'Подготавливаем постеры для отображения';
+    return 'Скоро покажем результат!';
+  };
+
+  // Обработчик загрузки изображения
+  const handleImageLoad = useCallback((collectionId: number) => {
+    setLoadedImages(prev => new Set(prev).add(collectionId));
+  }, []);
+
+  // Определяем приоритет загрузки
+  const getImagePriority = (index: number) => {
+    return index < 12; // Первые 12 изображений с приоритетом
+  };
+
+  if (loading) {
     return (
       <div className="space-y-4">
         {/* Skeleton заголовка */}
         <div className="h-6 w-48 bg-gray-800 rounded animate-pulse" />
-        {/* Skeleton сетки */}
-        <PageSkeleton />
+        
+        {/* Прогресс-бар с информативными сообщениями */}
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <div className="w-full max-w-xs">
+            <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-2">
+              <div
+                className="h-full bg-gradient-to-r from-green-500 to-emerald-500 transition-all duration-150 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="text-gray-400 text-xs text-center">{Math.round(progress)}%</p>
+          </div>
+          
+          {/* Информативные сообщения */}
+          <div className="text-center mt-4">
+            <p className="text-gray-500 text-sm mb-2">
+              {getProgressMessage()}
+            </p>
+            <p className="text-gray-600 text-xs">
+              {getProgressSubtext()}
+            </p>
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (collectionsQuery.error) {
+  if (error) {
     return (
       <div className="bg-red-900/30 border border-red-700 rounded-lg p-6">
-        <p className="text-red-300">Не удалось загрузить коллекции</p>
+        <p className="text-red-300 mb-4">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+        >
+          Попробовать снова
+        </button>
       </div>
     );
   }
@@ -136,149 +209,139 @@ export default function CollectionsClient({ userId }: CollectionsClientProps) {
     return (
       <div className="bg-gray-900 rounded-lg md:rounded-xl p-6 border border-gray-800">
         <p className="text-gray-400 text-center py-10">
-          У вас пока нет коллекций с просмотренными фильмами
+          У вас пока нет коллекций
         </p>
       </div>
     );
   }
 
   return (
-    <>
-      {/* Сетка коллекций */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-        {visibleCollections
-          .sort((a, b) => {
-            // Сначала по рейтингу (desc), null в конце
-            if (a.average_rating !== null && b.average_rating !== null) {
-              if (b.average_rating !== a.average_rating) {
-                return b.average_rating - a.average_rating;
-              }
-            } else if (a.average_rating === null && b.average_rating !== null) {
-              return 1;
-            } else if (a.average_rating !== null && b.average_rating === null) {
-              return -1;
-            }
-            
-            // Если рейтинги равны или оба null, сортируем по прогрессу (desc)
-            if (b.progress_percent !== a.progress_percent) {
-              return b.progress_percent - a.progress_percent;
-            }
-            
-            // Если и прогресс одинаковый, сортируем по алфавиту (asc)
-            return a.name.localeCompare(b.name, 'ru');
-          })
-          .map((collection) => {
-            // Более гибкая формула для цветности с нелинейной прогрессией
-            const progress = collection.progress_percent;
-            const grayscale = 100 - progress;
-            // Используем кубическую функцию для более естественного восприятия
-            const saturate = Math.max(0.2, Math.pow(progress / 100, 1.5));
-            
-            return (
-              <Link
-                key={collection.id}
-                href={`/collection/${collection.id}`}
-                className="group relative"
-              >
-                <div className="relative">
-                  <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-purple-500/50 transition-all relative">
-                    {collection.poster_path ? (
-                      <div className="w-full h-full relative">
-                        <ImageWithProxy
-                          src={`https://image.tmdb.org/t/p/w300${collection.poster_path}`}
-                          alt={collection.name}
-                          fill
-                          className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
-                          sizes="120px"
-                          style={{ 
-                            filter: `grayscale(${grayscale}%) saturate(${saturate})`
-                          }}
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-600">
-                        <Film className="w-10 h-10" />
-                      </div>
-                    )}
-                    
-                    <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-800">
-                      <div 
-                        className="h-full bg-purple-500 transition-all"
-                        style={{ width: `${collection.progress_percent}%` }}
-                      />
-                    </div>
-                    
-                    <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs font-medium px-2 py-1 rounded">
-                      {collection.progress_percent}%
-                    </div>
-                  </div>
-                  
-                  <h3 className="mt-2 text-gray-300 text-sm truncate group-hover:text-purple-400 transition-colors">
-                    {collection.name.replace(/\s*\(Коллекция\)\s*$/i, '')}
-                  </h3>
-                  
-                  <div className="flex items-center justify-between mt-1">
-                    <p className="text-gray-500 text-xs">
-                      <span className="text-green-400">{collection.watched_movies}</span>
-                      {' / '}
-                      <span>{collection.total_movies}</span>
-                      {' фильмов'}
-                    </p>
-                    {collection.average_rating !== null && (
-                      <div className="flex items-center bg-gray-800/50 rounded text-sm flex-shrink-0">
-                        <div className="w-5 h-5 relative mx-1">
-                          <Image 
-                            src="/images/logo_mini_lgt.png" 
-                            alt="CineChance Logo" 
-                            fill 
-                            className="object-contain" 
-                          />
-                        </div>
-                        <span className="text-gray-200 font-medium pr-2">
-                          {collection.average_rating.toFixed(1)}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+    <div className="space-y-4">
+      {/* Заголовок с количеством */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-white">Кинофраншизы</h2>
+        <p className="text-gray-400 text-sm">
+          Показано {collections.length} коллекций
+        </p>
       </div>
 
-      {/* Sentinel для infinite scroll */}
-      <div ref={sentinelRef} className="h-4" />
-
-      {/* Кнопка "Ещё" */}
-      {hasNextPage && (
-        <div className="flex justify-center mt-6">
-          <button
-            onClick={handleFetchNextPage}
-            disabled={isFetchingNextPage}
-            className="px-6 py-2 rounded-lg bg-gray-800 text-white text-sm hover:bg-gray-700 transition-colors disabled:opacity-50 flex items-center gap-2"
-          >
-            {isFetchingNextPage ? (
-              <>
-                <div className="w-4 h-4 border-2 border-gray-400 border-t-white rounded-full animate-spin"></div>
-                Загрузка...
-              </>
-            ) : (
-              'Ещё...'
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* Индикатор загрузки в конце */}
-      {isFetchingNextPage && (
-        <div className="flex justify-center mt-6">
-          <Loader size="small" />
-        </div>
-      )}
-
-      <p className="text-gray-500 text-sm text-center pt-4">
-        Показано {visibleCollections.length} из {totalCount} коллекций
-      </p>
-    </>
+      {/* Сетка коллекций */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+        {collections.map((collection, index) => {
+          const progress = collection.progress_percent || 0;
+          
+          // Нелинейная формула для лучшего UX распределения
+          let grayscale, saturate;
+          
+          if (progress <= 10) {
+            grayscale = 100 - (progress * 0.5); // 100% -> 95%
+            saturate = 0.1 + (progress * 0.01); // 0.1 -> 0.2
+          } else if (progress <= 30) {
+            grayscale = 95 - ((progress - 10) * 1.25); // 95% -> 70%
+            saturate = 0.2 + ((progress - 10) * 0.015); // 0.2 -> 0.5
+          } else if (progress <= 60) {
+            grayscale = 70 - ((progress - 30) * 1.33); // 70% -> 30%
+            saturate = 0.5 + ((progress - 30) * 0.02); // 0.5 -> 1.1
+          } else if (progress <= 90) {
+            grayscale = 30 - ((progress - 60) * 0.67); // 30% -> 10%
+            saturate = 1.1 + ((progress - 60) * 0.03); // 1.1 -> 2.0
+          } else {
+            grayscale = 10 - ((progress - 90) * 1); // 10% -> 0%
+            saturate = 2.0 + ((progress - 90) * 0.02); // 2.0 -> 2.4
+          }
+          
+          // Ограничиваем значения
+          grayscale = Math.max(0, Math.min(100, grayscale));
+          saturate = Math.max(0.1, Math.min(2.5, saturate));
+          
+          const isImageLoaded = loadedImages.has(collection.id);
+          
+          return (
+            <Link
+              key={collection.id}
+              href={`/collection/${collection.id}`}
+              className="group relative"
+            >
+              <div className="relative">
+                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-green-500/50 transition-all relative">
+                  {collection.poster_path ? (
+                    <div className="w-full h-full relative">
+                      <ImageWithProxy
+                        src={`https://image.tmdb.org/t/p/w342${collection.poster_path}`}
+                        alt={collection.name}
+                        fill
+                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, (max-width: 1280px) 25vw, 20vw"
+                        className={`object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster ${
+                          isImageLoaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        style={{ 
+                          filter: `grayscale(${grayscale}%) saturate(${saturate})`
+                        }}
+                        priority={getImagePriority(index)}
+                        quality={80}
+                        onLoad={() => handleImageLoad(collection.id)}
+                      />
+                      
+                      {/* Placeholder пока изображение загружается */}
+                      {!isImageLoaded && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                          <Film className="w-10 h-10 text-gray-600" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-600">
+                      <Film className="w-10 h-10" />
+                    </div>
+                  )}
+                  
+                  <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-800">
+                    <div 
+                      className="h-full bg-green-500 transition-all duration-300"
+                      style={{ 
+                        width: `${progress}%`,
+                        opacity: progress === 0 ? 0.3 : 1
+                      }}
+                    />
+                  </div>
+                  
+                  <div className="absolute top-2 right-2 bg-green-600/90 text-white text-xs font-medium px-2 py-1 rounded">
+                    {progress}%
+                  </div>
+                </div>
+                
+                <h3 className="mt-2 text-gray-300 text-sm truncate group-hover:text-green-400 transition-colors">
+                  {collection.name}
+                </h3>
+                
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-gray-500 text-xs">
+                    <span className="text-green-400">{collection.watched_movies}</span>
+                    {' / '}
+                    <span>{collection.total_movies}</span>
+                    {' фильмов'}
+                  </p>
+                  {collection.average_rating !== null && (
+                    <div className="flex items-center bg-gray-800/50 rounded text-sm flex-shrink-0">
+                      <div className="w-5 h-5 relative mx-1">
+                        <Image 
+                          src="/images/logo_mini_lgt.png" 
+                          alt="CineChance Logo" 
+                          fill 
+                          className="object-contain" 
+                        />
+                      </div>
+                      <span className="text-gray-200 font-medium pr-2">
+                        {collection.average_rating.toFixed(1)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
 }

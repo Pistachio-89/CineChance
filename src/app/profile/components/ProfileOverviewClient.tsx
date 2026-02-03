@@ -226,7 +226,8 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
         // Запускаем все запросы параллельно без задержек
         const [statsRes, collectionsRes, actorsRes] = await Promise.all([
           fetch('/api/user/stats'),
-          fetch('/api/user/achiev_collection?limit=5&offset=0'),
+          // Используем тот же лимит что и страница всех коллекций для полной консистентности
+          fetch('/api/user/achiev_collection?limit=50&singleLoad=true'),
           // Используем тот же лимит что и страница всех актеров для полной консистентности
           fetch('/api/user/achiev_actors?limit=50&singleLoad=true')
         ]);
@@ -253,7 +254,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
           });
         }
 
-        // Обрабатываем коллекции
+        // Обрабатываем коллекции - берем топ-5 из того же списка что и на странице всех коллекций
         if (collectionsRes.ok) {
           const data = await collectionsRes.json();
           setCollections(data.collections ? data.collections.slice(0, 5) : []);
