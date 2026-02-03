@@ -77,13 +77,14 @@ export default async function HorizontalMovieGridServer() {
           tmdbId: true,
           statusId: true,
           userRating: true,
+          weightedRating: true, // Добавляем взвешенную оценку
         }
       });
       
       watchlist.forEach((item) => {
         watchlistMap.set(`${item.mediaType}_${item.tmdbId}`, { 
           status: item.statusId, 
-          userRating: item.userRating 
+          userRating: item.weightedRating ?? item.userRating // Используем взвешенную оценку
         });
       });
     } catch (error) {

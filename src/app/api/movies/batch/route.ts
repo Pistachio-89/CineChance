@@ -68,6 +68,7 @@ export async function POST(req: Request) {
           mediaType: true,
           status: { select: { name: true } },
           userRating: true,
+          weightedRating: true, // Добавляем взвешенную оценку
           watchedDate: true,
           watchCount: true,
         },
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
         if (result[key]) {
           const dbStatusName = record.status?.name;
           result[key].status = dbStatusName ? (STATUS_FROM_DB[dbStatusName] || null) : null;
-          result[key].userRating = record.userRating;
+          result[key].userRating = record.weightedRating ?? record.userRating; // Используем взвешенную оценку
           result[key].watchedDate = record.watchedDate;
           result[key].watchCount = record.watchCount || 0;
         }

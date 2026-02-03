@@ -64,12 +64,13 @@ export async function GET(
           mediaType: true,
           status: { select: { name: true } },
           userRating: true,
+          weightedRating: true, // Добавляем взвешенную оценку
         }
       });
       watchlist.forEach((item) => {
         watchlistMap.set(`${item.mediaType}_${item.tmdbId}`, { 
           status: item.status?.name || null, 
-          userRating: item.userRating 
+          userRating: item.weightedRating ?? item.userRating // Используем взвешенную оценку
         });
       });
     }
