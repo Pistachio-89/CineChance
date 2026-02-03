@@ -600,11 +600,35 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                 return a.name.localeCompare(b.name, 'ru');
               })
               .map((collection) => {
-                // Более гибкая формула для цветности с нелинейной прогрессией
-                const progress = collection.progress_percent;
-                const grayscale = 100 - progress;
-                // Используем кубическую функцию для более естественного восприятия
-                const saturate = Math.max(0.2, Math.pow(progress / 100, 1.5));
+                // Улучшенная нелинейная формула для лучшего контраста между прогрессами
+                const progress = collection.progress_percent || 0;
+                let grayscale, saturate;
+                
+                if (progress <= 25) {
+                  // Очень низкий прогресс - почти полностью бесцветные
+                  grayscale = 100 - (progress * 0.8); // 100% -> 80%
+                  saturate = 0.05 + (progress * 0.02); // 0.05 -> 0.55
+                } else if (progress <= 50) {
+                  // Низкий прогресс - заметная бесцветность
+                  grayscale = 80 - ((progress - 25) * 1.2); // 80% -> 50%
+                  saturate = 0.55 + ((progress - 25) * 0.02); // 0.55 -> 1.05
+                } else if (progress <= 75) {
+                  // Средний прогресс - умеренная бесцветность (самая заметная разница)
+                  grayscale = 50 - ((progress - 50) * 1.6); // 50% -> 10%
+                  saturate = 1.05 + ((progress - 50) * 0.06); // 1.05 -> 2.55
+                } else if (progress <= 90) {
+                  // Высокий прогресс - легкая бесцветность
+                  grayscale = 10 - ((progress - 75) * 0.4); // 10% -> 0%
+                  saturate = 2.55 + ((progress - 75) * 0.03); // 2.55 -> 3.0
+                } else {
+                  // Почти завершено - минимальная бесцветность
+                  grayscale = 0;
+                  saturate = 3.0 + ((progress - 90) * 0.02); // 3.0 -> 3.2
+                }
+                
+                // Ограничиваем значения
+                grayscale = Math.max(0, Math.min(100, grayscale));
+                saturate = Math.max(0.1, Math.min(2.5, saturate));
                 
                 return (
                   <Link
@@ -724,11 +748,35 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                 return a.name.localeCompare(b.name, 'ru');
               })
               .map((actor) => {
-                // Более гибкая формула для цветности с нелинейной прогрессией
+                // Улучшенная нелинейная формула для лучшего контраста между прогрессами
                 const progress = actor.progress_percent || 0;
-                const grayscale = 100 - progress;
-                // Используем кубическую функцию для более естественного восприятия
-                const saturate = Math.max(0.2, Math.pow(progress / 100, 1.5));
+                let grayscale, saturate;
+                
+                if (progress <= 25) {
+                  // Очень низкий прогресс - почти полностью бесцветные
+                  grayscale = 100 - (progress * 0.8); // 100% -> 80%
+                  saturate = 0.05 + (progress * 0.02); // 0.05 -> 0.55
+                } else if (progress <= 50) {
+                  // Низкий прогресс - заметная бесцветность
+                  grayscale = 80 - ((progress - 25) * 1.2); // 80% -> 50%
+                  saturate = 0.55 + ((progress - 25) * 0.02); // 0.55 -> 1.05
+                } else if (progress <= 75) {
+                  // Средний прогресс - умеренная бесцветность (самая заметная разница)
+                  grayscale = 50 - ((progress - 50) * 1.6); // 50% -> 10%
+                  saturate = 1.05 + ((progress - 50) * 0.06); // 1.05 -> 2.55
+                } else if (progress <= 90) {
+                  // Высокий прогресс - легкая бесцветность
+                  grayscale = 10 - ((progress - 75) * 0.4); // 10% -> 0%
+                  saturate = 2.55 + ((progress - 75) * 0.03); // 2.55 -> 3.0
+                } else {
+                  // Почти завершено - минимальная бесцветность
+                  grayscale = 0;
+                  saturate = 3.0 + ((progress - 90) * 0.02); // 3.0 -> 3.2
+                }
+                
+                // Ограничиваем значения
+                grayscale = Math.max(0, Math.min(100, grayscale));
+                saturate = Math.max(0.1, Math.min(2.5, saturate));
                 
                 return (
                   <Link

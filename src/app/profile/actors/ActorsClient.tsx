@@ -242,27 +242,31 @@ export default function ActorsClient({ userId }: ActorsClientProps) {
       {/* Сетка актеров */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
         {actors.map((actor, index) => {
-            // Гибкая формула цветности с нелинейной прогрессией
             const progress = actor.progress_percent || 0;
             
-            // Нелинейная формула для лучшего UX распределения
+            // Улучшенная нелинейная формула для лучшего контраста между прогрессами
             let grayscale, saturate;
             
-            if (progress <= 10) {
-              grayscale = 100 - (progress * 0.5); // 100% -> 95%
-              saturate = 0.1 + (progress * 0.01); // 0.1 -> 0.2
-            } else if (progress <= 30) {
-              grayscale = 95 - ((progress - 10) * 1.25); // 95% -> 70%
-              saturate = 0.2 + ((progress - 10) * 0.015); // 0.2 -> 0.5
-            } else if (progress <= 60) {
-              grayscale = 70 - ((progress - 30) * 1.33); // 70% -> 30%
-              saturate = 0.5 + ((progress - 30) * 0.02); // 0.5 -> 1.1
+            if (progress <= 25) {
+              // Очень низкий прогресс - почти полностью бесцветные
+              grayscale = 100 - (progress * 0.8); // 100% -> 80%
+              saturate = 0.05 + (progress * 0.02); // 0.05 -> 0.55
+            } else if (progress <= 50) {
+              // Низкий прогресс - заметная бесцветность
+              grayscale = 80 - ((progress - 25) * 1.2); // 80% -> 50%
+              saturate = 0.55 + ((progress - 25) * 0.02); // 0.55 -> 1.05
+            } else if (progress <= 75) {
+              // Средний прогресс - умеренная бесцветность (самая заметная разница)
+              grayscale = 50 - ((progress - 50) * 1.6); // 50% -> 10%
+              saturate = 1.05 + ((progress - 50) * 0.06); // 1.05 -> 2.55
             } else if (progress <= 90) {
-              grayscale = 30 - ((progress - 60) * 0.67); // 30% -> 10%
-              saturate = 1.1 + ((progress - 60) * 0.03); // 1.1 -> 2.0
+              // Высокий прогресс - легкая бесцветность
+              grayscale = 10 - ((progress - 75) * 0.4); // 10% -> 0%
+              saturate = 2.55 + ((progress - 75) * 0.03); // 2.55 -> 3.0
             } else {
-              grayscale = 10 - ((progress - 90) * 1); // 10% -> 0%
-              saturate = 2.0 + ((progress - 90) * 0.02); // 2.0 -> 2.4
+              // Почти завершено - минимальная бесцветность
+              grayscale = 0;
+              saturate = 3.0 + ((progress - 90) * 0.02); // 3.0 -> 3.2
             }
             
             // Ограничиваем значения
