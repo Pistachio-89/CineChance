@@ -7,7 +7,7 @@
 .scroll-content {
   display: flex;
   gap: 1rem;
-  padding-bottom: 1rem;
+  padding: 0 2rem 1rem 2rem;
   overflow-x: auto;
   scroll-behavior: smooth;
   
@@ -23,6 +23,7 @@
 /* Показываем скроллбар только на десктопе */
 @media (min-width: 1024px) {
   .scroll-content {
+    padding: 0 6rem 1rem 6rem; /* Добавляю отступы для десктоп версии чтобы сохранить безопасные зоны для кнопок */
     scrollbar-width: thin; /* Firefox */
     scrollbar-color: #4B5563 #1F2937; /* Firefox */
   }
@@ -94,11 +95,11 @@
 }
 
 .scroll-button-left {
-  left: 0.5rem;
+  left: 1rem;
 }
 
 .scroll-button-right {
-  right: 0.5rem;
+  right: 1rem;
 }
 
 @media (min-width: 1024px) {
