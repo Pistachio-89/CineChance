@@ -14,9 +14,12 @@ interface ActorAchievement {
   name: string;
   profile_path: string | null;
   watched_movies: number;
+  rewatched_movies: number;
+  dropped_movies: number;
   total_movies: number;
   progress_percent: number;
   average_rating: number | null;
+  actor_score: number;
 }
 
 interface ActorsClientProps {
