@@ -146,8 +146,11 @@ export default function CollectionsClient({ userId }: CollectionsClientProps) {
             return a.name.localeCompare(b.name, 'ru');
           })
           .map((collection) => {
-            const grayscaleValue = 100 - collection.progress_percent;
-            const saturateValue = collection.progress_percent;
+            // Более гибкая формула для цветности с нелинейной прогрессией
+            const progress = collection.progress_percent;
+            const grayscale = 100 - progress;
+            // Используем кубическую функцию для более естественного восприятия
+            const saturate = Math.max(0.2, Math.pow(progress / 100, 1.5));
             
             return (
               <Link
@@ -165,6 +168,9 @@ export default function CollectionsClient({ userId }: CollectionsClientProps) {
                           fill
                           className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
                           sizes="120px"
+                          style={{ 
+                            filter: `grayscale(${grayscale}%) saturate(${saturate})`
+                          }}
                         />
                       </div>
                     ) : (

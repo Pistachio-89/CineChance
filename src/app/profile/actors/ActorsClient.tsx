@@ -145,27 +145,32 @@ export default function ActorsClient({ userId }: ActorsClientProps) {
             return a.name.localeCompare(b.name, 'ru');
           })
           .map((actor) => {
-          const progressPercent = actor.progress_percent || 0;
-          const grayscaleValue = 100 - progressPercent;
-          const saturateValue = progressPercent;
-          
-          return (
-            <Link
-              key={actor.id}
-              href={`/person/${actor.id}`}
-              className="group relative"
-            >
-              <div className="relative">
-                <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-amber-500/50 transition-all relative">
-                  {actor.profile_path ? (
-                    <div className="w-full h-full relative">
-                      <ImageWithProxy
-                        src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`}
-                        alt={actor.name}
-                        fill
-                        className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
-                        sizes="120px"
-                      />
+            // Более гибкая формула для цветности с нелинейной прогрессией
+            const progress = actor.progress_percent || 0;
+            const grayscale = 100 - progress;
+            // Используем кубическую функцию для более естественного восприятия
+            const saturate = Math.max(0.2, Math.pow(progress / 100, 1.5));
+            
+            return (
+              <Link
+                key={actor.id}
+                href={`/person/${actor.id}`}
+                className="group relative"
+              >
+                <div className="relative">
+                  <div className="aspect-[2/3] rounded-lg overflow-hidden bg-gray-800 border border-gray-700 group-hover:border-amber-500/50 transition-all relative">
+                    {actor.profile_path ? (
+                      <div className="w-full h-full relative">
+                        <ImageWithProxy
+                          src={`https://image.tmdb.org/t/p/w300${actor.profile_path}`}
+                          alt={actor.name}
+                          fill
+                          className="object-cover transition-all duration-300 group-hover:grayscale-0 group-hover:saturate-100 achievement-poster"
+                          sizes="120px"
+                          style={{ 
+                            filter: `grayscale(${grayscale}%) saturate(${saturate})`
+                          }}
+                        />
                     </div>
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-gray-600">
@@ -176,7 +181,7 @@ export default function ActorsClient({ userId }: ActorsClientProps) {
                   <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-800">
                     <div 
                       className="h-full bg-amber-500 transition-all"
-                      style={{ width: `${progressPercent}%` }}
+                      style={{ width: `${progress}%` }}
                     />
                   </div>
                   
