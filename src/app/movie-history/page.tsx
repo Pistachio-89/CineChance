@@ -87,17 +87,17 @@ export default async function MovieHistoryPage({ searchParams }: PageProps) {
     WITH status_changes AS (
       SELECT 
         ws.id,
-        ws.statusId,
-        ws.addedAt,
+        ws."statusId",
+        ws."addedAt",
         ms.name as statusName,
-        ROW_NUMBER() OVER (ORDER BY ws.addedAt DESC) as rn
+        ROW_NUMBER() OVER (ORDER BY ws."addedAt" DESC) as rn
       FROM "WatchList" ws
-      JOIN "MovieStatus" ms ON ws.statusId = ms.id
-      WHERE ws.userId = ${session.user.id}
-        AND ws.tmdbId = ${tmdbIdNum}
-        AND ws.mediaType = ${mediaType}
+      JOIN "MovieStatus" ms ON ws."statusId" = ms.id
+      WHERE ws."userId" = ${session.user.id}
+        AND ws."tmdbId" = ${tmdbIdNum}
+        AND ws."mediaType" = ${mediaType}
     )
-    SELECT * FROM status_changes ORDER BY addedAt DESC
+    SELECT * FROM status_changes ORDER BY "addedAt" DESC
   `;
 
   // Получаем логи пересмотров
