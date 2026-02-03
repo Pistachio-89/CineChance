@@ -247,11 +247,12 @@ export async function GET(request: Request) {
     if (singleLoad) {
       console.log(`Starting singleLoad for ${baseActorsData.length} actors with limit ${limit}`);
       
-      // Ограничиваем количество актеров для обработки чтобы избежать таймаутов
-      const maxActorsToProcess = Math.min(baseActorsData.length, limit);
+      // Для корректной сортировки нужно обработать всех актеров, но вернуть только limit
+      // Однако для производительности ограничим обработку разумным числом
+      const maxActorsToProcess = Math.min(baseActorsData.length, 100); // Обрабатываем до 100 актеров для корректной сортировки
       const actorsToProcess = baseActorsData.slice(0, maxActorsToProcess);
       
-      console.log(`Processing ${actorsToProcess.length} actors for singleLoad`);
+      console.log(`Processing ${actorsToProcess.length} actors for singleLoad (will return top ${limit})`);
       
       // Единовременная загрузка - обрабатываем актеров пачками для оптимизации
       const batchSize = 10; // Обрабатываем по 10 актеров за раз
@@ -314,7 +315,7 @@ export async function GET(request: Request) {
 
       const allActorsWithFullData = (await Promise.all(achievementsPromises)).flat();
       
-      // Сортируем всех актеров по полным данным
+      // Сортируем всех обработанных актеров по полным данным
       allActorsWithFullData.sort((a, b) => {
         if (a.average_rating !== null && b.average_rating !== null) {
           if (b.average_rating !== a.average_rating) {
@@ -333,10 +334,10 @@ export async function GET(request: Request) {
         return a.name.localeCompare(b.name, 'ru');
       });
 
-      // Возвращаем топ-N актеров
+      // Возвращаем только запрошенное количество (limit) но из правильно отсортированного списка
       const result = allActorsWithFullData.slice(0, limit);
 
-      console.log(`Successfully processed ${result.length} actors`);
+      console.log(`Successfully processed ${allActorsWithFullData.length} actors, returning top ${result.length}`);
 
       return NextResponse.json({
         actors: result,
