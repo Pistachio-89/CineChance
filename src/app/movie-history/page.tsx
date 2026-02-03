@@ -91,8 +91,8 @@ export default async function MovieHistoryPage({ searchParams }: PageProps) {
         ws.addedAt,
         ms.name as statusName,
         ROW_NUMBER() OVER (ORDER BY ws.addedAt DESC) as rn
-      FROM watchlist ws
-      JOIN moviestatus ms ON ws.statusId = ms.id
+      FROM "WatchList" ws
+      JOIN "MovieStatus" ms ON ws.statusId = ms.id
       WHERE ws.userId = ${session.user.id}
         AND ws.tmdbId = ${tmdbIdNum}
         AND ws.mediaType = ${mediaType}
