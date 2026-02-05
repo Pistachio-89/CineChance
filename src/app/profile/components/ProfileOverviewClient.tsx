@@ -1,7 +1,7 @@
 // src/app/profile/components/ProfileOverviewClient.tsx
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import ImageWithProxy from '@/app/components/ImageWithProxy';
 import Image from 'next/image';
 import { format } from 'date-fns';
@@ -9,9 +9,8 @@ import { ru } from 'date-fns/locale';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 const TermsOfServiceModal = dynamic(() => import('@/app/components/TermsOfServiceModal'), { ssr: false });
-import { FileText, Settings, Users, ArrowRight, Clock, Star, TrendingUp, Monitor, Tv, Film, CheckIcon, PlusIcon, XIcon, BanIcon, Smile, Clock as ClockIcon, EyeOff as EyeOffIcon, PieChart as PieChartIcon, Star as StarIcon } from 'lucide-react';
+import { FileText, Settings, Users, ArrowRight, Star, TrendingUp, Monitor, Tv, Film, CheckIcon, XIcon, Smile, Clock as ClockIcon, EyeOff as EyeOffIcon, PieChart as PieChartIcon, Star as StarIcon, Tag as TagIcon, Music } from 'lucide-react';
 import NicknameEditor from './NicknameEditor';
-import Loader from '@/app/components/Loader';
 import '@/app/profile/components/AchievementCards.css';
 
 interface UserStats {
@@ -63,6 +62,18 @@ interface ActorAchievement {
   progress_percent: number;
   average_rating: number | null;
   actor_score: number;
+}
+
+interface TagUsage {
+  id: string;
+  name: string;
+  count: number;
+}
+
+interface GenreData {
+  id: number;
+  name: string;
+  count: number;
 }
 
 interface ProfileOverviewClientProps {
@@ -177,6 +188,51 @@ function HorizontalListSkeleton({ title }: { title: string }) {
   );
 }
 
+// Skeleton для блока тегов
+function TagsSkeleton() {
+  return (
+    <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800 animate-pulse">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-4 h-4 bg-gray-700 rounded"></div>
+        <div className="h-4 w-24 bg-gray-700 rounded"></div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {[1, 2, 3, 4, 5, 6].map((i) => (
+          <div key={i} className="h-7 w-20 bg-gray-700 rounded-full"></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Skeleton для блока жанров
+function GenresSkeleton() {
+  return (
+    <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800 animate-pulse">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-4 h-4 bg-gray-700 rounded"></div>
+        <div className="h-4 w-24 bg-gray-700 rounded"></div>
+      </div>
+      <div className="space-y-3">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="w-5 h-5 bg-gray-700 rounded"></div>
+            <div className="flex-1">
+              <div className="flex justify-between items-center mb-1">
+                <div className="h-4 w-16 bg-gray-700 rounded"></div>
+                <div className="h-4 w-8 bg-gray-700 rounded"></div>
+              </div>
+              <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                <div className="h-full w-1/2 bg-gray-700 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfileOverviewClient({ userId }: ProfileOverviewClientProps) {
   const [userData, setUserData] = useState<UserStatsData | null>(null);
   const [stats, setStats] = useState<UserStats | null>(null);
@@ -193,6 +249,10 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
   const [collectionsLoading, setCollectionsLoading] = useState(true);
   const [actors, setActors] = useState<ActorAchievement[]>([]);
   const [actorsLoading, setActorsLoading] = useState(true);
+  const [tagUsage, setTagUsage] = useState<TagUsage[]>([]);
+  const [tagUsageLoading, setTagUsageLoading] = useState(true);
+  const [watchedGenres, setWatchedGenres] = useState<GenreData[]>([]);
+  const [watchedGenresLoading, setWatchedGenresLoading] = useState(true);
 
   // Загружаем данные пользователя (быстрый запрос)
   useEffect(() => {
@@ -313,6 +373,26 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
         }
         setActorsLoading(false);
 
+        // Этап 4: Загружаем теги пользователя
+        setTagUsageLoading(true);
+        const tagUsageRes = await fetch('/api/user/tag-usage?limit=10');
+        
+        if (tagUsageRes.ok) {
+          const data = await tagUsageRes.json();
+          setTagUsage(data.tags || []);
+        }
+        setTagUsageLoading(false);
+
+        // Этап 5: Загружаем жанры просмотренного
+        setWatchedGenresLoading(true);
+        const genresRes = await fetch('/api/user/genres?statuses=watched,rewatched');
+        
+        if (genresRes.ok) {
+          const data = await genresRes.json();
+          setWatchedGenres(data.genres ? data.genres.slice(0, 10) : []);
+        }
+        setWatchedGenresLoading(false);
+
       } catch (error) {
         // Graceful error handling - in case of errors, stop loading spinners
         setStatsLoading(false);
@@ -321,6 +401,8 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
         setAverageRatingLoading(false);
         setCollectionsLoading(false);
         setActorsLoading(false);
+        setTagUsageLoading(false);
+        setWatchedGenresLoading(false);
       }
     };
 
@@ -670,6 +752,92 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
             </div>
           ) : null}
         </div>
+      </div>
+
+      {/* Новые блоки статистики: Теги и Жанры */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+        {/* Теги пользователя */}
+        {tagUsageLoading ? (
+          <TagsSkeleton />
+        ) : tagUsage.length > 0 ? (
+          <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <TagIcon className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-medium text-white">Теги пользователя</h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {tagUsage.slice(0, 10).map((tag) => (
+                <div
+                  key={tag.id}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 rounded-full text-sm hover:bg-gray-700 hover:text-white transition"
+                >
+                  <span>{tag.name}</span>
+                  <span className="text-gray-500 text-xs">({tag.count})</span>
+                </div>
+              ))}
+            </div>
+            {tagUsage.length === 0 && (
+              <p className="text-gray-500 text-sm">Пока нет тегов. Добавляйте их при оценке фильма.</p>
+            )}
+          </div>
+        ) : !tagUsageLoading && tagUsage.length === 0 ? (
+          <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <TagIcon className="w-4 h-4 text-cyan-400" />
+              <h3 className="text-sm font-medium text-white">Теги пользователя</h3>
+            </div>
+            <p className="text-gray-500 text-sm">Пока нет тегов. Добавляйте их при оценке фильма.</p>
+          </div>
+        ) : null}
+
+        {/* Жанры просмотренного */}
+        {watchedGenresLoading ? (
+          <GenresSkeleton />
+        ) : watchedGenres.length > 0 ? (
+          <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <Music className="w-4 h-4 text-pink-400" />
+              <h3 className="text-sm font-medium text-white">Жанры просмотренного</h3>
+            </div>
+            <div className="space-y-3">
+              {watchedGenres.slice(0, 8).map((genre) => {
+                const totalWatched = watchedGenres.reduce((sum, g) => sum + g.count, 0);
+                const percentage = totalWatched > 0 ? (genre.count / totalWatched) * 100 : 0;
+                
+                return (
+                  <div key={genre.id} className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-pink-400/20 rounded flex items-center justify-center flex-shrink-0">
+                      <Music className="w-3 h-3 text-pink-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-300 text-sm">{genre.name}</span>
+                        <span className="text-white font-medium">{genre.count}</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-pink-500 rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {watchedGenres.length === 0 && (
+              <p className="text-gray-500 text-sm">Жанры появятся после просмотра фильмов.</p>
+            )}
+          </div>
+        ) : !watchedGenresLoading && watchedGenres.length === 0 ? (
+          <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800">
+            <div className="flex items-center gap-2 mb-4">
+              <Music className="w-4 h-4 text-pink-400" />
+              <h3 className="text-sm font-medium text-white">Жанры просмотренного</h3>
+            </div>
+            <p className="text-gray-500 text-sm">Жанры появятся после просмотра фильмов.</p>
+          </div>
+        ) : null}
       </div>
 
       {/* Кинофраншизы */}

@@ -1,7 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 
 // Genre ID to name mapping (TMDb + Anime genres)
 const GENRE_MAP: Record<number, string> = {
@@ -58,7 +59,7 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -66,9 +67,23 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Fetch all movie entries from user's watch lists
+    const searchParams = request.nextUrl.searchParams;
+    const statusesParam = searchParams.get('statuses');
+    
+    // Определяем фильтр по статусам
+    let whereClause: any = { userId: session.user.id };
+    
+    if (statusesParam) {
+      const statusList = statusesParam.split(',').map(s => s.trim().toLowerCase());
+      
+      if (statusList.includes('watched') || statusList.includes('rewatched')) {
+        whereClause.statusId = { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED] };
+      }
+    }
+
+    // Fetch movie entries from user's watch lists
     const watchListRecords = await prisma.watchList.findMany({
-      where: { userId: session.user.id },
+      where: whereClause,
       select: { tmdbId: true, mediaType: true },
     });
 
@@ -76,29 +91,35 @@ export async function GET() {
       return NextResponse.json({ genres: [] });
     }
 
-    // Load TMDB details for all records and collect unique genres
-    const genreSet = new Set<number>();
+    // Load TMDB details for all records and collect unique genres with counts
+    const genreCounts = new Map<number, number>();
     const genreNames = new Map<number, string>();
 
     for (const record of watchListRecords) {
       const tmdbData = await fetchMediaDetails(record.tmdbId, record.mediaType as 'movie' | 'tv');
       if (tmdbData?.genres) {
         for (const genre of tmdbData.genres) {
-          genreSet.add(genre.id);
+          genreCounts.set(genre.id, (genreCounts.get(genre.id) || 0) + 1);
           genreNames.set(genre.id, genre.name);
         }
       }
     }
 
-    // Convert to array with names
-    const genres = Array.from(genreSet)
-      .map((id) => ({
+    // Convert to array with names and counts
+    const genres = Array.from(genreCounts.entries())
+      .map(([id, count]) => ({
         id,
         name: genreNames.get(id) || GENRE_MAP[id] || `Genre ${id}`,
+        count,
       }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => b.count - a.count); // Сортируем по количеству (desc)
 
-    return NextResponse.json({ genres });
+    const response = NextResponse.json({ genres });
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching user genres:', error);
     return NextResponse.json(
