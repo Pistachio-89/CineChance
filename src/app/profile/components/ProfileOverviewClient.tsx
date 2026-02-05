@@ -765,20 +765,32 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
               <TagIcon className="w-4 h-4 text-cyan-400" />
               <h3 className="text-sm font-medium text-white">Теги пользователя</h3>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {tagUsage.slice(0, 10).map((tag) => (
-                <div
-                  key={tag.id}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gray-800 text-gray-300 rounded-full text-sm hover:bg-gray-700 hover:text-white transition"
-                >
-                  <span>{tag.name}</span>
-                  <span className="text-gray-500 text-xs">({tag.count})</span>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {tagUsage.slice(0, 8).map((tag) => {
+                const totalTags = tagUsage.reduce((sum, t) => sum + t.count, 0);
+                const percentage = totalTags > 0 ? (tag.count / totalTags) * 100 : 0;
+                
+                return (
+                  <div key={tag.id} className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-cyan-400/20 rounded flex items-center justify-center flex-shrink-0">
+                      <TagIcon className="w-3 h-3 text-cyan-400" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-gray-300 text-sm">{tag.name}</span>
+                        <span className="text-white font-medium">{tag.count}</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-cyan-500 rounded-full transition-all duration-500"
+                          style={{ width: `${percentage}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            {tagUsage.length === 0 && (
-              <p className="text-gray-500 text-sm">Пока нет тегов. Добавляйте их при оценке фильма.</p>
-            )}
           </div>
         ) : !tagUsageLoading && tagUsage.length === 0 ? (
           <div className="bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800">
