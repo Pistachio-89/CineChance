@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
-import MyMoviesClient from './MyMoviesClient';
-import { fetchMoviesByStatus, getMoviesCounts } from './actions';
+import MyMoviesContentClient from './MyMoviesContentClient';
+import { getMoviesCounts } from './actions';
 import LoaderSkeleton from '@/app/components/LoaderSkeleton';
 
 interface PageProps {
@@ -30,16 +30,7 @@ async function MyMoviesClientWrapper({ searchParams }: { searchParams: Promise<{
   }
 
   const userId = session.user.id;
-
-  // Загружаем первые страницы для всех вкладок (с сортировкой по рейтингу по умолчанию)
-  // Для watched показываем и "Просмотрено" и "Пересмотрено"
-  const [watchedData, wantToWatchData, droppedData, hiddenData, counts] = await Promise.all([
-    fetchMoviesByStatus(userId, ['Просмотрено', 'Пересмотрено'], false, 1, 'rating', 'desc'),
-    fetchMoviesByStatus(userId, 'Хочу посмотреть', false, 1, 'rating', 'desc'),
-    fetchMoviesByStatus(userId, 'Брошено', false, 1, 'rating', 'desc'),
-    fetchMoviesByStatus(userId, null, true, 1, 'rating', 'desc'),
-    getMoviesCounts(userId),
-  ]);
+  const counts = await getMoviesCounts(userId);
 
   // Получаем параметр tab из URL
   const { tab } = await searchParams;
@@ -47,14 +38,10 @@ async function MyMoviesClientWrapper({ searchParams }: { searchParams: Promise<{
   const initialTab = validTabs.includes(tab || '') ? tab as 'watched' | 'wantToWatch' | 'dropped' | 'hidden' : undefined;
 
   return (
-    <MyMoviesClient
-      initialWatched={watchedData.movies}
-      initialWantToWatch={wantToWatchData.movies}
-      initialDropped={droppedData.movies}
-      initialHidden={hiddenData.movies}
-      counts={counts}
+    <MyMoviesContentClient
       userId={userId}
       initialTab={initialTab}
+      initialCounts={counts}
     />
   );
 }

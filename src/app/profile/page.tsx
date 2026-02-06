@@ -1,4 +1,4 @@
-// src/app/profile/page.tsx - гибридный подход со статической обёрткой
+// src/app/profile/page.tsx - старый дизайн с оптимизацией параллельной загрузки
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { redirect } from 'next/navigation';

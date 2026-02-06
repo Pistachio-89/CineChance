@@ -133,6 +133,13 @@ export default function SearchClient({ initialQuery }: SearchClientProps) {
 
       {isLoading && searchQuery.results.length === 0 ? (
         <LoaderSkeleton variant="grid" text="Поиск фильмов..." skeletonCount={12} />
+      ) : searchQuery.isError ? (
+        <div className="rounded-lg bg-red-900/20 border border-red-700/50 p-4 text-center mb-4">
+          <p className="text-red-400 text-sm font-medium">⚠️ {searchQuery.error instanceof Error ? searchQuery.error.message : 'Ошибка при поиске'}</p>
+          {searchQuery.error instanceof Error && searchQuery.error.message.includes('подождите') && (
+            <p className="text-red-300 text-xs mt-2">Пожалуйста, дождитесь сброса лимита и повторите попытку.</p>
+          )}
+        </div>
       ) : searchQuery.results.length > 0 ? (
         <>
           <MovieList

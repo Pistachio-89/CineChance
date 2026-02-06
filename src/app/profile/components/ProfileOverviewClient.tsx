@@ -285,20 +285,20 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
 
   // Последовательная загрузка данных для лучшего UX
   useEffect(() => {
-    const loadDataSequentially = async () => {
+    const loadDataInParallel = async () => {
       try {
-        // Этап 1: Быстро загружаем статистику с последовательным отображением
-        setStatsLoading(true);
-        setBasicStatsLoading(true);
-        setTypeBreakdownLoading(true);
-        setAverageRatingLoading(true);
-        
-        const statsRes = await fetch('/api/user/stats');
-        
+        // ПАРАЛЛЕЛЬНО загружаем ВСЕ ДАННЫЕ одновременно
+        const [statsRes, collectionsRes, actorsRes, tagUsageRes, genresRes] = await Promise.all([
+          fetch('/api/user/stats'),
+          fetch('/api/user/achiev_collection?limit=50&singleLoad=true'),
+          fetch('/api/user/achiev_actors?limit=50&singleLoad=true'),
+          fetch('/api/user/tag-usage?limit=10'),
+          fetch('/api/user/genres?statuses=watched,rewatched&limit=50'),
+        ]);
+
+        // Обрабатываем результаты по мере готовности
         if (statsRes.ok) {
           const data = await statsRes.json();
-          
-          // Сначала отображаем базовую статистику
           setStats({
             total: {
               watched: data.total?.watched || 0,
@@ -308,85 +308,39 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
               totalForPercentage: data.total?.totalForPercentage || 0,
             },
             typeBreakdown: {
-              movie: 0,
-              tv: 0,
-              cartoon: 0,
-              anime: 0,
-            },
-            averageRating: null,
-            ratedCount: 0,
-            ratingDistribution: {},
-          });
-          setBasicStatsLoading(false);
-          
-          // Небольшая задержка для визуального эффекта
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Затем отображаем breakdown по типам
-          setStats(prev => prev ? ({
-            ...prev,
-            typeBreakdown: {
               movie: data.typeBreakdown?.movie || 0,
               tv: data.typeBreakdown?.tv || 0,
               cartoon: data.typeBreakdown?.cartoon || 0,
               anime: data.typeBreakdown?.anime || 0,
             },
-          }) : null);
-          setTypeBreakdownLoading(false);
-          
-          // Еще одна небольшая задержка
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // В конце отображаем среднюю оценку и распределение оценок
-          setStats(prev => prev ? ({
-            ...prev,
             averageRating: data.averageRating || null,
             ratedCount: data.ratedCount || 0,
             ratingDistribution: data.ratingDistribution || {},
-          }) : null);
-          setAverageRatingLoading(false);
-        } else {
-          // Если запрос не удался, все равно завершаем загрузку
-          setBasicStatsLoading(false);
-          setTypeBreakdownLoading(false);
-          setAverageRatingLoading(false);
+          });
         }
+        setBasicStatsLoading(false);
+        setTypeBreakdownLoading(false);
+        setAverageRatingLoading(false);
         setStatsLoading(false);
 
-        // Этап 2: Загружаем коллекции (параллельно с актерами)
-        setCollectionsLoading(true);
-        const collectionsRes = await fetch('/api/user/achiev_collection?limit=50&singleLoad=true');
-        
         if (collectionsRes.ok) {
           const data = await collectionsRes.json();
           setCollections(data.collections ? data.collections.slice(0, 5) : []);
         }
         setCollectionsLoading(false);
 
-        // Этап 3: Загружаем актеров
-        setActorsLoading(true);
-        const actorsRes = await fetch('/api/user/achiev_actors?limit=50&singleLoad=true');
-        
         if (actorsRes.ok) {
           const data = await actorsRes.json();
           setActors(data.actors ? data.actors.slice(0, 5) : []);
         }
         setActorsLoading(false);
 
-        // Этап 4: Загружаем теги пользователя
-        setTagUsageLoading(true);
-        const tagUsageRes = await fetch('/api/user/tag-usage?limit=10');
-        
         if (tagUsageRes.ok) {
           const data = await tagUsageRes.json();
           setTagUsage(data.tags || []);
         }
         setTagUsageLoading(false);
 
-        // Этап 5: Загружаем жанры просмотренного
-        setWatchedGenresLoading(true);
-        const genresRes = await fetch('/api/user/genres?statuses=watched,rewatched&limit=50');
-        
         if (genresRes.ok) {
           const data = await genresRes.json();
           setWatchedGenres(data.genres ? data.genres.slice(0, 10) : []);
@@ -394,7 +348,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
         setWatchedGenresLoading(false);
 
       } catch (error) {
-        // Graceful error handling - in case of errors, stop loading spinners
+        // Graceful error handling
         setStatsLoading(false);
         setBasicStatsLoading(false);
         setTypeBreakdownLoading(false);
@@ -406,7 +360,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
       }
     };
 
-    loadDataSequentially();
+    loadDataInParallel();
   }, []);
 
   // Определяем мобильное устройство
@@ -709,9 +663,13 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                         const barWidth = maxValue > 0 ? (count / maxValue) * 100 : 0;
                         
                         return (
-                          <div key={rating} className="flex items-center gap-3">
+                          <Link
+                            key={rating}
+                            href={`/stats/ratings/${rating}?source=ratings`}
+                            className="flex items-center gap-3 group hover:opacity-80 transition"
+                          >
                             {/* Звезда с цифрой оценки */}
-                            <div className="relative w-7 h-7 flex-shrink-0">
+                            <div className="relative w-7 h-7 flex-shrink-0 group-hover:scale-110 transition">
                               <svg 
                                 width="28" 
                                 height="28" 
@@ -742,7 +700,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                             </div>
                             
                             <span className="text-gray-300 text-xs w-6 text-right">{count}</span>
-                          </div>
+                          </Link>
                         );
                       })}
                     </div>
@@ -771,13 +729,17 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                 const percentage = totalTags > 0 ? (tag.count / totalTags) * 100 : 0;
                 
                 return (
-                  <div key={tag.id} className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-cyan-400/20 rounded flex items-center justify-center flex-shrink-0">
+                  <Link
+                    key={tag.id}
+                    href={`/stats/tags/${tag.id}?source=tags`}
+                    className="flex items-center gap-3 group hover:opacity-80 transition"
+                  >
+                    <div className="w-5 h-5 bg-cyan-400/20 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-400/40 transition">
                       <TagIcon className="w-3 h-3 text-cyan-400" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-gray-300 text-sm">{tag.name}</span>
+                        <span className="text-gray-300 text-sm group-hover:text-cyan-400 transition">{tag.name}</span>
                         <span className="text-white text-xs">{tag.count}</span>
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
@@ -787,7 +749,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                         />
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -817,13 +779,17 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                 const percentage = totalWatched > 0 ? (genre.count / totalWatched) * 100 : 0;
                 
                 return (
-                  <div key={genre.id} className="flex items-center gap-3">
-                    <div className="w-5 h-5 bg-pink-400/20 rounded flex items-center justify-center flex-shrink-0">
+                  <Link
+                    key={genre.id}
+                    href={`/stats/genres/${genre.id}?source=genres`}
+                    className="flex items-center gap-3 group hover:opacity-80 transition"
+                  >
+                    <div className="w-5 h-5 bg-pink-400/20 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-pink-400/40 transition">
                       <Music className="w-3 h-3 text-pink-400" />
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-gray-300 text-sm">{genre.name}</span>
+                        <span className="text-gray-300 text-sm group-hover:text-pink-400 transition">{genre.name}</span>
                         <span className="text-white text-xs">{genre.count}</span>
                       </div>
                       <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
@@ -833,7 +799,7 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
                         />
                       </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

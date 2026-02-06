@@ -1,0 +1,319 @@
+// src/app/components/FilmGridWithFilters.tsx
+'use client';
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import MovieCard from './MovieCard';
+import { MovieCardErrorBoundary } from './ErrorBoundary';
+import LoaderSkeleton from './LoaderSkeleton';
+import Loader from './Loader';
+import FilmFilters, { FilmFilterState, SortState, AdditionalFilters } from '@/app/my-movies/FilmFilters';
+import { Media } from '@/lib/tmdb';
+
+export interface FilmGridWithFiltersProps {
+  /** Функция для загрузки фильмов. Должна вернуть {movies, hasMore} */
+  fetchMovies: (page: number, filters: FilmGridFilters) => Promise<{ movies: Media[]; hasMore: boolean }>;
+  
+  /** Начальное значение для первой загрузки */
+  initialLoading?: boolean;
+  
+  /** Доступные жанры для фильтрации */
+  availableGenres?: { id: number; name: string }[];
+  
+  /** Доступные теги пользователя */
+  userTags?: Array<{ id: string; name: string; count: number }>;
+  
+  /** Показывать ли плашку с оценкой на карточке */
+  showRatingBadge?: boolean;
+  
+  /** Начальный статус фильма */
+  initialStatus?: 'want' | 'watched' | 'dropped' | 'rewatched' | null;
+  
+  /** Получить начальную оценку для фильма */
+  getInitialRating?: (movie: Media) => number | null | undefined;
+  
+  /** Сообщение при пустом списке */
+  emptyMessage?: string;
+  
+  /** Количество элементов на странице */
+  pageSize?: number;
+  
+  /** Скрывать ли блок фильтрации по рейтингам */
+  hideRatingFilter?: boolean;
+  
+  /** Скрывать ли блок фильтрации по тегам */
+  hideTagsFilter?: boolean;
+  
+  /** Скрывать ли блок фильтрации по жанрам */
+  hideGenresFilter?: boolean;
+}
+
+export interface FilmGridFilters {
+  page: number;
+  limit: number;
+  showMovies: boolean;
+  showTv: boolean;
+  showAnime: boolean;
+  sortBy: string;
+  sortOrder: 'asc' | 'desc';
+  minRating: number;
+  maxRating: number;
+  yearFrom: string;
+  yearTo: string;
+  genres: number[];
+  tags?: string[];
+}
+
+export default function FilmGridWithFilters({
+  fetchMovies,
+  initialLoading = true,
+  availableGenres = [],
+  userTags = [],
+  showRatingBadge = true,
+  initialStatus = 'watched',
+  getInitialRating,
+  emptyMessage = 'Нет фильмов',
+  pageSize = 20,
+  hideRatingFilter = false,
+  hideTagsFilter = false,
+  hideGenresFilter = false,
+}: FilmGridWithFiltersProps) {
+  const [movies, setMovies] = useState<Media[]>([]);
+  const [isLoading, setIsLoading] = useState(initialLoading);
+  const [isFetchingNext, setIsFetchingNext] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasInitialLoaded, setHasInitialLoaded] = useState(false); // Track if we've loaded at least once
+  
+  // Фильтры
+  const [filmFilters, setFilmFilters] = useState<FilmFilterState>({
+    showMovies: true,
+    showTv: true,
+    showAnime: true,
+  });
+  const [sort, setSort] = useState<SortState>({
+    sortBy: 'rating',
+    sortOrder: 'desc',
+  });
+  const [additionalFilters, setAdditionalFilters] = useState<AdditionalFilters>({
+    minRating: 0,
+    maxRating: 10,
+    yearFrom: '',
+    yearTo: '',
+  });
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const isFetchingRef = useRef(false);
+
+  // Функция загрузки фильмов с параметрами фильтрации
+  const handleFetchMovies = useCallback(
+    async (page: number) => {
+      try {
+        const filters: FilmGridFilters = {
+          page,
+          limit: pageSize,
+          showMovies: filmFilters.showMovies,
+          showTv: filmFilters.showTv,
+          showAnime: filmFilters.showAnime,
+          sortBy: sort.sortBy,
+          sortOrder: sort.sortOrder,
+          minRating: additionalFilters.minRating,
+          maxRating: additionalFilters.maxRating,
+          yearFrom: additionalFilters.yearFrom,
+          yearTo: additionalFilters.yearTo,
+          genres: selectedGenres,
+          tags: selectedTags,
+        };
+
+        const data = await fetchMovies(page, filters);
+        const newMovies = data.movies || [];
+
+        if (page === 1) {
+          setMovies(newMovies);
+        } else {
+          setMovies((prev) => [...prev, ...newMovies]);
+        }
+
+        setHasMore(data.hasMore || false);
+        setCurrentPage(page);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        if (page === 1) {
+          setMovies([]);
+        }
+      }
+    },
+    [fetchMovies, pageSize, filmFilters, sort, additionalFilters, selectedGenres, selectedTags]
+  );
+
+  // Начальная загрузка и загрузка при изменении фильтров
+  useEffect(() => {
+    // Только показываем скелет при первоначальной загрузке
+    if (!hasInitialLoaded) {
+      setIsLoading(true);
+    }
+    setError(null);
+    setCurrentPage(1);
+
+    // Создаем фильтры с текущими значениями 
+    const filters: FilmGridFilters = {
+      page: 1,
+      limit: pageSize,
+      showMovies: filmFilters.showMovies,
+      showTv: filmFilters.showTv,
+      showAnime: filmFilters.showAnime,
+      sortBy: sort.sortBy,
+      sortOrder: sort.sortOrder,
+      minRating: additionalFilters.minRating,
+      maxRating: additionalFilters.maxRating,
+      yearFrom: additionalFilters.yearFrom,
+      yearTo: additionalFilters.yearTo,
+      genres: selectedGenres,
+      tags: selectedTags,
+    };
+
+    // Вызываем fetchMovies напрямую
+    (async () => {
+      try {
+        const data = await fetchMovies(1, filters);
+        const newMovies = data.movies || [];
+        setMovies(newMovies);
+        setHasMore(data.hasMore || false);
+        setCurrentPage(1);
+        setIsLoading(false);
+        setHasInitialLoaded(true);
+      } catch (err) {
+        console.error('Failed to fetch movies:', err);
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setMovies([]);
+        setIsLoading(false);
+        setHasInitialLoaded(true);
+      }
+    })();
+  }, [filmFilters, sort, additionalFilters, selectedGenres, selectedTags, fetchMovies, pageSize])
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const sentinel = entries[0];
+        if (sentinel.isIntersecting && hasMore && !isFetchingNext && !isFetchingRef.current) {
+          isFetchingRef.current = true;
+          setIsFetchingNext(true);
+          handleFetchMovies(currentPage + 1).then(() => {
+            isFetchingRef.current = false;
+            setIsFetchingNext(false);
+          });
+        }
+      },
+      {
+        root: null,
+        rootMargin: '400px',
+        threshold: 0.1,
+      }
+    );
+
+    const currentSentinel = sentinelRef.current;
+    if (currentSentinel) {
+      observer.observe(currentSentinel);
+    }
+
+    return () => {
+      if (currentSentinel) {
+        observer.unobserve(currentSentinel);
+      }
+    };
+  }, [hasMore, isFetchingNext, currentPage, handleFetchMovies]);
+
+  if (isLoading) {
+    return <LoaderSkeleton variant="grid" text="Загрузка фильмов..." skeletonCount={12} />;
+  }
+
+  if (error) {
+    return (
+      <div className="py-12 text-center">
+        <p className="text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Фильтры */}
+      <FilmFilters
+        onFiltersChange={setFilmFilters}
+        onSortChange={setSort}
+        onAdditionalFiltersChange={(filters, genres) => {
+          setAdditionalFilters(filters);
+          setSelectedGenres(genres);
+          // Извлекаем selectedTags из filters если они присутствуют
+          const tagsFromFilters = (filters as any).selectedTags || [];
+          setSelectedTags(tagsFromFilters);
+        }}
+        availableGenres={availableGenres}
+        userTags={userTags}
+        hideRatingFilter={hideRatingFilter}
+        hideTagsFilter={hideTagsFilter}
+        hideGenresFilter={hideGenresFilter}
+      />
+
+      {movies.length > 0 ? (
+        <>
+          {/* Сетка фильмов */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
+            {movies.map((movie, index) => (
+              <div key={`${movie.id}-${movie.media_type}-${index}`} className="p-1">
+                <MovieCardErrorBoundary>
+                  <MovieCard
+                    movie={movie}
+                    showRatingBadge={showRatingBadge}
+                    priority={index < 6}
+                    initialUserRating={getInitialRating ? getInitialRating(movie) : undefined}
+                    initialStatus={initialStatus}
+                    initialAverageRating={movie.vote_average}
+                    initialRatingCount={movie.vote_count}
+                  />
+                </MovieCardErrorBoundary>
+              </div>
+            ))}
+          </div>
+
+          {/* Sentinel для infinite scroll */}
+          <div ref={sentinelRef} className="h-4" />
+
+          {/* Кнопка "Ещё" как фоллбек */}
+          {hasMore && !isFetchingNext && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => {
+                  isFetchingRef.current = true;
+                  setIsFetchingNext(true);
+                  handleFetchMovies(currentPage + 1).then(() => {
+                    isFetchingRef.current = false;
+                    setIsFetchingNext(false);
+                  });
+                }}
+                className="px-6 py-2 rounded-lg bg-gray-800 text-white text-sm hover:bg-gray-700 transition-colors flex items-center gap-2"
+              >
+                Ещё...
+              </button>
+            </div>
+          )}
+
+          {/* Loader во время загрузки */}
+          {isFetchingNext && (
+            <div className="flex justify-center mt-6">
+              <Loader size="small" />
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center py-20">
+          <p className="text-gray-400 text-lg">{emptyMessage}</p>
+        </div>
+      )}
+    </div>
+  );
+}

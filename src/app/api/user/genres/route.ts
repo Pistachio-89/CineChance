@@ -96,24 +96,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ genres: [] });
     }
 
-    // Load TMDB details for all records and collect unique genres with counts
+    // Load TMDB details for records in parallel batches (обрабатываем по 3 одновременно)
     const genreCounts = new Map<number, number>();
     const genreNames = new Map<number, string>();
+    
+    const BATCH_SIZE = 3; // Обрабатываем по 3 фильма одновременно
 
-    // Обрабатываем записи с задержкой между запросами к TMDB
-    for (let i = 0; i < watchListRecords.length; i++) {
-      const record = watchListRecords[i];
+    // Обрабатываем записи батчами
+    for (let i = 0; i < watchListRecords.length; i += BATCH_SIZE) {
+      const batch = watchListRecords.slice(i, i + BATCH_SIZE);
       
-      // Добавляем небольшую задержку между запросами (50ms) чтобы не перегружать TMDB API
-      if (i > 0) {
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
+      // Выполняем все запросы в батче параллельно
+      const batchResults = await Promise.all(
+        batch.map(record => fetchMediaDetails(record.tmdbId, record.mediaType as 'movie' | 'tv'))
+      );
       
-      const tmdbData = await fetchMediaDetails(record.tmdbId, record.mediaType as 'movie' | 'tv');
-      if (tmdbData?.genres) {
-        for (const genre of tmdbData.genres) {
-          genreCounts.set(genre.id, (genreCounts.get(genre.id) || 0) + 1);
-          genreNames.set(genre.id, genre.name);
+      // Обрабатываем результаты
+      for (const tmdbData of batchResults) {
+        if (tmdbData?.genres) {
+          for (const genre of tmdbData.genres) {
+            genreCounts.set(genre.id, (genreCounts.get(genre.id) || 0) + 1);
+            genreNames.set(genre.id, genre.name);
+          }
         }
       }
     }

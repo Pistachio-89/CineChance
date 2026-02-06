@@ -10,6 +10,9 @@ interface FilmFiltersProps {
   onAdditionalFiltersChange?: (filters: AdditionalFilters, genres: number[]) => void;
   availableGenres?: { id: number; name: string }[];
   userTags?: Array<{ id: string; name: string; count: number }>;
+  hideRatingFilter?: boolean;
+  hideTagsFilter?: boolean;
+  hideGenresFilter?: boolean;
 }
 
 export interface FilmFilterState {
@@ -54,7 +57,10 @@ export default function FilmFilters({
   onSortChange, 
   onAdditionalFiltersChange,
   availableGenres = [],
-  userTags = []
+  userTags = [],
+  hideRatingFilter = false,
+  hideTagsFilter = false,
+  hideGenresFilter = false,
 }: FilmFiltersProps) {
   const [filters, setFilters] = useState<FilmFilterState>(defaultFilters);
   const [sort, setSort] = useState<SortState>(defaultSort);
@@ -274,52 +280,54 @@ export default function FilmFilters({
           </div>
 
           {/* Фильтр по рейтингу пользователя */}
-          <div>
-            <label className="text-xs text-gray-400 block mb-2">
-              Моя оценка: {additionalFilters.minRating > 0 || additionalFilters.maxRating < 10 ? `${additionalFilters.minRating} - ${additionalFilters.maxRating}` : 'Любая'}
-            </label>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <span className="text-xs text-gray-500 block mb-1">От</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="1"
-                  value={additionalFilters.minRating}
-                  onChange={(e) => {
-                    const newFilters = { ...additionalFilters, minRating: parseInt(e.target.value) };
-                    setAdditionalFilters(newFilters);
-                    if (onAdditionalFiltersChange) {
-                      onAdditionalFiltersChange(newFilters, selectedGenres);
-                    }
-                  }}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
-              </div>
-              <div className="flex-1">
-                <span className="text-xs text-gray-500 block mb-1">До</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="10"
-                  step="1"
-                  value={additionalFilters.maxRating}
-                  onChange={(e) => {
-                    const newFilters = { ...additionalFilters, maxRating: parseInt(e.target.value) };
-                    setAdditionalFilters(newFilters);
-                    if (onAdditionalFiltersChange) {
-                      onAdditionalFiltersChange(newFilters, selectedGenres);
-                    }
-                  }}
-                  className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                />
+          {!hideRatingFilter && (
+            <div>
+              <label className="text-xs text-gray-400 block mb-2">
+                Моя оценка: {additionalFilters.minRating > 0 || additionalFilters.maxRating < 10 ? `${additionalFilters.minRating} - ${additionalFilters.maxRating}` : 'Любая'}
+              </label>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <span className="text-xs text-gray-500 block mb-1">От</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={additionalFilters.minRating}
+                    onChange={(e) => {
+                      const newFilters = { ...additionalFilters, minRating: parseInt(e.target.value) };
+                      setAdditionalFilters(newFilters);
+                      if (onAdditionalFiltersChange) {
+                        onAdditionalFiltersChange(newFilters, selectedGenres);
+                      }
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
+                <div className="flex-1">
+                  <span className="text-xs text-gray-500 block mb-1">До</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="10"
+                    step="1"
+                    value={additionalFilters.maxRating}
+                    onChange={(e) => {
+                      const newFilters = { ...additionalFilters, maxRating: parseInt(e.target.value) };
+                      setAdditionalFilters(newFilters);
+                      if (onAdditionalFiltersChange) {
+                        onAdditionalFiltersChange(newFilters, selectedGenres);
+                      }
+                    }}
+                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Облако тегов */}
-          {userTags.length > 0 && (
+          {!hideTagsFilter && userTags.length > 0 && (
             <TagCloudFilter
               tags={userTags}
               selectedTags={selectedTags}
@@ -335,30 +343,32 @@ export default function FilmFilters({
           )}
 
           {/* Фильтр по жанрам */}
-          <div>
-            <label className="text-xs text-gray-400 block mb-2">
-              Жанры {availableGenres.length > 0 && `(${availableGenres.length})`}
-            </label>
-            {availableGenres.length > 0 ? (
-              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                {availableGenres.map((genre) => (
-                  <button
-                    key={genre.id}
-                    onClick={() => toggleGenre(genre.id)}
-                    className={`px-3 py-1.5 rounded text-sm transition-colors whitespace-nowrap ${
-                      selectedGenres.includes(genre.id)
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                    }`}
-                  >
-                    {genre.name}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500 text-sm italic">Добавьте фильмы для отображения жанров</p>
-            )}
-          </div>
+          {!hideGenresFilter && (
+            <div>
+              <label className="text-xs text-gray-400 block mb-2">
+                Жанры {availableGenres.length > 0 && `(${availableGenres.length})`}
+              </label>
+              {availableGenres.length > 0 ? (
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+                  {availableGenres.map((genre) => (
+                    <button
+                      key={genre.id}
+                      onClick={() => toggleGenre(genre.id)}
+                      className={`px-3 py-1.5 rounded text-sm transition-colors whitespace-nowrap ${
+                        selectedGenres.includes(genre.id)
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      }`}
+                    >
+                      {genre.name}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm italic">Добавьте фильмы для отображения жанров</p>
+              )}
+            </div>
+          )}
 
           {/* Кнопка сброса */}
           {hasActiveAdditionalFilters && (

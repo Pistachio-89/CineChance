@@ -34,7 +34,7 @@ function getRedis(): Redis | null {
 
 // Конфигурация лимитов для разных эндпоинтов
 const endpointLimits: Record<string, { points: number; duration: number }> = {
-  '/api/search': { points: 60, duration: 60 }, // 60 запросов в минуту (1 запрос/сек)
+  '/api/search': { points: 100, duration: 60 }, // 100 запросов в минуту для поиска
   '/api/recommendations': { points: 30, duration: 60 }, // 30 запросов в минуту
   '/api/user': { points: 60, duration: 60 }, // 60 запросров в минуту
   '/api/watchlist': { points: 200, duration: 60 }, // 200 запросов в минуту для batch-загрузки

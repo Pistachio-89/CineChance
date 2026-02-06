@@ -35,27 +35,47 @@ export async function GET(request: NextRequest) {
       where: {
         userId,
       },
-      include: {
-        _count: {
-          select: {
-            watchLists: statusFilter ? {
-              where: statusFilter
-            } : true
-          }
-        }
-      },
       orderBy: {
         usageCount: 'desc'
       },
       take: limit,
     });
 
+    // Получаем реальное количество использований для каждого тега (с применением фильтра по статусам если нужно)
+    const tagIds = tags.map(t => t.id);
+    
+    let tagUsageCounts: Record<string, number> = {};
+    
+    if (tagIds.length > 0) {
+      const watchListsWithTags = await prisma.watchList.findMany({
+        where: {
+          userId,
+          tags: {
+            some: {
+              id: { in: tagIds }
+            }
+          },
+          ...statusFilter
+        },
+        select: {
+          tags: true
+        }
+      });
+
+      // Подсчитываем использования
+      for (const item of watchListsWithTags) {
+        for (const tag of item.tags) {
+          tagUsageCounts[tag.id] = (tagUsageCounts[tag.id] || 0) + 1;
+        }
+      }
+    }
+
     // Форматируем результат
     const formattedTags = tags
       .map(tag => ({
         id: tag.id,
         name: tag.name,
-        count: tag._count.watchLists,
+        count: tagUsageCounts[tag.id] || 0,
       }))
       .filter(tag => tag.count > 0) // Только теги с использованием
       .sort((a, b) => b.count - a.count); // Сортируем по реальному количеству

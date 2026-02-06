@@ -61,7 +61,8 @@ const fetchSearchResults = async (params: SearchParams, pageParam: number): Prom
     
     if (!response.ok) {
       if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please try again in a moment.');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Слишком много запросов. Пожалуйста, подождите минуту.');
       }
       if (response.status === 500) {
         const errorData = await response.json().catch(() => ({}));
@@ -103,10 +104,10 @@ export const useSearch = (params: SearchParams, blacklistedIds: number[]) => {
     gcTime: 5 * 60 * 1000,
     placeholderData: (previousData) => previousData,
     retry: (failureCount, error) => {
-      // Ретраим для rate limit ошибок и сетевых ошибок
+      // Не ретраим rate limit ошибки автоматически
       if (error instanceof Error) {
-        if (error.message.includes('Rate limit exceeded')) {
-          return failureCount < 3; // До 3 попыток для rate limit
+        if (error.message.includes('подождите') || error.message.includes('Rate limit')) {
+          return false; // Пользователь должен сам повторить после подхода
         }
         if (error.message.includes('Network error')) {
           return failureCount < 2; // До 2 попыток для сетевых ошибок

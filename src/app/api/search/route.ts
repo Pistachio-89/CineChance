@@ -8,9 +8,18 @@ import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(request: Request) {
   // Apply rate limiting
-  const { success } = await rateLimit(request, '/api/search');
-  if (!success) {
-    return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
+  const rateLimitResult = await rateLimit(request, '/api/search');
+  if (!rateLimitResult.success) {
+    const resetTime = new Date(rateLimitResult.reset);
+    const waitSeconds = Math.ceil((rateLimitResult.reset - Date.now()) / 1000);
+    return NextResponse.json(
+      { 
+        error: 'Слишком много запросов. Пожалуйста, подождите минуту перед следующим поиском.',
+        retryAfter: Math.max(1, waitSeconds),
+        resetTime: resetTime.toISOString()
+      }, 
+      { status: 429 }
+    );
   }
   
   const { searchParams } = new URL(request.url);
@@ -332,16 +341,37 @@ export async function GET(request: Request) {
 
       // Determine API endpoints and filters based on type
       const typeParam = type || 'all';
-      const selectedTypes = typeParam.split(',');
+      const selectedTypes = typeParam !== 'all' ? typeParam.split(',') : [];
       
-      // Track if we need anime filtering
+      // Track what we need
       const includeAnime = selectedTypes.includes('anime');
-      const includeMovies = selectedTypes.includes('movie');
-      const includeTv = selectedTypes.includes('tv');
+      const includeMovies = selectedTypes.length === 0 || selectedTypes.includes('movie');
+      const includeTv = selectedTypes.length === 0 || selectedTypes.includes('tv');
+
+      // Helper function to build genre filter properly
+      const buildGenreFilter = (isAnimeFilter: boolean): string => {
+        const genreIds: number[] = [];
+        
+        // Add selected genres
+        if (genresParam) {
+          genresParam.split(',').forEach(id => {
+            const num = parseInt(id);
+            if (!isNaN(num)) genreIds.push(num);
+          });
+        }
+        
+        // Add anime genre if needed
+        if (isAnimeFilter && !genreIds.includes(16)) {
+          genreIds.push(16); // Animation genre
+        }
+        
+        return genreIds.length > 0 ? genreIds.join('|') : '';
+      };
 
       // Determine which endpoints to query
-      const queryMovie = includeMovies || (!includeTv && !includeAnime);
-      const queryTv = includeTv || (!includeMovies && !includeAnime);
+      // Always query both movie and tv if needed, filter anime separately
+      const queryMovie = includeMovies || selectedTypes.length === 0;
+      const queryTv = includeTv || selectedTypes.length === 0;
 
       // Fetch from movie endpoint if needed
       if (queryMovie) {
@@ -448,18 +478,15 @@ export async function GET(request: Request) {
             }
           }
 
-          // Add genre filters
-          if (genresParam) {
-            const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
-            if (genreIds.length > 0) {
-              discoverUrl.searchParams.set('with_genres', genreIds.join('|'));
-            }
+          // Add genre filters - use buildGenreFilter for anime
+          const genreFilter = buildGenreFilter(includeAnime);
+          if (genreFilter) {
+            discoverUrl.searchParams.set('with_genres', genreFilter);
           }
 
-          // Add anime filter if selected
+          // Add anime language filter if anime is selected
           if (includeAnime) {
-            discoverUrl.searchParams.set('with_genres', '16'); // Animation
-            discoverUrl.searchParams.set('with_original_language', 'ja'); // Japanese
+            discoverUrl.searchParams.set('with_original_language', 'ja');
           }
 
           // Add rating filter
@@ -503,6 +530,21 @@ export async function GET(request: Request) {
       // Дополнительная серверная фильтрация на случай, если TMDB не применил настройки
       if (shouldFilterAdult) {
         discoverResults = discoverResults.filter((item: any) => !item.adult);
+      }
+
+      // Filter by media type (movies, tv, anime) if specific types are selected
+      if (selectedTypes.length > 0 && !selectedTypes.includes('all')) {
+        discoverResults = discoverResults.filter((item: any) => {
+          const itemType = item.media_type;
+          const isAnime = (item.genre_ids?.includes(16) ?? false) && item.original_language === 'ja';
+          
+          for (const t of selectedTypes) {
+            if (t === 'anime' && isAnime) return true;
+            if (t === 'movie' && itemType === 'movie' && !isAnime) return true;
+            if (t === 'tv' && itemType === 'tv' && !isAnime) return true;
+          }
+          return false;
+        });
       }
 
       // Deduplicate results by media_type and id
