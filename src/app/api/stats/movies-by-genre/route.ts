@@ -62,7 +62,11 @@ export async function GET(request: NextRequest) {
 
     const page = Math.max(1, parseInt(pageParam, 10));
     const limit = Math.min(100, Math.max(1, parseInt(limitParam, 10)));
-    const skip = (page - 1) * limit;
+    
+    // Load with buffer to account for TMDB-based filtering (genres, year, rating)
+    const recordsNeeded = Math.ceil(page * limit * 1.5) + 1; // 50% buffer + 1
+    const skip = 0; // Load from beginning for deterministic results
+    const take = Math.min(recordsNeeded, 500); // Cap at 500
 
     // Строим фильтр по медиа типам
     const mediaTypeFilter: string[] = [];
@@ -97,7 +101,7 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Получаем все записи пользователя БЕЗ тегов (оптимизация: теги будут загружены ниже)
+    // Получаем записи с буфером для фильтрации по жанру
     const watchListRecords = await prisma.watchList.findMany({
       where: whereClause,
       select: {
@@ -108,6 +112,9 @@ export async function GET(request: NextRequest) {
         userRating: true,
         addedAt: true,
       },
+      orderBy: { addedAt: 'desc' },
+      skip,
+      take,
     });
 
     // Фильтруем по жанру и применяем доп. фильтры
@@ -137,7 +144,14 @@ export async function GET(request: NextRequest) {
     // Применяем сортировку
     const sorted = applySorting(moviesWithGenre, sortByParam, sortOrderParam);
     const totalCount = sorted.length;
-    const paginatedMovies = sorted.slice(skip, skip + limit);
+    
+    // Paginate filtered results
+    const pageStartIndex = (page - 1) * limit;
+    const pageEndIndex = pageStartIndex + limit;
+    const paginatedMovies = sorted.slice(pageStartIndex, pageEndIndex);
+    
+    // hasMore: true if more filtered movies exist, or if we loaded full batch (might be more in DB)
+    const hasMore = sorted.length > pageEndIndex || watchListRecords.length === take;
 
     // Загружаем теги только для записей, которые попадут в ответ
     const recordIdsForTags = paginatedMovies.map(m => m.record.id);
@@ -207,7 +221,7 @@ export async function GET(request: NextRequest) {
         limit,
         totalCount,
         totalPages: Math.ceil(totalCount / limit),
-        hasMore: skip + limit < totalCount,
+        hasMore,
       },
     });
 
@@ -230,23 +244,33 @@ function applySorting(
   const order = sortOrder === 'asc' ? 1 : -1;
 
   return [...movies].sort((a, b) => {
-    let aVal: any = '';
-    let bVal: any = '';
+    let comparison = 0;
 
     switch (sortBy) {
-      case 'title':
-        aVal = a.record.title || '';
-        bVal = b.record.title || '';
-        return aVal.localeCompare(bVal) * order;
-      case 'userRating':
-        aVal = a.record.userRating || 0;
-        bVal = b.record.userRating || 0;
-        return (aVal - bVal) * order;
+      case 'popularity':
+        comparison = (b.tmdbData?.vote_count || 0) - (a.tmdbData?.vote_count || 0);
+        break;
+      case 'rating':
+        comparison = (b.tmdbData?.vote_average || 0) - (a.tmdbData?.vote_average || 0);
+        break;
+      case 'date':
+        const dateA = a.tmdbData?.release_date || a.tmdbData?.first_air_date || '';
+        const dateB = b.tmdbData?.release_date || b.tmdbData?.first_air_date || '';
+        comparison = dateB.localeCompare(dateA);
+        break;
       case 'addedAt':
+      case 'savedDate':
+        comparison = new Date(b.record.addedAt || 0).getTime() - new Date(a.record.addedAt || 0).getTime();
+        break;
+      case 'title':
+        const titleA = a.record.title || '';
+        const titleB = b.record.title || '';
+        comparison = titleA.localeCompare(titleB);
+        break;
       default:
-        aVal = new Date(a.record.addedAt || 0).getTime();
-        bVal = new Date(b.record.addedAt || 0).getTime();
-        return (aVal - bVal) * order;
+        comparison = new Date(b.record.addedAt || 0).getTime() - new Date(a.record.addedAt || 0).getTime();
     }
+
+    return comparison * order;
   });
 }

@@ -57,7 +57,11 @@ export async function GET(request: NextRequest) {
 
     const page = Math.max(1, parseInt(pageParam, 10));
     const limit = Math.min(100, Math.max(1, parseInt(limitParam, 10)));
-    const skip = (page - 1) * limit;
+    
+    // Load with buffer to account for TMDB-based filtering (genres, year, rating)
+    const recordsNeeded = Math.ceil(page * limit * 1.5) + 1; // 50% buffer + 1
+    const skip = 0; // Load from beginning for deterministic results
+    const take = Math.min(recordsNeeded, 500); // Cap at 500
 
     // Проверяем что тег принадлежит пользователю
     const tag = await prisma.tag.findFirst({
@@ -130,7 +134,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: getBenefitsOrder(sortByParam, sortOrderParam),
       skip,
-      take: limit,
+      take,
     });
 
     // Получаем детали TMDB для каждого фильма
@@ -173,6 +177,35 @@ export async function GET(request: NextRequest) {
     // Фильтруем null значения (из-за несовпадения фильтров)
     const filteredMovies = movies.filter((m): m is Exclude<typeof m, null> => m !== null);
 
+    // Сортируем отфильтрованные результаты по выбранному критерию
+    const sortedMovies = filteredMovies.sort((a: any, b: any) => {
+      let comparison = 0;
+
+      switch (sortByParam) {
+        case 'popularity':
+          comparison = b.vote_count - a.vote_count;
+          break;
+        case 'rating':
+          comparison = b.vote_average - a.vote_average;
+          break;
+        case 'date':
+          const dateA = a.release_date || a.first_air_date || '';
+          const dateB = b.release_date || b.first_air_date || '';
+          comparison = dateB.localeCompare(dateA);
+          break;
+        case 'addedAt':
+        case 'savedDate':
+          const savedA = a.addedAt || '';
+          const savedB = b.addedAt || '';
+          comparison = savedB.localeCompare(savedA);
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return sortOrderParam === 'desc' ? comparison : -comparison;
+    });
+
     // Собираем уникальные жанры из результатов
     const genreSet = new Set<number>();
     const genreMap: Record<number, string> = {
@@ -182,7 +215,7 @@ export async function GET(request: NextRequest) {
       10770: 'TV Movie', 53: 'Thriller', 10752: 'War', 37: 'Western',
     };
     
-    filteredMovies.forEach((movie) => {
+    sortedMovies.forEach((movie) => {
       if (movie.genre_ids && Array.isArray(movie.genre_ids)) {
         movie.genre_ids.forEach((gid: number) => genreSet.add(gid));
       }
@@ -195,19 +228,27 @@ export async function GET(request: NextRequest) {
         name: genreMap[id] || `Genre ${id}`,
       }));
 
+    // Paginate filtered results
+    const pageStartIndex = (page - 1) * limit;
+    const pageEndIndex = pageStartIndex + limit;
+    const paginatedMovies = sortedMovies.slice(pageStartIndex, pageEndIndex);
+    
+    // hasMore: true if more filtered movies exist, or if we loaded full batch (might be more in DB)
+    const hasMore = sortedMovies.length > pageEndIndex || watchListRecords.length === take;
+
     const response = NextResponse.json({
       tag: {
         id: tag.id,
         name: tag.name,
       },
-      movies: filteredMovies,
+      movies: paginatedMovies,
       availableGenres,
       pagination: {
         page,
         limit,
-        totalCount: filteredMovies.length,
-        totalPages: Math.ceil(filteredMovies.length / limit),
-        hasMore: skip + limit < filteredMovies.length,
+        totalCount: sortedMovies.length,
+        totalPages: Math.ceil(sortedMovies.length / limit),
+        hasMore,
       },
     });
 

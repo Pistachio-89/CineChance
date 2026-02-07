@@ -119,18 +119,21 @@ export async function GET(request: NextRequest) {
     const hasTypeFilters = typesParam && typesParam.split(',').length < 3;
     const hasOtherFilters = genresParam || yearFrom || yearTo || (minRating > 0 || maxRating < 10);
     
-    let recordsToLoad = limit + 1;
+    // Load enough records to handle in-memory filtering, but at least 50 for efficiency
+    let recordsToLoadPerPage = limit;
     if (hasTypeFilters) {
-      recordsToLoad = limit * 10; // 10x multiplier for type filters
+      recordsToLoadPerPage = Math.max(limit * 5, 50); // 5x for type filters
     } else if (hasOtherFilters) {
-      recordsToLoad = limit * 5; // 5x multiplier for other filters
+      recordsToLoadPerPage = Math.max(limit * 2, 50); // 2x for other filters  
     }
-    recordsToLoad = Math.min(recordsToLoad, 500);
+    recordsToLoadPerPage = Math.min(recordsToLoadPerPage, 500);
 
     if (includeHidden) {
       // For hidden tab, we use blacklist
-      const skip = (page - 1) * recordsToLoad;
-      const take = recordsToLoad;
+      // Load enough to fill current page with buffer
+      const recordsNeeded = Math.ceil(page * limit * 1.5) + 1; // 50% buffer + 1
+      const skip = 0;
+      const take = Math.min(recordsNeeded, 500);
 
       // Count total
       const totalCount = await prisma.blacklist.count({ where: { userId } });
@@ -143,6 +146,15 @@ export async function GET(request: NextRequest) {
         skip,
         take,
       });
+
+      // Early exit if no records
+      if (blacklistRecords.length === 0) {
+        return NextResponse.json({
+          movies: [],
+          hasMore: false,
+          totalCount: 0,
+        });
+      }
 
       // Get ratings
       const tmdbIds = blacklistRecords.map(r => r.tmdbId);
@@ -225,11 +237,13 @@ export async function GET(request: NextRequest) {
       // Sort movies
       const sortedMovies = sortMovies(movies, sortBy, sortOrder);
 
-      // Пагинация отфильтрованных результатов
+      // Paginate filtered results
       const pageStartIndex = (page - 1) * limit;
       const pageEndIndex = pageStartIndex + limit;
       const paginatedMovies = sortedMovies.slice(pageStartIndex, pageEndIndex);
-      const hasMore = sortedMovies.length > pageEndIndex;
+      
+      // hasMore: true if more movies in sorted list OR if we loaded full batch (might be more in DB)
+      const hasMore = sortedMovies.length > pageEndIndex || blacklistRecords.length === take;
 
       return NextResponse.json({
         movies: paginatedMovies,
@@ -242,9 +256,12 @@ export async function GET(request: NextRequest) {
     // First count total
     const totalCount = await prisma.watchList.count({ where: whereClause });
 
-    // Setup pagination for regular tabs
-    const skip = (page - 1) * recordsToLoad;
-    const take = recordsToLoad;
+    // Smart pagination: load enough to fill current page even with filtering
+    // We need: (page * limit) + buffer for filtering losses + 1 to detect hasMore
+    // But cap at 500 for performance
+    const recordsNeeded = Math.ceil(page * limit * 1.5) + 1; // 50% buffer + 1
+    const skip = 0; // Always from beginning for deterministic results
+    const take = Math.min(recordsNeeded, 500); // Max 500
 
     const watchListRecords = await prisma.watchList.findMany({
       where: whereClause,
@@ -255,7 +272,7 @@ export async function GET(request: NextRequest) {
         title: true,
         voteAverage: true,
         userRating: true,
-        weightedRating: true, // Добавляем взвешенную оценку
+        weightedRating: true,
         addedAt: true,
         statusId: true,
         tags: { select: { id: true, name: true } },
@@ -265,14 +282,22 @@ export async function GET(request: NextRequest) {
       take,
     });
 
-    // Get ratings for current page only
+    // Early exit if no records
+    if (watchListRecords.length === 0) {
+      return NextResponse.json({
+        movies: [],
+        hasMore: false,
+        totalCount: 0,
+      });
+    }
+
+    // Fetch all ratings and TMDB data
     const tmdbIds = watchListRecords.map(r => r.tmdbId);
     const ratingsMap = await fetchCineChanceRatings(tmdbIds);
 
-    // Fetch TMDB data for current page
+    // Fetch TMDB data
     const moviesWithDetails = await Promise.all(
       watchListRecords.map(async (record) => {
-        // ИСПРАВЛЕНИЕ 2: Добавлено "as 'movie' | 'tv'"
         const tmdbData = await fetchMediaDetails(record.tmdbId, record.mediaType as 'movie' | 'tv');
         const cineChanceData = ratingsMap.get(record.tmdbId);
 
@@ -364,15 +389,13 @@ export async function GET(request: NextRequest) {
     // Sort movies
     const sortedMovies = sortMovies(movies, sortBy, sortOrder);
 
-
-
-    // Пагинация отфильтрованных результатов
+    // Paginate the filtered and sorted results
     const pageStartIndex = (page - 1) * limit;
     const pageEndIndex = pageStartIndex + limit;
     const paginatedMovies = sortedMovies.slice(pageStartIndex, pageEndIndex);
-    const hasMore = sortedMovies.length > pageEndIndex;
-
-
+    
+    // hasMore: true if we have more movies than current page end, or if we loaded exactly 'take' records (might be more in DB)
+    const hasMore = sortedMovies.length > pageEndIndex || watchListRecords.length === take;
 
     return NextResponse.json({
       movies: paginatedMovies,

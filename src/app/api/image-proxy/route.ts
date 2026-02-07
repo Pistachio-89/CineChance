@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     
     // Пробуем основной URL с таймаутом
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 секунд таймаут
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
 
     const response = await fetch(imageUrl, {
       headers: {
@@ -144,20 +144,19 @@ export async function GET(req: Request) {
       }
     }
 
-    // Если все failed, возвращаем placeholder
+    // Если все failed, возвращаем placeholder SVG
     try {
-      const placeholderResponse = await fetch(new URL('/placeholder-poster.svg', req.url));
-      if (placeholderResponse.ok) {
-        const placeholderBuffer = await placeholderResponse.arrayBuffer();
-        return new NextResponse(placeholderBuffer, {
-          headers: {
-            'Content-Type': 'image/svg+xml',
-            'Cache-Control': 'public, max-age=86400',
-            'Access-Control-Allow-Origin': '*',
-            'X-Cache': 'PLACEHOLDER',
-          },
-        });
-      }
+      const placeholderSvg = '<svg width="500" height="750" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#374151"/><text x="50%" y="50%" font-family="Arial" font-size="24" fill="#9CA3AF" text-anchor="middle" dominant-baseline="middle">Постер отсутствует</text></svg>';
+      const placeholderBuffer = Buffer.from(placeholderSvg, 'utf-8');
+      
+      return new NextResponse(placeholderBuffer, {
+        headers: {
+          'Content-Type': 'image/svg+xml',
+          'Cache-Control': 'public, max-age=86400',
+          'Access-Control-Allow-Origin': '*',
+          'X-Cache': 'PLACEHOLDER',
+        },
+      });
     } catch (placeholderError) {
       console.error('Placeholder error:', placeholderError);
     }
