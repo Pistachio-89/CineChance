@@ -45,7 +45,20 @@ const ImageWithProxy = memo(({
     onLoad?.();
   };
 
-  const imageSrc = imageError ? fallbackSrc : src;
+  const getImageSrc = () => {
+    if (imageError) {
+      return fallbackSrc;
+    }
+
+    // Используем прокси для TMDB изображений
+    if (src.includes('image.tmdb.org')) {
+      return `/api/image-proxy?url=${encodeURIComponent(src)}`;
+    }
+
+    return src;
+  };
+
+  const imageSrc = getImageSrc();
 
   const imgStyle: React.CSSProperties = fill
     ? { ...style, objectFit: 'cover' }
