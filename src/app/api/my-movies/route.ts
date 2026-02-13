@@ -256,11 +256,21 @@ export async function GET(request: NextRequest) {
     // First count total
     const totalCount = await prisma.watchList.count({ where: whereClause });
 
-    // Smart pagination: load enough to fill current page even with filtering
-    // Use proper skip for correct pagination
+    // Calculate pagination - use proper skip
     const skip = (page - 1) * limit;
-    const take = limit + 1; // +1 to detect hasMore
+    
+    // Check if we've reached the end
+    if (skip >= totalCount) {
+      return NextResponse.json({
+        movies: [],
+        hasMore: false,
+        totalCount,
+      });
+    }
 
+    // Use the pre-calculated recordsToLoadPerPage
+    const take = Math.min(recordsToLoadPerPage, 500);
+    
     const watchListRecords = await prisma.watchList.findMany({
       where: whereClause,
       select: {
@@ -277,7 +287,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [{ addedAt: 'desc' }, { id: 'desc' }],
       skip,
-      take,
+      take: recordsToLoadPerPage,
     });
 
     // Early exit if no records
@@ -392,8 +402,8 @@ export async function GET(request: NextRequest) {
     const pageEndIndex = pageStartIndex + limit;
     const paginatedMovies = sortedMovies.slice(pageStartIndex, pageEndIndex);
     
-    // hasMore: true if we have more movies than current page end, or if we loaded exactly 'take' records (might be more in DB)
-    const hasMore = sortedMovies.length > pageEndIndex || watchListRecords.length === take;
+    // hasMore: true if we have more movies than current page end, or if we loaded exactly 'recordsToLoadPerPage' records (might be more in DB)
+    const hasMore = sortedMovies.length > pageEndIndex || watchListRecords.length === recordsToLoadPerPage;
 
     return NextResponse.json({
       movies: paginatedMovies,
