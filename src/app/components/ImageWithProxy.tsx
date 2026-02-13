@@ -2,7 +2,6 @@
 'use client';
 
 import { useState, memo } from 'react';
-import Image from 'next/image';
 
 interface ImageWithProxyProps {
   src: string;
@@ -27,66 +26,58 @@ const ImageWithProxy = memo(({
   fill = false,
   width,
   height,
-  sizes = "(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw",
   priority = false,
   className = '',
-  blurDataURL,
   onError,
   onLoad,
   fallbackSrc = '/placeholder-poster.svg',
-  quality = 75,
   style
 }: ImageWithProxyProps) => {
   const [imageError, setImageError] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
 
   const handleImageError = () => {
-    if (retryCount < 1 && !imageError) {
-      setRetryCount(prev => prev + 1);
-    } else {
-      setImageError(true);
-      onError?.();
-    }
+    setImageError(true);
+    onError?.();
   };
 
-  const handleImageLoad = () => {
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     setImageError(false);
     onLoad?.();
   };
 
-  const getImageSrc = () => {
-    if (imageError) {
-      return fallbackSrc;
-    }
+  const imageSrc = imageError ? fallbackSrc : src;
 
-    // Если это retry и это TMDB изображение, используем прокси
-    if (retryCount > 0 && src.includes('image.tmdb.org')) {
-      return `/api/image-proxy?url=${encodeURIComponent(src)}`;
-    }
+  const imgStyle: React.CSSProperties = fill
+    ? { ...style, objectFit: 'cover' }
+    : { ...style };
 
-    return src;
-  };
-
-  const imageSrc = getImageSrc();
+  if (fill) {
+    return (
+      <img
+        src={imageSrc}
+        alt={alt}
+        className={className}
+        style={imgStyle}
+        loading={priority ? 'eager' : 'lazy'}
+        decoding={priority ? 'sync' : 'async'}
+        onError={handleImageError}
+        onLoad={handleImageLoad}
+      />
+    );
+  }
 
   return (
-    <Image
+    <img
       src={imageSrc}
       alt={alt}
-      fill={fill}
       width={width}
       height={height}
-      sizes={sizes}
-      priority={priority}
       className={className}
-      style={style}
-      loading={priority ? "eager" : "lazy"}
-      placeholder={blurDataURL ? 'blur' : undefined}
-      blurDataURL={blurDataURL}
+      style={imgStyle}
+      loading={priority ? 'eager' : 'lazy'}
+      decoding={priority ? 'sync' : 'async'}
       onError={handleImageError}
       onLoad={handleImageLoad}
-      unoptimized={true}
-      quality={quality}
     />
   );
 });

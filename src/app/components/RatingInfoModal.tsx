@@ -952,7 +952,6 @@ export default function RatingInfoModal({
                                 alt={actor.name}
                                 fill
                                 className="object-cover rounded"
-                                sizes="24px"
                               />
                             </div>
                           ) : (
