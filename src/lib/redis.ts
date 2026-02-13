@@ -37,14 +37,17 @@ export async function withCache<T>(
   const redis = getRedis();
   
   if (!redis) {
+    logger.info('Redis not available, skipping cache', { key, context: 'RedisCache' });
     return fetcher();
   }
   
   try {
     const cached = await redis.get<string>(key);
     if (cached) {
+      logger.info('Cache hit', { key, context: 'RedisCache' });
       return JSON.parse(cached) as T;
     }
+    logger.info('Cache miss', { key, context: 'RedisCache' });
   } catch (error) {
     logger.error('Redis get failed', { 
       error: error instanceof Error ? error.message : String(error),
@@ -57,6 +60,7 @@ export async function withCache<T>(
   
   try {
     await redis.set(key, JSON.stringify(fresh), { ex: ttlSeconds });
+    logger.info('Cached fresh data', { key, ttlSeconds, context: 'RedisCache' });
   } catch (error) {
     logger.error('Redis set failed', { 
       error: error instanceof Error ? error.message : String(error),
@@ -71,7 +75,10 @@ export async function withCache<T>(
 
 export async function invalidateCache(pattern: string): Promise<void> {
   const redis = getRedis();
-  if (!redis) return;
+  if (!redis) {
+    logger.warn('Redis not available, cannot invalidate cache', { pattern, context: 'RedisCache' });
+    return;
+  }
   
   try {
     const keys: string[] = [];
@@ -88,6 +95,8 @@ export async function invalidateCache(pattern: string): Promise<void> {
       logger.info(`Cache invalidated: ${keys.length} keys matching "${pattern}"`, {
         context: 'RedisCache'
       });
+    } else {
+      logger.info(`No keys found matching "${pattern}"`, { context: 'RedisCache' });
     }
   } catch (error) {
     logger.error('Redis invalidate failed', { 

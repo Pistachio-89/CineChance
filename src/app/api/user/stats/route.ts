@@ -130,29 +130,39 @@ async function fetchStats(userId: string) {
 
   const typeCounts = await calculateTypeBreakdown(allRecords);
 
+  logger.info('Fetching average rating', { userId, context: 'UserStatsAPI' });
+
   const avgRatingResult = await prisma.watchList.aggregate({
     where: {
       userId,
-      OR: [
-        { weightedRating: { not: null } },
-        { userRating: { not: null } }
-      ]
+      statusId: { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED, MOVIE_STATUS_IDS.DROPPED] },
+      userRating: { not: null },
     },
     _avg: { 
-      weightedRating: true,
       userRating: true,
     },
     _count: { 
-      weightedRating: true,
       userRating: true,
     },
   });
 
+  logger.info('Average rating result', { 
+    avgRatingResult: JSON.stringify(avgRatingResult),
+    context: 'UserStatsAPI' 
+  });
+
   const avg = avgRatingResult._avg;
   const count = avgRatingResult._count;
-  const averageRating = avg?.weightedRating ?? avg?.userRating ?? null;
+  const averageRating = avg?.userRating ?? null;
   const finalAverageRating = averageRating ? Math.round(averageRating * 10) / 10 : null;
-  const ratedCount = (count?.weightedRating || 0) + (count?.userRating || 0);
+  const ratedCount = count?.userRating || 0;
+
+  logger.info('Calculated average rating', { 
+    averageRating, 
+    finalAverageRating, 
+    ratedCount,
+    context: 'UserStatsAPI' 
+  });
 
   const ratingGroups = await prisma.watchList.groupBy({
     by: ['userRating'],
