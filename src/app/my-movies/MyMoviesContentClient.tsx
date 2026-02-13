@@ -240,6 +240,16 @@ export default function MyMoviesContentClient({
 
   const isRestoreView = activeTab === 'hidden';
 
+  const getInitialStatus = () => {
+    if (isRestoreView) return null;
+    if (activeTab === 'watched') return 'watched';
+    if (activeTab === 'wantToWatch') return 'want';
+    if (activeTab === 'dropped') return 'dropped';
+    return null;
+  };
+
+  const initialStatus = getInitialStatus();
+
   return (
     <div className="min-h-screen bg-gray-950 py-3 sm:py-4">
       {/* Popup: Вы просмотрели фильм? */}
@@ -320,7 +330,7 @@ export default function MyMoviesContentClient({
           userTags={userTags}
           showRatingBadge={true}
           getInitialRating={(movie) => (movie as any).userRating}
-          initialStatus={isRestoreView ? null : 'watched'}
+          initialStatus={initialStatus}
           emptyMessage={
             isRestoreView
               ? 'Добавляйте фильмы в черный список на главной странице'
