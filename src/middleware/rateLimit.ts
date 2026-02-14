@@ -41,6 +41,7 @@ const endpointLimits: Record<string, { points: number; duration: number }> = {
   '/api/cine-chance-rating': { points: 300, duration: 60 }, // 300 запросов в минуту для деталей фильмов
   '/api/movie-details': { points: 300, duration: 60 }, // 300 запросов в минуту для деталей фильмов
   '/api/image-proxy': { points: 300, duration: 60 }, // 300 запросов в минуту (20 фильмов × 2 попытки = 40 req, достаточно даже с запасом)
+  '/api/stats': { points: 100, duration: 60 }, // 100 запросов в минуту для статистики
   'default': { points: 100, duration: 60 }, // 100 запросов в минуту
 };
 

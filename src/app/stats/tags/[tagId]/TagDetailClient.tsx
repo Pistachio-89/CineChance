@@ -81,7 +81,11 @@ export default function TagDetailClient({ userId, tagId, tagName }: TagDetailCli
         }
 
         const response = await fetch(`/api/stats/movies-by-tag?${params.toString()}`);
-        if (!response.ok) throw new Error('Failed to fetch movies');
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Failed to fetch movies:', response.status, errorText);
+          throw new Error(`Failed to fetch movies: ${response.status}`);
+        }
 
         const data = await response.json();
         
