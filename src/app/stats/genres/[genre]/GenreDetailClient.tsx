@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import FilmGridWithFilters, { FilmGridFilters } from '@/app/components/FilmGridWithFilters';
-import { getUserGenres } from '@/app/my-movies/actions';
-import { getUserTags } from '@/app/actions/tagsActions';
 
 interface GenreDetailClientProps {
   userId: string;
@@ -23,19 +21,23 @@ export default function GenreDetailClient({ userId, genreId, genreName }: GenreD
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const genres = await getUserGenres(userId);
-        setAvailableGenres(genres);
+        const genresRes = await fetch('/api/user/genres?statuses=watched,rewatched&limit=100');
+        if (genresRes.ok) {
+          const genresData = await genresRes.json();
+          setAvailableGenres(genresData.genres || []);
+        }
       } catch (error) {
         console.error('Error fetching genres:', error);
       }
 
       try {
-        const result = await getUserTags(userId);
-        if (result.success && result.data) {
-          setUserTags(result.data.map(tag => ({
+        const tagsRes = await fetch('/api/user/tag-usage?limit=100');
+        if (tagsRes.ok) {
+          const tagsData = await tagsRes.json();
+          setUserTags((tagsData.tags || []).map((tag: any) => ({
             id: tag.id,
             name: tag.name,
-            count: tag.usageCount
+            count: tag.count
           })));
         }
       } catch (error) {
