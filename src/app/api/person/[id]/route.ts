@@ -27,7 +27,7 @@ export async function GET(
 
     // Получаем информацию об актере
     const personController = new AbortController();
-    const personTimeoutId = setTimeout(() => personController.abort(), 5000);
+    const personTimeoutId = setTimeout(() => personController.abort(), 15000);
     
     const personRes = await fetch(
       `https://api.themoviedb.org/3/person/${personId}?api_key=${apiKey}&language=ru-RU`,
@@ -51,7 +51,7 @@ export async function GET(
 
     // Получаем фильмографию актера
     const creditsController = new AbortController();
-    const creditsTimeoutId = setTimeout(() => creditsController.abort(), 5000);
+    const creditsTimeoutId = setTimeout(() => creditsController.abort(), 15000);
     
     const creditsRes = await fetch(
       `https://api.themoviedb.org/3/person/${personId}/combined_credits?api_key=${apiKey}&language=ru-RU`,
@@ -81,9 +81,16 @@ export async function GET(
 
     const creditsData = await creditsRes.json();
 
-    // Фильтруем и сортируем фильмографию
+    // Фильтруем и сортируем фильмографию (включая cast и crew)
     const seen = new Set<string>();
-    const filmography = creditsData.cast
+    
+    // Объединяем cast и crew
+    const allCredits = [
+      ...(creditsData.cast || []).map((item: any) => ({ ...item, role_type: 'cast' })),
+      ...(creditsData.crew || []).map((item: any) => ({ ...item, role_type: 'crew' }))
+    ];
+    
+    const filmography = allCredits
       ?.filter((item: any) => {
         // Только с постером
         if (!item.poster_path) return false;
@@ -115,6 +122,9 @@ export async function GET(
         release_date: item.release_date || item.first_air_date || '',
         overview: item.overview || '',
         character: item.character || '',
+        job: item.job || '', // Должность для crew (режиссер, продюсер и т.д.)
+        department: item.department || '', // Отдел для crew
+        role_type: item.role_type,
         popularity: item.popularity || 0,
       })) || [];
 
