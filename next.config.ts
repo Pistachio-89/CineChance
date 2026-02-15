@@ -32,17 +32,14 @@ const nextConfig: NextConfig = {
   },
 
   experimental: {
-    serverActions: process.env.NODE_ENV === 'production'
-      ? {
-          allowedOrigins: [
-            'cinechance.vercel.app',
-            'www.cinechance.vercel.app',
-          ],
-        }
-      : {
-          // Dev режим - отключаем валидацию origin для Server Actions
-          // На локальной машине и в контейнерах могут быть разные proxy настройки
-        },
+    serverActions: {
+      allowedOrigins: [
+        'cinechance.vercel.app',
+        'www.cinechance.vercel.app',
+        '*.app.github.dev',
+        'localhost:3000',
+      ],
+    },
   },
 
   // Исключаем TypeScript файлы в scripts из сборки
