@@ -304,7 +304,7 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [{ addedAt: 'desc' }, { id: 'desc' }],
       skip,
-      take: limit,
+      take: recordsToLoadPerPage,
     });
 
     // Early exit if no records
