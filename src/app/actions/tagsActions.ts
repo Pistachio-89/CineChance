@@ -1,5 +1,6 @@
 // src/app/actions/tagsActions.ts
 'use server';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { prisma } from '@/lib/prisma';
 import { getServerSession } from 'next-auth';

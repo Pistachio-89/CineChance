@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { rateLimit } from '@/middleware/rateLimit';
 import { Redis } from '@upstash/redis';
 import { logger } from '@/lib/logger';

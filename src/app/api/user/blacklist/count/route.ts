@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     });
 
     return NextResponse.json({ count });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ count: 0 });
   }
 }

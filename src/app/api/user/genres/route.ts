@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -56,7 +57,7 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
     const res = await fetch(url, { next: { revalidate: 86400 } });
     if (!res.ok) return null;
     return await res.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }

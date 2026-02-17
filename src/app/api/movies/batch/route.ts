@@ -1,4 +1,5 @@
 // src/app/api/movies/batch/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';

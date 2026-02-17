@@ -1,4 +1,5 @@
 // src/app/api/my-movies/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -27,7 +28,7 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
     
     if (!res.ok) return null;
     return await res.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }

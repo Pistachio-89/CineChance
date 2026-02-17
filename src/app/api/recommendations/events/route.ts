@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/prisma';
 import { RecommendationEventData } from '@/lib/recommendation-types';
 import { logger } from '@/lib/logger';

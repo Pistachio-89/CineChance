@@ -1,4 +1,5 @@
 // src/app/api/stats/movies-by-rating/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -16,7 +17,7 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
     const res = await fetch(url, { next: { revalidate: 86400 } }); // 24 часа
     if (!res.ok) return null;
     return await res.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }

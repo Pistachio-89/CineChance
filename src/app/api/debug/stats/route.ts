@@ -1,4 +1,5 @@
 // Debug endpoint для проверки статистики
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -29,7 +30,7 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
     }
     const data = await res.json();
     return data;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

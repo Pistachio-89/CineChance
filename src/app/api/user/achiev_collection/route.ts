@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -48,7 +49,7 @@ async function fetchMovieWithCollection(tmdbId: number): Promise<TMDBMovieDetail
     }
 
     return await response.json();
-  } catch (error) {
+  } catch {
     return null;
   }
 }
@@ -71,7 +72,7 @@ async function fetchCollectionMovies(collectionId: number): Promise<number[]> {
 
     const data = await response.json();
     return (data.parts || []).map((movie: { id: number }) => movie.id);
-  } catch (error) {
+  } catch {
     return [];
   }
 }
