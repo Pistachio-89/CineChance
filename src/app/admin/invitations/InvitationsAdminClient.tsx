@@ -25,7 +25,7 @@ interface InvitationsAdminClientProps {
   userId: string;
 }
 
-export default function InvitationsAdminClient({ userId }: InvitationsAdminClientProps) {
+export default function InvitationsAdminClient({ userId: _userId }: InvitationsAdminClientProps) {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -74,7 +74,7 @@ export default function InvitationsAdminClient({ userId }: InvitationsAdminClien
       } else {
         setMessage({ type: 'error', text: data.error || 'Ошибка создания приглашения' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Ошибка соединения с сервером' });
     } finally {
       setIsLoading(false);
@@ -104,7 +104,7 @@ export default function InvitationsAdminClient({ userId }: InvitationsAdminClien
         const data = await response.json();
         setMessage({ type: 'error', text: data.error || 'Ошибка удаления' });
       }
-    } catch (error) {
+    } catch {
       setMessage({ type: 'error', text: 'Ошибка соединения с сервером' });
     }
   };

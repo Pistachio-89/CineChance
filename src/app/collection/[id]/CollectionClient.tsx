@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from 'react';
 import ImageWithProxy from '@/app/components/ImageWithProxy';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import MovieCard from '@/app/components/MovieCard';
 import { MovieCardErrorBoundary } from '@/app/components/ErrorBoundary';

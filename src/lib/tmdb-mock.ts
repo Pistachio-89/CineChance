@@ -44,17 +44,17 @@ const mockMovies: Media[] = [
   },
 ];
 
-export const fetchTrendingMoviesMock = async (timeWindow: 'day' | 'week' = 'week'): Promise<Media[]> => {
+export const fetchTrendingMoviesMock = async (_timeWindow: 'day' | 'week' = 'week'): Promise<Media[]> => {
   logger.info('Используем mock данные для trending movies из-за проблем с сетью', { context: 'TMDB_MOCK' });
   return mockMovies;
 };
 
-export const fetchPopularMoviesMock = async (page: number = 1): Promise<Media[]> => {
+export const fetchPopularMoviesMock = async (_page: number = 1): Promise<Media[]> => {
   logger.info('Используем mock данные для popular movies из-за проблем с сетью', { context: 'TMDB_MOCK' });
   return mockMovies;
 };
 
-export const searchMediaMock = async (query: string, page: number = 1): Promise<Media[]> => {
+export const searchMediaMock = async (query: string, _page: number = 1): Promise<Media[]> => {
   logger.info('Используем mock данные для поиска из-за проблем с сетью', { context: 'TMDB_MOCK' });
   if (!query.trim()) return [];
   

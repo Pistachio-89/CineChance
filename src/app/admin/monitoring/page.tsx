@@ -3,7 +3,7 @@ import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
 import AdminSidebar from "../AdminSidebar";
 import RecommendationStats from '@/app/components/RecommendationStats';
-import { Activity, Database, Clock } from 'lucide-react';
+import { Database, Clock } from 'lucide-react';
 
 export default async function MonitoringPage() {
   const session = await getServerSession(authOptions);

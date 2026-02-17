@@ -22,7 +22,7 @@ export async function GET(req: Request) {
 
     // Исправляем тип переменной 'r' вручную для TypeScript
     return NextResponse.json(records.map((r: { tmdbId: number }) => r.tmdbId));
-  } catch (error) {
+  } catch {
     return NextResponse.json([]);
   }
 }

@@ -52,28 +52,28 @@ export class Logger {
     this.output = options.output || 'console';
   }
 
-  debug(msg: string, ...args: any[]) {
+  debug(msg: string, ...args: unknown[]) {
     if (shouldLog('debug', this.level)) {
       this._log('debug', msg, ...args);
     }
   }
-  info(msg: string, ...args: any[]) {
+  info(msg: string, ...args: unknown[]) {
     if (shouldLog('info', this.level)) {
       this._log('info', msg, ...args);
     }
   }
-  warn(msg: string, ...args: any[]) {
+  warn(msg: string, ...args: unknown[]) {
     if (shouldLog('warn', this.level)) {
       this._log('warn', msg, ...args);
     }
   }
-  error(msg: string, ...args: any[]) {
+  error(msg: string, ...args: unknown[]) {
     if (shouldLog('error', this.level)) {
       this._log('error', msg, ...args);
     }
   }
 
-  private _log(level: LogLevel, msg: string, ...args: any[]) {
+  private _log(level: LogLevel, msg: string, ...args: unknown[]) {
     const formatted = format(level, msg, this.context);
     if (this.output === 'console') {
        

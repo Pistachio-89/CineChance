@@ -21,6 +21,23 @@ export interface Media {
   adult?: boolean;
 }
 
+// TMDB API Response types
+interface TMDBMovieResponse {
+  id: number;
+  media_type: string;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  release_date?: string;
+  first_air_date?: string;
+  overview: string;
+  adult?: boolean;
+  genre_ids?: number[];
+  original_language?: string;
+}
+
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 
@@ -82,7 +99,7 @@ export const fetchTrendingMovies = async (timeWindow: 'day' | 'week' = 'week'): 
     
     const data = await response.json();
     // Transform movies to common Media format
-    const movies: Media[] = (data.results || []).map((item: any) => ({
+    const movies: Media[] = (data.results || []).map((item: TMDBMovieResponse) => ({
       id: item.id,
       media_type: 'movie',
       title: item.title,
@@ -145,7 +162,7 @@ export const fetchPopularMovies = async (page: number = 1): Promise<Media[]> => 
     
     const data = await response.json();
     // Преобразуем фильмы в общий формат Media
-    const movies: Media[] = (data.results || []).map((item: any) => ({
+    const movies: Media[] = (data.results || []).map((item: TMDBMovieResponse) => ({
       id: item.id,
       media_type: 'movie',
       title: item.title,
@@ -212,11 +229,11 @@ export const searchMedia = async (query: string, page: number = 1): Promise<Medi
     
     // Фильтруем только фильмы и сериалы
     const filteredResults = (data.results || []).filter(
-      (item: any) => item.media_type === 'movie' || item.media_type === 'tv'
+      (item: TMDBMovieResponse) => item.media_type === 'movie' || item.media_type === 'tv'
     );
     
     // Преобразуем в общий формат Media
-    const media: Media[] = filteredResults.map((item: any) => ({
+    const media: Media[] = filteredResults.map((item: TMDBMovieResponse) => ({
       id: item.id,
       media_type: item.media_type,
       title: item.title || item.name || 'Без названия',

@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
-import { logger } from '@/lib/logger';
 
 export async function GET(req: NextRequest) {
   // Проверка аутентификации

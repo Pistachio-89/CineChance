@@ -21,7 +21,7 @@ export const MOVIE_STATUS_NAMES = {
  * Получает ID статуса по имени
  */
 export function getStatusIdByName(statusName: string): number | null {
-  const entry = Object.entries(MOVIE_STATUS_NAMES).find(([_, name]) => name === statusName);
+  const entry = Object.entries(MOVIE_STATUS_NAMES).find(([, name]) => name === statusName);
   return entry ? parseInt(entry[0]) : null;
 }
 

@@ -21,7 +21,7 @@ export function shouldFilterAdult(birthDate: string | null, defaultDefaultValue:
     }
     
     return age >= 18 ? false : true;
-  } catch (error) {
+  } catch {
     // Если не удалось распарсить дату, используем значение по умолчанию
     return defaultDefaultValue;
   }
