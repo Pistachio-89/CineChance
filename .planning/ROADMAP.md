@@ -24,7 +24,8 @@
 <details>
 <summary>🔄 v1.1 Lint Cleanup (Phase 3) — IN PROGRESS</summary>
 
-- [ ] 03-01-PLAN.md — Исправить 629 ошибок lint
+- [ ] 03-01-PLAN.md — Исправить 629 ошибок lint (частично: console.log → logger)
+- [ ] 03-02-PLAN.md — Gap closure: исправить оставшиеся 439 errors
 
 </details>
 
