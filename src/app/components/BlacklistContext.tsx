@@ -1,6 +1,6 @@
 // src/app/components/BlacklistContext.tsx
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+ 
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { logger } from '@/lib/logger';

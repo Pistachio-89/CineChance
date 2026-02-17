@@ -1,6 +1,6 @@
 // src/app/components/FilmGridWithFilters.tsx
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import MovieCard from './MovieCard';

@@ -1,5 +1,5 @@
 // src/app/components/MovieGridServer.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 import LazyMovieCard from './LazyMovieCard';
 import { fetchTrendingMovies } from '@/lib/tmdb';
 import { getServerSession } from 'next-auth';

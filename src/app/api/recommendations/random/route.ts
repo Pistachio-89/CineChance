@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -412,7 +411,8 @@ export async function GET(req: Request) {
             }
             
             // Сначала проверяем кэш
-            let details = getCachedMediaDetails(item.tmdbId, item.mediaType);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let details: any = getCachedMediaDetails(item.tmdbId, item.mediaType);
             
             if (!details) {
               // Если в кэше нет, запрашиваем из TMDB
@@ -424,7 +424,8 @@ export async function GET(req: Request) {
             }
             
             // Фильтруем взрослый контент
-            if (filterAdult && details?.adult) {
+            const detailsObj = details as Record<string, unknown> | null;
+            if (filterAdult && detailsObj?.adult) {
               return {
                 tmdbId: item.tmdbId,
                 mediaType: item.mediaType,
@@ -441,13 +442,13 @@ export async function GET(req: Request) {
             return {
               tmdbId: item.tmdbId,
               mediaType: item.mediaType,
-              isAnime: details ? isAnime(details) : false,
-              originalLanguage: details?.original_language,
-              genreIds: details?.genres?.map((g: any) => g.id) || [],
-              release_date: details?.release_date || null,
-              first_air_date: details?.first_air_date || null,
-              adult: details?.adult || false,
-              vote_count: details?.vote_count || 0,
+              isAnime: detailsObj ? isAnime(detailsObj) : false,
+              originalLanguage: detailsObj?.original_language as string | undefined,
+              genreIds: (detailsObj?.genres as Array<{ id: number }>)?.map((g) => g.id) || [],
+              release_date: detailsObj?.release_date as string | null | undefined,
+              first_air_date: detailsObj?.first_air_date as string | null | undefined,
+              adult: (detailsObj?.adult as boolean) || false,
+              vote_count: (detailsObj?.vote_count as number) || 0,
             };
           } catch (error) {
             lastError = error instanceof Error ? error : new Error('Unknown error');

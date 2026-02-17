@@ -1,6 +1,6 @@
 // src/app/components/LazyMovieCard.tsx
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useState, useEffect, useRef } from 'react';
 import { Media } from '@/lib/tmdb';

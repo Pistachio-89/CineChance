@@ -1,6 +1,6 @@
 // src/app/components/ImageWithProxy.tsx
 'use client';
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 
 import { useState, memo } from 'react';
 
