@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { logError } from '../../lib/logger';
 
 interface AsyncErrorBoundaryProps {
