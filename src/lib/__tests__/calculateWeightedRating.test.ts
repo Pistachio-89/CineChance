@@ -40,7 +40,7 @@ describe('calculateWeightedRating', () => {
 
     expect(result.weightedRating).toBe(8.0);
     expect(result.totalReviews).toBe(1);
-    expect(result.calculationDetails.method).toBe('no_history');
+    expect((result.calculationDetails as { method: string }).method).toBe('no_history');
   });
 
   it('calculates weighted rating with single review', async () => {
@@ -63,7 +63,7 @@ describe('calculateWeightedRating', () => {
 
     expect(result.weightedRating).toBe(7.0);
     expect(result.totalReviews).toBe(1);
-    expect(result.calculationDetails.method).toBe('weighted_average');
+    expect((result.calculationDetails as { method: string }).method).toBe('weighted_average');
   });
 
   it('calculates weighted rating closer to TMDB with many votes', async () => {
@@ -110,7 +110,7 @@ describe('calculateWeightedRating', () => {
 
     expect(result.weightedRating).toBeNull();
     expect(result.totalReviews).toBe(0);
-    expect(result.calculationDetails.error).toBe('No rating found');
+    expect((result.calculationDetails as { error: string }).error).toBe('No rating found');
   });
 
   it('handles rewatch weights with decreasing values', async () => {
@@ -138,6 +138,6 @@ describe('calculateWeightedRating', () => {
     // Weight: 1.0 + 0.8 + 0.6 + 0.4 = 2.8
     // Result: 24.8 / 2.8 = 8.857 ≈ 8.9
     expect(result.weightedRating).toBe(8.9);
-    expect(result.calculationDetails.method).toBe('weighted_average');
+    expect((result.calculationDetails as { method: string }).method).toBe('weighted_average');
   });
 });
