@@ -7,6 +7,26 @@ import { logger } from "@/lib/logger";
 import { rateLimit } from "@/middleware/rateLimit";
 import { calculateWeightedRating } from "@/lib/calculateWeightedRating";
 import { invalidateUserCache } from "@/lib/redis";
+import { randomUUID } from 'crypto';
+
+// Helper to get or generate request ID
+function getRequestId(headers: Headers): string {
+  const existingId = headers.get('x-request-id');
+  return existingId || randomUUID();
+}
+
+// Helper for consistent log format
+function formatWatchlistLog(requestId: string, endpoint: string, userId: string, action?: string, tmdbId?: number, extra?: string): string {
+  const parts = [
+    `[${requestId}]`,
+    endpoint,
+    `user: ${userId}`,
+    tmdbId ? `tmdb: ${tmdbId}` : '-',
+    action || '-',
+    extra || ''
+  ].filter(Boolean);
+  return parts.join(' - ');
+}
 
 // Маппинг: Код клиента -> Название в БД
 const STATUS_TO_DB: Record<string, string> = {
@@ -26,9 +46,13 @@ const STATUS_FROM_DB: Record<string, string> = {
 
 // GET: Получить статус фильма для текущего пользователя
 export async function GET(req: Request) {
+  const requestId = getRequestId(req.headers);
+  const endpoint = 'GET /api/watchlist';
+  
   // Apply rate limiting for watchlist
   const { success } = await rateLimit(req, '/api/watchlist');
   if (!success) {
+    logger.warn(formatWatchlistLog(requestId, endpoint, '-', 'rate_limit'));
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
   
@@ -36,6 +60,7 @@ export async function GET(req: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
+      logger.debug(formatWatchlistLog(requestId, endpoint, '-', 'unauthorized'));
       return NextResponse.json({ status: null }, { status: 200 });
     }
 
@@ -44,6 +69,7 @@ export async function GET(req: Request) {
     const mediaType = searchParams.get('mediaType');
 
     if (!tmdbId || !mediaType) {
+      logger.warn(formatWatchlistLog(requestId, endpoint, session.user.id, 'missing_params'));
       return NextResponse.json({ error: 'Missing params' }, { status: 400 });
     }
 
@@ -69,6 +95,12 @@ export async function GET(req: Request) {
     const dbStatusName = record?.status?.name;
     const clientStatus = dbStatusName ? (STATUS_FROM_DB[dbStatusName] || null) : null;
 
+    if (record) {
+      logger.debug(formatWatchlistLog(requestId, endpoint, session.user.id, 'found', tmdbId));
+    } else {
+      logger.debug(formatWatchlistLog(requestId, endpoint, session.user.id, 'not_found', tmdbId));
+    }
+
     // Возвращаем статус и данные оценки (если есть)
     return NextResponse.json({ 
       status: clientStatus,
@@ -77,19 +109,20 @@ export async function GET(req: Request) {
       watchCount: record?.watchCount || 0,
     });
   } catch (error) {
-    logger.error('WatchList GET error', { 
-      error: error instanceof Error ? error.message : String(error),
-      context: 'Watchlist'
-    });
+    logger.error(formatWatchlistLog(requestId, endpoint, '-', 'error', undefined, `Error: ${error instanceof Error ? error.message : String(error)}`));
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // POST: Добавить или обновить статус
 export async function POST(req: Request) {
+  const requestId = getRequestId(req.headers);
+  const endpoint = 'POST /api/watchlist';
+  
   // Apply rate limiting for watchlist
   const { success } = await rateLimit(req, '/api/watchlist');
   if (!success) {
+    logger.warn(formatWatchlistLog(requestId, endpoint, '-', 'rate_limit'));
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
   
@@ -97,11 +130,14 @@ export async function POST(req: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
+      logger.warn(formatWatchlistLog(requestId, endpoint, '-', 'unauthorized'));
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await req.json();
     const { tmdbId, mediaType, status, title, voteAverage, userRating, watchedDate, isRewatch, isRatingOnly } = body;
+    
+    logger.debug(formatWatchlistLog(requestId, endpoint, session.user.id, 'request', tmdbId, `status: ${status}, isRewatch: ${isRewatch}, isRatingOnly: ${isRatingOnly}`));
 
     // При переоценке без смены статуса - не требуем статус
     if (isRatingOnly) {
@@ -426,21 +462,23 @@ export async function POST(req: Request) {
     }
 
     await invalidateUserCache(session.user.id);
+    logger.info(formatWatchlistLog(requestId, endpoint, session.user.id, 'success', tmdbId, `status: ${status}`));
     return NextResponse.json({ success: true, record });
   } catch (error) {
-    logger.error('WatchList POST error', { 
-      error: error instanceof Error ? error.message : String(error),
-      context: 'Watchlist'
-    });
+    logger.error(formatWatchlistLog(requestId, endpoint, '-', 'error', undefined, `Error: ${error instanceof Error ? error.message : String(error)}`));
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
 
 // DELETE: Удалить из списка
 export async function DELETE(req: Request) {
+  const requestId = getRequestId(req.headers);
+  const endpoint = 'DELETE /api/watchlist';
+  
   // Apply rate limiting for watchlist
   const { success } = await rateLimit(req, '/api/watchlist');
   if (!success) {
+    logger.warn(formatWatchlistLog(requestId, endpoint, '-', 'rate_limit'));
     return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
   }
   
@@ -448,6 +486,7 @@ export async function DELETE(req: Request) {
     const session = await getServerSession(authOptions);
     
     if (!session?.user?.id) {
+      logger.warn(formatWatchlistLog(requestId, endpoint, '-', 'unauthorized'));
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -455,6 +494,7 @@ export async function DELETE(req: Request) {
     const { tmdbId, mediaType } = body;
 
     if (!tmdbId || !mediaType) {
+      logger.warn(formatWatchlistLog(requestId, endpoint, session.user.id, 'missing_params'));
       return NextResponse.json({ error: 'Missing params' }, { status: 400 });
     }
 
@@ -467,12 +507,10 @@ export async function DELETE(req: Request) {
     });
 
     await invalidateUserCache(session.user.id);
+    logger.info(formatWatchlistLog(requestId, endpoint, session.user.id, 'deleted', tmdbId));
     return NextResponse.json({ success: true });
   } catch (error) {
-    logger.error('WatchList DELETE error', { 
-      error: error instanceof Error ? error.message : String(error),
-      context: 'Watchlist'
-    });
+    logger.error(formatWatchlistLog(requestId, endpoint, '-', 'error', undefined, `Error: ${error instanceof Error ? error.message : String(error)}`));
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }
