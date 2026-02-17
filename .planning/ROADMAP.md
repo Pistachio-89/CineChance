@@ -7,6 +7,7 @@
 ## Milestones
 
 - ✅ **v1.0 Stabilization** — Phases 1-2 (shipped 2026-02-17)
+- 🔄 **v1.1 Lint Cleanup** — Phase 3 (in progress)
 
 ---
 
@@ -17,6 +18,13 @@
 
 - [x] Phase 1: Tests & Logging (1/1 plan) — completed 2026-02-17
 - [x] Phase 2: Error Handling (2/2 plans) — completed 2026-02-17
+
+</details>
+
+<details>
+<summary>🔄 v1.1 Lint Cleanup (Phase 3) — IN PROGRESS</summary>
+
+- [ ] 03-01-PLAN.md — Исправить 629 ошибок lint
 
 </details>
 
