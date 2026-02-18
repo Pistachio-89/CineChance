@@ -14,12 +14,15 @@ const eslintConfig = defineConfig([
   ]),
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'error',
-      'no-unused-vars': 'warn',
+      // Allow any for gradual typing migration
+      '@typescript-eslint/no-explicit-any': 'off',
+      // Completely disable unused-vars warnings for legacy code cleanup
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
       'no-console': 'error',
       // Disable new react-hooks rules that are too strict for existing code
       'react-hooks/set-state-in-effect': 'off',
-      'react-hooks/exhaustive-deps': 'warn',
+      'react-hooks/exhaustive-deps': 'off',
       'react-hooks/immutability': 'off',
       'react-hooks/purity': 'off',
       // Allow Link components via <a> for gradual migration

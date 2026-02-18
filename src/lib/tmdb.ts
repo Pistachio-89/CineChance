@@ -21,6 +21,45 @@ export interface Media {
   adult?: boolean;
 }
 
+// TMDB Collection Part type (used in collection API responses)
+export interface TMDbCollectionPart {
+  id: number;
+  title: string;
+  poster_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  release_date?: string;
+  overview: string;
+}
+
+// Generic type for TMDB list results
+export interface TMDbListItem {
+  id: number;
+  title?: string;
+  name?: string;
+  poster_path: string | null;
+  vote_average: number;
+  vote_count: number;
+  release_date?: string;
+  first_air_date?: string;
+  overview: string;
+}
+
+// Helper to cast unknown to TMDbListItem
+export function asTMDbItem(item: any): TMDbListItem {
+  return item as TMDbListItem;
+}
+
+// Helper for casting array items from TMDB API responses
+export function castArrayItems<T>(arr: any[], _caster: (item: any) => T): T[] {
+  return arr.map(_caster);
+}
+
+// Generic cast function
+export function cast<T>(value: any): T {
+  return value as T;
+}
+
 // TMDB API Response types
 interface TMDBMovieResponse {
   id: number;

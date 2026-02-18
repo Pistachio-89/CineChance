@@ -6,6 +6,7 @@ import { rateLimit } from '@/middleware/rateLimit';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import type { TMDbCollectionPart } from '@/lib/tmdb';
 
 export async function GET(
   req: Request,
@@ -85,7 +86,7 @@ export async function GET(
     }
 
     // Формируем данные о фильмах
-    const moviesWithStatus = (data.parts || []).map((movie: unknown) => {
+    const moviesWithStatus = (data.parts || []).map((movie: TMDbCollectionPart) => {
       const watchlistKey = `movie_${movie.id}`;
       const watchlistData = watchlistMap.get(watchlistKey);
       const isBlacklisted = blacklistedIds.has(movie.id);
