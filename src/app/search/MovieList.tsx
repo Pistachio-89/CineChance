@@ -8,7 +8,7 @@ import { Media } from '@/lib/tmdb';
 
 interface MovieListProps {
   movies: Media[];
-  batchData: Record<string, unknown>;
+  batchData: Record<string, any>;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   onFetchNextPage: () => void;

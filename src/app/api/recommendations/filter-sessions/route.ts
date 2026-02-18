@@ -86,10 +86,10 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         sessionId: userSession ? sessionId : undefined,
-        initialState: stateData as unknown,
-        changesHistory: changesHistory as unknown,
-        resultMetrics: resultMetrics as unknown,
-        abandonedFilters: abandonedFilters as unknown,
+        initialState: stateData as any,
+        changesHistory: changesHistory as any,
+        resultMetrics: resultMetrics as any,
+        abandonedFilters: abandonedFilters as any,
         status: outcome ? 'completed' : 'active',
         completedAt: outcome ? new Date() : undefined,
         durationMs,
@@ -256,8 +256,8 @@ export async function PATCH(request: NextRequest) {
     await prisma.filterSession.update({
       where: { id: filterSessionId },
       data: {
-        resultMetrics: resultMetrics as unknown,
-        abandonedFilters: abandonedFilters as unknown,
+        resultMetrics: resultMetrics as any,
+        abandonedFilters: abandonedFilters as any,
         status: outcome ? 'completed' : 'active',
         completedAt: outcome ? new Date() : undefined,
       },

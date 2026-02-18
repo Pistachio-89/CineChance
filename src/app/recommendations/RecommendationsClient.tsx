@@ -69,7 +69,7 @@ interface RecommendationResponse {
     dbRecords: number;
     cached: boolean;
     fetchDuration: number;
-    filters: unknown;
+    filters: any;
   };
 }
 
@@ -99,10 +99,10 @@ type ViewState = 'filters' | 'loading' | 'result' | 'error' | 'suggestions';
 interface FilterChange {
   timestamp: string;
   parameterName: string;
-  previousValue: unknown;
-  newValue: unknown;
+  previousValue: any;
+  newValue: any;
   changeSource: 'user_input' | 'preset' | 'api' | 'reset';
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export default function RecommendationsClient({ userId }: RecommendationsClientProps) {

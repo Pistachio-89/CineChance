@@ -88,7 +88,7 @@ export default function SearchFilters({ onFiltersChange, initialFilters, totalRe
     }
   }, [initialFilters]);
 
-  const handleFilterChange = (key: keyof FilterState, value: unknown) => {
+  const handleFilterChange = (key: keyof FilterState, value: any) => {
     const newFilters = { ...filters, [key]: value };
     
     if (key === 'quickYear') {

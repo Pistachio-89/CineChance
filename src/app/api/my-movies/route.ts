@@ -56,26 +56,26 @@ async function fetchCineChanceRatings(tmdbIds: number[]) {
 }
 
 // Helper function to check if movie is anime
-function isAnime(movie: unknown): boolean {
+function isAnime(movie: any): boolean {
   let hasAnimeGenre = false;
   
   if (Array.isArray(movie.genre_ids)) {
     hasAnimeGenre = movie.genre_ids.includes(16);
   } else if (Array.isArray(movie.genres)) {
-    hasAnimeGenre = movie.genres.some((g: unknown) => g.id === 16);
+    hasAnimeGenre = movie.genres.some((g: any) => g.id === 16);
   }
   
   return hasAnimeGenre && movie.original_language === 'ja';
 }
 
 // Helper function to check if movie is cartoon (animation but not Japanese)
-function isCartoon(movie: unknown): boolean {
+function isCartoon(movie: any): boolean {
   let hasAnimationGenre = false;
   
   if (Array.isArray(movie.genre_ids)) {
     hasAnimationGenre = movie.genre_ids.includes(16);
   } else if (Array.isArray(movie.genres)) {
-    hasAnimationGenre = movie.genres.some((g: unknown) => g.id === 16);
+    hasAnimationGenre = movie.genres.some((g: any) => g.id === 16);
   }
   
   return hasAnimationGenre && movie.original_language !== 'ja';
@@ -249,7 +249,7 @@ export async function GET(request: NextRequest) {
           release_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
           first_air_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
           overview: tmdbData?.overview || '',
-          genre_ids: tmdbData?.genres?.map((g: unknown) => g.id) || [],
+          genre_ids: tmdbData?.genres?.map((g: any) => g.id) || [],
           original_language: tmdbData?.original_language || '',
           combinedRating,
           averageRating: cineChanceRating,
@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
       // Genre filter
       if (genresParam) {
         const genreIds = genresParam.split(',').map(Number);
-        const movieGenres = tmdbData.genres?.map((g: unknown) => g.id) || [];
+        const movieGenres = tmdbData.genres?.map((g: any) => g.id) || [];
         const hasMatchingGenre = genreIds.some(genreId => movieGenres.includes(genreId));
         if (!hasMatchingGenre) return false;
       }
@@ -418,7 +418,7 @@ export async function GET(request: NextRequest) {
         release_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
         first_air_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
         overview: tmdbData?.overview || '',
-        genre_ids: tmdbData?.genres?.map((g: unknown) => g.id) || [],
+        genre_ids: tmdbData?.genres?.map((g: any) => g.id) || [],
         original_language: tmdbData?.original_language || '',
         statusName: getStatusNameById(record.statusId) || 'Unknown',
         combinedRating,
@@ -453,10 +453,10 @@ export async function GET(request: NextRequest) {
 }
 
 function sortMovies(
-  movies: unknown[],
+  movies: any[],
   sortBy: string,
   sortOrder: string
-): unknown[] {
+): any[] {
   return [...movies].sort((a, b) => {
     let comparison = 0;
 

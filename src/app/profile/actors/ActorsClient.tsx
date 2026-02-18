@@ -109,7 +109,7 @@ export default function ActorsClient({ userId }: ActorsClientProps) {
         logger.debug('Actors data received', { count: actorsData.length });
         
         // Выводим информацию о прогрессе для отладки
-        actorsData.forEach((actor: unknown, index: number) => {
+        actorsData.forEach((actor: any, index: number) => {
           logger.debug('Actor progress', { index: index + 1, name: actor.name, watched: actor.watched_movies, total: actor.total_movies, progress: actor.progress_percent });
         });
 

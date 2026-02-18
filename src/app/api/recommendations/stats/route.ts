@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function getTableStats(
-  model: unknown,
+  model: any,
   dateField: string
 ) {
   const total = await model.count();

@@ -231,7 +231,7 @@ export default function CollectionsClient({ userId }: CollectionsClientProps) {
         {collections
           .map((collection) => {
             // Сбалансированная формула рейтинга коллекции - качество решает!
-            const calculateCollectionScore = (collection: unknown) => {
+            const calculateCollectionScore = (collection: any) => {
               const avgRating = collection.average_rating || 0;
               const watchedMovies = collection.watched_movies || 0;
               const progress = collection.progress_percent || 0;

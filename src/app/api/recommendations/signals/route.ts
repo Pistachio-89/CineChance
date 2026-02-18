@@ -106,9 +106,9 @@ async function handleSingle(body: Record<string, unknown>) {
         recommendationLogId: recommendationLogId || undefined,
         signalType,
         intensityScore: 0.5,
-        elementContext: elementContext as unknown,
-        temporalContext: temporalContext as unknown,
-        predictedIntent: predictedIntent as unknown,
+        elementContext: elementContext as any,
+        temporalContext: temporalContext as any,
+        predictedIntent: predictedIntent as any,
       },
     });
 
@@ -164,7 +164,7 @@ async function handleBatch(batch: Record<string, unknown>[]) {
               recommendationLogId: undefined,
               signalType: 'error',
               intensityScore: 0,
-              elementContext: { error: 'Invalid signal data', original: item } as unknown,
+              elementContext: { error: 'Invalid signal data', original: item } as any,
             },
           });
         }
@@ -175,9 +175,9 @@ async function handleBatch(batch: Record<string, unknown>[]) {
             recommendationLogId: recommendationLogId || undefined,
             signalType,
             intensityScore: 0.5,
-            elementContext: elementContext as unknown,
-            temporalContext: temporalContext as unknown,
-            predictedIntent: predictedIntent as unknown,
+            elementContext: elementContext as any,
+            temporalContext: temporalContext as any,
+            predictedIntent: predictedIntent as any,
           },
         });
       })

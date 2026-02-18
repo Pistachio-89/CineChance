@@ -21,7 +21,7 @@ export interface FilterState {
 interface FilterStateManagerProps {
   initialFilters?: Partial<FilterState>;
   onFiltersChange: (filters: FilterState) => void;
-  onFilterChange?: (parameterName: string, previousValue: unknown, newValue: unknown) => void;
+  onFilterChange?: (parameterName: string, previousValue: any, newValue: any) => void;
   children: (state: {
     filters: FilterState;
     updateFilter: <K extends keyof FilterState>(key: K, value: FilterState[K]) => void;
@@ -118,7 +118,7 @@ export default function FilterStateManager({
   const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
     const defaultValue = defaultFilters[key as keyof FilterState];
     if (Array.isArray(value)) {
-      return value.length !== (defaultValue as unknown)?.length;
+      return value.length !== (defaultValue as any)?.length;
     }
     if (key === 'additionalFilters') {
       const additional = value as AdditionalFilters;

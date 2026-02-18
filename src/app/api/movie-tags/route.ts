@@ -46,7 +46,7 @@ export async function GET(request: Request) {
             usageCount: true,
           },
         },
-      } as unknown,
+      } as any,
     });
 
     if (!watchListItem) {

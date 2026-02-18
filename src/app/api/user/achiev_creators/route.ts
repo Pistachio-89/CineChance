@@ -41,7 +41,7 @@ function _calculateCreatorScore(creator: {
   return (qualityBonus * 0.35) + (progressBonus * 0.25) + (volumeBonus * 0.15) + (watchedCountBonus * 0.15);
 }
 
-const creatorCreditsCache = new Map<number, { data: unknown; timestamp: number }>();
+const creatorCreditsCache = new Map<number, { data: any; timestamp: number }>();
 const CACHE_DURATION = 86400000;
 
 async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
@@ -57,14 +57,14 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
   }
 }
 
-function isAnime(movie: unknown): boolean {
-  const hasAnimeGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isAnime(movie: any): boolean {
+  const hasAnimeGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isJapanese = movie.original_language === 'ja';
   return hasAnimeGenre && isJapanese;
 }
 
-function isCartoon(movie: unknown): boolean {
-  const hasAnimationGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isCartoon(movie: any): boolean {
+  const hasAnimationGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isNotJapanese = movie.original_language !== 'ja';
   return hasAnimationGenre && isNotJapanese;
 }
@@ -415,7 +415,7 @@ export async function GET(request: Request) {
                   .map(({ movie }) => movie);
               }
               
-              const relevantCrew = filteredCrew.filter((m: unknown) => {
+              const relevantCrew = filteredCrew.filter((m: any) => {
                 const jobType = getJobType(m.job, m.department);
                 return jobType && creator.job_types.includes(jobType);
               });

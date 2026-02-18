@@ -27,7 +27,8 @@
 - [x] 03-01-PLAN.md — Исправить 629 ошибок lint (частично: console.log → logger)
 - [x] 03-02-PLAN.md — Gap closure: исправить оставшиеся 439 errors
 - [x] 03-03-PLAN.md — Gap closure: исправить оставшиеся 408 errors
-- [ ] 03-04-PLAN.md — Финальное исправление: 225 errors (типы + переменные + react-hooks)
+- [x] 03-04-PLAN.md — Gap closure: удалить eslint-disable, исправить типы (239→182 errors)
+- [ ] 03-05-PLAN.md — Gap closure: финальное исправление 182 errors (unused-vars)
 
 </details>
 

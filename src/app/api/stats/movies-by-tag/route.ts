@@ -22,14 +22,14 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
   }
 }
 
-function isAnime(movie: unknown): boolean {
-  const hasAnimeGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isAnime(movie: any): boolean {
+  const hasAnimeGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isJapanese = movie.original_language === 'ja';
   return hasAnimeGenre && isJapanese;
 }
 
-function isCartoon(movie: unknown): boolean {
-  const hasAnimationGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isCartoon(movie: any): boolean {
+  const hasAnimationGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isNotJapanese = movie.original_language !== 'ja';
   return hasAnimationGenre && isNotJapanese;
 }
@@ -159,7 +159,7 @@ export async function GET(request: NextRequest) {
         // Применяем фильтры по рейтингу TMDB, году и жанрам
         const tmdbRating = tmdbData?.vote_average || 0;
         const releaseYear = new Date(tmdbData?.release_date || tmdbData?.first_air_date || '').getFullYear();
-        const genres = tmdbData?.genres?.map((g: unknown) => g.id) || [];
+        const genres = tmdbData?.genres?.map((g: any) => g.id) || [];
 
         // Фильтрация по типу контента на основе TMDB данных
         const isAnimeItem = isAnime(tmdbData);
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
     const filteredMovies = movies.filter((m): m is Exclude<typeof m, null> => m !== null);
 
     // Сортируем отфильтрованные результаты по выбранному критерию
-    const sortedMovies = filteredMovies.sort((a: unknown, b: unknown) => {
+    const sortedMovies = filteredMovies.sort((a: any, b: any) => {
       let comparison = 0;
 
       switch (sortByParam) {
@@ -294,7 +294,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function getBenefitsOrder(sortBy: string, sortOrder: string): unknown[] {
+function getBenefitsOrder(sortBy: string, sortOrder: string): any[] {
   const order = sortOrder === 'asc' ? 'asc' : 'desc';
   
   switch (sortBy) {

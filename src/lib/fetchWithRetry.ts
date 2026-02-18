@@ -29,7 +29,7 @@ export async function fetchWithRetry(input: RequestInfo, init?: RequestInit, opt
   const retries = options.retries ?? 3;
   const timeoutMs = options.timeoutMs ?? 0;
 
-  let lastError: unknown = null;
+  let lastError: any = null;
 
   for (let attempt = 1; attempt <= retries; attempt++) {
     const attemptStart = Date.now();

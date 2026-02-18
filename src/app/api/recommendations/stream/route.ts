@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const stream = new ReadableStream({
     start(controller) {
       // Функция для отправки событий
-      const sendEvent = (type: string, data: unknown) => {
+      const sendEvent = (type: string, data: any) => {
         const eventData = `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
         controller.enqueue(encoder.encode(eventData));
       };

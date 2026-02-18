@@ -133,7 +133,7 @@ export async function fetchMoviesByStatus(
 
   // 4. Получаем детали TMDB только для текущей страницы
   const moviesWithStatus = await Promise.all(
-    watchListRecords.map(async (record: unknown) => {
+    watchListRecords.map(async (record: any) => {
       const tmdbData = await fetchMediaDetails(record.tmdbId, record.mediaType);
       const cineChanceData = cineChanceRatings.get(record.tmdbId);
       const cineChanceRating = cineChanceData?.averageRating || null;
@@ -158,7 +158,7 @@ export async function fetchMoviesByStatus(
         release_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
         first_air_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
         overview: tmdbData?.overview || '',
-        genre_ids: tmdbData?.genres?.map((g: unknown) => g.id) || [],
+        genre_ids: tmdbData?.genres?.map((g: any) => g.id) || [],
         original_language: tmdbData?.original_language || '',
         statusName: statusName || 'Unknown',
         combinedRating,
@@ -196,7 +196,7 @@ export async function fetchMoviesByStatus(
     const blacklistRatings = await fetchCineChanceRatings(blacklistTmdbIds);
 
     hiddenMovies = await Promise.all(
-      blacklistRecords.map(async (record: unknown) => {
+      blacklistRecords.map(async (record: any) => {
         const tmdbData = await fetchMediaDetails(record.tmdbId, record.mediaType);
         const cineChanceData = blacklistRatings.get(record.tmdbId);
         const cineChanceRating = cineChanceData?.averageRating || null;
@@ -220,7 +220,7 @@ export async function fetchMoviesByStatus(
           release_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
           first_air_date: tmdbData?.release_date || tmdbData?.first_air_date || '',
           overview: tmdbData?.overview || '',
-          genre_ids: tmdbData?.genres?.map((g: unknown) => g.id) || [],
+          genre_ids: tmdbData?.genres?.map((g: any) => g.id) || [],
           original_language: tmdbData?.original_language || '',
           combinedRating,
           averageRating: cineChanceRating,

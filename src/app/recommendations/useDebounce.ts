@@ -6,7 +6,7 @@ import { useCallback, useRef } from 'react';
  * @param delay Задержка в миллисекундах
  * @returns Дебаунсенная функция
  */
-export function useDebounce<T extends (...args: unknown[]) => void>(
+export function useDebounce<T extends (...args: any[]) => void>(
   callback: T,
   delay: number
 ): T {
@@ -31,7 +31,7 @@ export function useDebounce<T extends (...args: unknown[]) => void>(
  * @param delay Задержка в миллисекундах
  * @returns Дебаунсенная функция
  */
-export function useAsyncDebounce<T extends (...args: unknown[]) => Promise<unknown>>(
+export function useAsyncDebounce<T extends (...args: any[]) => Promise<any>>(
   callback: T,
   delay: number
 ): T {

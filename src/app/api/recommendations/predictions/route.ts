@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
         modelVersion,
         predictedScore,
         actualAction,
-        featureVector: featureVector as unknown,
+        featureVector: featureVector as any,
       },
     });
 

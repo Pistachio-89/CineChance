@@ -96,8 +96,8 @@ export async function POST(request: NextRequest) {
         recommendationLogId,
         feedbackType,
         detailedReason,
-        contextualFactors: contextualFactors as unknown,
-        correctiveAction: correctiveAction as unknown,
+        contextualFactors: contextualFactors as any,
+        correctiveAction: correctiveAction as any,
       },
     });
 
@@ -256,7 +256,7 @@ export async function PUT(request: NextRequest) {
     await prisma.negativeFeedback.update({
       where: { id: feedbackId },
       data: {
-        correctiveAction: correctiveAction as unknown,
+        correctiveAction: correctiveAction as any,
       },
     });
 

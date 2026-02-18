@@ -48,14 +48,14 @@ async function fetchMediaDetailsBatch(
   return results;
 }
 
-function isAnime(movie: unknown): boolean {
-  const hasAnimeGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isAnime(movie: any): boolean {
+  const hasAnimeGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isJapanese = movie.original_language === 'ja';
   return hasAnimeGenre && isJapanese;
 }
 
-function isCartoon(movie: unknown): boolean {
-  const hasAnimationGenre = movie.genres?.some((g: unknown) => g.id === 16) ?? false;
+function isCartoon(movie: any): boolean {
+  const hasAnimationGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
   const isNotJapanese = movie.original_language !== 'ja';
   return hasAnimationGenre && isNotJapanese;
 }

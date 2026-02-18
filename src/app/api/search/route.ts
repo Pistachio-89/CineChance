@@ -53,7 +53,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Search service unavailable' }, { status: 500 });
     }
     
-    let allResults: unknown[] = [];
+    let allResults: any[] = [];
     let totalResults = 0;
     let totalPages = 1;
 
@@ -137,7 +137,7 @@ export async function GET(request: Request) {
 
       // Дополнительная серверная фильтрация на случай, если TMDB не применил настройки
       if (shouldFilterAdult) {
-        allResults = allResults.filter((item: unknown) => !item.adult);
+        allResults = allResults.filter((item: any) => !item.adult);
       }
 
       // Filter results based on type
@@ -146,7 +146,7 @@ export async function GET(request: Request) {
       
       if (selectedTypes.length > 0 && !selectedTypes.includes('all')) {
         // Filter by multiple types
-        allResults = allResults.filter((item: unknown) => {
+        allResults = allResults.filter((item: any) => {
           const itemType = item.media_type;
           const isAnime = (item.genre_ids?.includes(16) ?? false) && item.original_language === 'ja';
           const isCartoon = (item.genre_ids?.includes(16) ?? false) && item.original_language !== 'ja';
@@ -203,7 +203,7 @@ export async function GET(request: Request) {
             return apiType; // 'person' etc.
           };
 
-          allResults = allResults.filter((item: unknown) => {
+          allResults = allResults.filter((item: any) => {
             const watchlistItem = watchlistMap.get(item.id);
             const isBlacklisted = blacklistSet.has(item.id);
             const dbMediaType = getDbMediaType(item.media_type);
@@ -251,7 +251,7 @@ export async function GET(request: Request) {
         if (yearMatch) {
           const y1 = parseInt(yearMatch[1]);
           const y2 = yearMatch[2] ? parseInt(yearMatch[2]) : y1;
-          allResults = allResults.filter((item: unknown) => {
+          allResults = allResults.filter((item: any) => {
             const releaseDate = item.release_date || item.first_air_date || '';
             const year = parseInt(releaseDate.split('-')[0]) || 0;
             return year >= y1 && year <= y2;
@@ -261,7 +261,7 @@ export async function GET(request: Request) {
 
       if (yearFrom) {
         const yFrom = parseInt(yearFrom);
-        allResults = allResults.filter((item: unknown) => {
+        allResults = allResults.filter((item: any) => {
           const releaseDate = item.release_date || item.first_air_date || '';
           const year = parseInt(releaseDate.split('-')[0]) || 0;
           return year >= yFrom;
@@ -270,7 +270,7 @@ export async function GET(request: Request) {
 
       if (yearTo) {
         const yTo = parseInt(yearTo);
-        allResults = allResults.filter((item: unknown) => {
+        allResults = allResults.filter((item: any) => {
           const releaseDate = item.release_date || item.first_air_date || '';
           const year = parseInt(releaseDate.split('-')[0]) || 0;
           return year <= yTo;
@@ -281,7 +281,7 @@ export async function GET(request: Request) {
       if (genresParam) {
         const genreIds = genresParam.split(',').map(Number).filter(n => !isNaN(n));
         if (genreIds.length > 0) {
-          allResults = allResults.filter((item: unknown) => {
+          allResults = allResults.filter((item: any) => {
             const itemGenres = item.genre_ids || [];
             return genreIds.some((gid: number) => itemGenres.includes(gid));
           });
@@ -290,7 +290,7 @@ export async function GET(request: Request) {
 
       // Filter by rating
       if (ratingFrom > 0 || ratingTo < 10) {
-        allResults = allResults.filter((item: unknown) => {
+        allResults = allResults.filter((item: any) => {
           const rating = item.vote_average || 0;
           return rating >= ratingFrom && rating <= ratingTo;
         });
@@ -298,7 +298,7 @@ export async function GET(request: Request) {
 
       // Sort results
       if (sortBy !== 'popularity') {
-        allResults.sort((a: unknown, b: unknown) => {
+        allResults.sort((a: any, b: any) => {
           const aVal = a.vote_average || 0;
           const bVal = b.vote_average || 0;
           const aDate = parseInt((a.release_date || a.first_air_date || '0').split('-')[0]) || 0;
@@ -314,7 +314,7 @@ export async function GET(request: Request) {
 
       // Deduplicate results by media_type and id
       const seen = new Set();
-      allResults = allResults.filter((item: unknown) => {
+      allResults = allResults.filter((item: any) => {
         const key = `${item.media_type}_${item.id}`;
         if (seen.has(key)) {
           return false;
@@ -339,7 +339,7 @@ export async function GET(request: Request) {
     } else {
       // No query, use discover endpoint with filters
       const pagesToFetch = Math.ceil((page * limit) / 20) + 1;
-      let discoverResults: unknown[] = [];
+      let discoverResults: any[] = [];
 
       // Determine API endpoints and filters based on type
       const typeParam = type || 'all';
@@ -443,7 +443,7 @@ export async function GET(request: Request) {
 
           if (data.results && data.results.length > 0) {
             // Filter out anime and cartoon from movie results
-            const filteredResults = data.results.filter((item: unknown) => {
+            const filteredResults = data.results.filter((item: any) => {
               const isAnime = (item.genre_ids?.includes(16) ?? false) && item.original_language === 'ja';
               const isCartoon = (item.genre_ids?.includes(16) ?? false) && item.original_language !== 'ja';
               return (!isAnime || includeAnime) && (!isCartoon || includeCartoon);
@@ -533,12 +533,12 @@ export async function GET(request: Request) {
 
       // Дополнительная серверная фильтрация на случай, если TMDB не применил настройки
       if (shouldFilterAdult) {
-        discoverResults = discoverResults.filter((item: unknown) => !item.adult);
+        discoverResults = discoverResults.filter((item: any) => !item.adult);
       }
 
       // Filter by media type (movies, tv, anime, cartoon) if specific types are selected
       if (selectedTypes.length > 0 && !selectedTypes.includes('all')) {
-        discoverResults = discoverResults.filter((item: unknown) => {
+        discoverResults = discoverResults.filter((item: any) => {
           const itemType = item.media_type;
           const isAnime = (item.genre_ids?.includes(16) ?? false) && item.original_language === 'ja';
           const isCartoon = (item.genre_ids?.includes(16) ?? false) && item.original_language !== 'ja';
@@ -555,7 +555,7 @@ export async function GET(request: Request) {
 
       // Deduplicate results by media_type and id
       const seen = new Set();
-      discoverResults = discoverResults.filter((item: unknown) => {
+      discoverResults = discoverResults.filter((item: any) => {
         const key = `${item.media_type}_${item.id}`;
         if (seen.has(key)) {
           return false;
@@ -566,7 +566,7 @@ export async function GET(request: Request) {
 
       // Filter by rating upper bound (TMDB doesn't support it in discover API)
       if (ratingTo < 10) {
-        discoverResults = discoverResults.filter((item: unknown) => {
+        discoverResults = discoverResults.filter((item: any) => {
           const rating = item.vote_average || 0;
           return rating <= ratingTo;
         });

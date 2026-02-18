@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     // Подготовим ключи для результатов
-    const result: Record<string, unknown> = {};
+    const result: Record<string, any> = {};
 
     // Инициализируем результаты для каждого фильма
     movies.forEach(({ tmdbId, mediaType }) => {

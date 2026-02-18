@@ -104,7 +104,7 @@ async function handleSingle(request: NextRequest, body: Record<string, unknown>)
         userId,
         parentLogId: recommendationLogId || undefined,
         eventType,
-        eventData: eventData as unknown,
+        eventData: eventData as any,
         timestamp: timestamp ? new Date(timestamp) : new Date(),
       },
     });
@@ -158,7 +158,7 @@ async function handleBatch(request: NextRequest, batch: Record<string, unknown>[
               userId: userId || 'unknown',
               parentLogId: undefined,
               eventType: 'error',
-              eventData: { error: 'Invalid event data', original: item } as unknown,
+              eventData: { error: 'Invalid event data', original: item } as any,
               timestamp: new Date(),
             },
           });
@@ -169,7 +169,7 @@ async function handleBatch(request: NextRequest, batch: Record<string, unknown>[
             userId,
             parentLogId: recommendationLogId || undefined,
             eventType,
-            eventData: eventData as unknown,
+            eventData: eventData as any,
             timestamp: timestamp ? new Date(timestamp) : new Date(),
           },
         });

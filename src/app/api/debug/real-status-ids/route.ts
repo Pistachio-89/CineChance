@@ -23,7 +23,7 @@ export async function GET() {
 
     // Считаем количество записей по каждому реальному статусу
     const counts = await Promise.all(
-      (statuses as unknown[]).map(async (status: unknown) => {
+      (statuses as unknown[]).map(async (status: any) => {
         const count = await prisma.watchList.count({
           where: {
             userId: session.user.id,
@@ -45,7 +45,7 @@ export async function GET() {
 
     // Получаем несколько записей для каждого статуса
     const sampleRecords = await Promise.all(
-      (statuses as unknown[]).map(async (status: unknown) => {
+      (statuses as unknown[]).map(async (status: any) => {
         const records = await prisma.watchList.findMany({
           where: {
             userId: session.user.id,
@@ -81,7 +81,7 @@ export async function GET() {
       timestamp: new Date().toISOString()
     });
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     logger.error('Error checking real status IDs', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: 'Failed to check status IDs', details: error.message }, 

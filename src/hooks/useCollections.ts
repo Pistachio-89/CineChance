@@ -25,9 +25,9 @@ const ITEMS_PER_PAGE = 24;
 const buildFetchParams = (
   offset: number
 ) => {
-  const params: Record<string, unknown> = {
-    limit: ITEMS_PER_PAGE,
-    offset,
+  const params = {
+    limit: String(ITEMS_PER_PAGE),
+    offset: String(offset),
   };
 
   return params;

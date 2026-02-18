@@ -193,7 +193,7 @@ export async function GET(request: Request) {
       const achievements = await Promise.all(achievementsPromises);
 
       const achievementsWithScore = achievements.map((collection) => {
-        const calculateCollectionScore = (collection: unknown) => {
+        const calculateCollectionScore = (collection: any) => {
           const avgRating = collection.average_rating || 0;
           const watchedMovies = collection.watched_movies || 0;
           const progress = collection.progress_percent || 0;

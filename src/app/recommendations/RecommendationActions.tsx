@@ -32,8 +32,8 @@ interface RecommendationActionsProps {
   onSkipMovie: (movie: MovieData) => Promise<void>;
   onGetSimilar: (movie: MovieData) => Promise<void>;
   onGetRecommendations: (movie: MovieData) => Promise<void>;
-  onTrackEvent: (eventType: string, data: unknown) => void;
-  onTrackSignal: (signalType: string, data: unknown) => void;
+  onTrackEvent: (eventType: string, data: any) => void;
+  onTrackSignal: (signalType: string, data: any) => void;
 }
 
 export default function RecommendationActions({

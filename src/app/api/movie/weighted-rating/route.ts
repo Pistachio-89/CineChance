@@ -6,7 +6,7 @@ import { calculateWeightedRating } from '@/lib/calculateWeightedRating';
 import { logger } from '@/lib/logger';
 
 // Кэш для хранения результатов на 1 час
-const cache = new Map<string, { data: unknown; timestamp: number }>();
+const cache = new Map<string, { data: any; timestamp: number }>();
 const CACHE_TTL = 60 * 60 * 1000; // 1 час
 
 export async function GET(req: NextRequest) {

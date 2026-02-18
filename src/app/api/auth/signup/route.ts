@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     }
 
     // Валидация приглашения
-    let invitation = null;
+    let invitation: any = null;
     if (inviteToken) {
       invitation = await prisma.invitation.findUnique({
         where: { token: inviteToken },

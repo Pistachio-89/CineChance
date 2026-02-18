@@ -266,7 +266,7 @@ export default function FilmGridWithFilters({
           setAdditionalFilters(filters);
           setSelectedGenres(genres);
           // Извлекаем selectedTags из filters если они присутствуют
-          const tagsFromFilters = (filters as unknown).selectedTags || [];
+          const tagsFromFilters = (filters as any).selectedTags || [];
           setSelectedTags(tagsFromFilters);
         }}
         availableGenres={availableGenres}

@@ -59,9 +59,9 @@ export async function POST(request: NextRequest) {
       data: {
         userId,
         sessionId,
-        deviceContext: deviceContext as unknown,
-        sessionFlow: sessionFlow as unknown,
-        outcomeMetrics: outcomeMetrics as unknown,
+        deviceContext: deviceContext as any,
+        sessionFlow: sessionFlow as any,
+        outcomeMetrics: outcomeMetrics as any,
         startedAt: new Date(),
       },
     });
@@ -220,8 +220,8 @@ export async function PATCH(request: NextRequest) {
     await prisma.userSession.update({
       where: { id: sessionId },
       data: {
-        sessionFlow: sessionFlow as unknown,
-        outcomeMetrics: outcomeMetrics as unknown,
+        sessionFlow: sessionFlow as any,
+        outcomeMetrics: outcomeMetrics as any,
         endedAt: endedAt ? new Date(endedAt) : new Date(),
         durationMs,
       },

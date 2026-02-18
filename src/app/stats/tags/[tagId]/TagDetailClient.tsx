@@ -35,7 +35,7 @@ export default function TagDetailClient({ userId, tagId, tagName }: TagDetailCli
         const tagsRes = await fetch('/api/user/tag-usage');
         if (tagsRes.ok) {
           const tagsData = await tagsRes.json();
-          setUserTags((tagsData.tags || []).map((tag: unknown) => ({
+          setUserTags((tagsData.tags || []).map((tag: any) => ({
             id: tag.id,
             name: tag.name,
             count: tag.count
@@ -110,10 +110,10 @@ export default function TagDetailClient({ userId, tagId, tagName }: TagDetailCli
       availableGenres={availableGenres}
       userTags={userTags}
       showRatingBadge={true}
-      getInitialRating={(movie) => (movie as unknown).userRating}
+      getInitialRating={(movie) => (movie as any).userRating}
       hideTagsFilter={source === 'tags'}
       getInitialStatus={(movie) => {
-        const statusName = (movie as unknown).statusName;
+        const statusName = (movie as any).statusName;
         if (statusName === 'Пересмотрено') return 'rewatched';
         if (statusName === 'Просмотрено') return 'watched';
         if (statusName === 'Хочу посмотреть') return 'want';

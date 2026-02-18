@@ -165,7 +165,7 @@ export default tmdbCache;
 /**
  * @deprecated Use getTMDB instead
  */
-export function getCachedMediaDetails(tmdbId: number, mediaType: string): unknown | null {
+export function getCachedMediaDetails(tmdbId: number, mediaType: string): any | null {
   if (!mediaType) return null;
   const key = `${mediaType}:${tmdbId}`;
   return tmdbCache.get(key);
@@ -174,7 +174,7 @@ export function getCachedMediaDetails(tmdbId: number, mediaType: string): unknow
 /**
  * @deprecated Use setTMDB instead
  */
-export function setCachedMediaDetails(tmdbId: number, mediaType: string, data: unknown): void {
+export function setCachedMediaDetails(tmdbId: number, mediaType: string, data: any): void {
   if (!mediaType) return;
   const key = `${mediaType}:${tmdbId}`;
   // Cache for 24 hours by default

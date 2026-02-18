@@ -11,7 +11,7 @@ import { logger } from '@/lib/logger';
  */
 export function useLazyData<T>(
   fetcher: () => Promise<T>,
-  _dependencies: unknown[] = [],
+  _dependencies: any[] = [],
   options: IntersectionObserverInit = { rootMargin: '200px', threshold: 0.01 }
 ) {
   const [data, setData] = useState<T | null>(null);

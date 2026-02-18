@@ -18,10 +18,10 @@ interface LogsData {
   databaseChecks: {
     individualCounts: Record<string, number>;
     combinedCounts: Record<string, number>;
-    sampleRecords: unknown;
+    sampleRecords: any;
   };
-  apiComparison: unknown;
-  sampleRecords: unknown;
+  apiComparison: any;
+  sampleRecords: any;
 }
 
 export async function GET(request: NextRequest) {
@@ -189,7 +189,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(logs);
 
-  } catch (error: unknown) {
+  } catch (error: any) {
     logger.error('Logs endpoint error', { error: error instanceof Error ? error.message : String(error) });
     return NextResponse.json(
       { error: 'Failed to fetch logs', details: error.message }, 

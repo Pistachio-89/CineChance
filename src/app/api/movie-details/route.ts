@@ -45,7 +45,7 @@ export async function GET(req: Request) {
     // Получаем страны производства (первые 2 для компактности)
     const productionCountries = data.production_countries
       ?.slice(0, 2)
-      ?.map((c: unknown) => c.iso_3166_1 === 'US' ? 'США' : c.name)
+      ?.map((c: any) => c.iso_3166_1 === 'US' ? 'США' : c.name)
       || [];
 
     // Для сериалов - количество сезонов
@@ -58,7 +58,7 @@ export async function GET(req: Request) {
     let isAnime = false;
     try {
       const keywords = data.keywords?.keywords || data.keywords?.results || [];
-      isAnime = keywords.some((k: unknown) => k.id === 210024 || k.name?.toLowerCase() === 'anime');
+      isAnime = keywords.some((k: any) => k.id === 210024 || k.name?.toLowerCase() === 'anime');
     } catch (kwError) {
       logger.warn('Failed to check keywords for anime detection', { 
         error: kwError instanceof Error ? kwError.message : String(kwError),
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     // Получаем первых 5 актеров из cast
     const cast = data.credits?.cast
       ?.slice(0, 5)
-      ?.map((c: unknown) => ({
+      ?.map((c: any) => ({
         id: c.id,
         name: c.name,
         character: c.character,
@@ -77,7 +77,7 @@ export async function GET(req: Request) {
       })) || [];
 
     return NextResponse.json({
-      genres: data.genres?.map((g: unknown) => g.name) || [],
+      genres: data.genres?.map((g: any) => g.name) || [],
       runtime: data.runtime || data.episode_run_time?.[0] || 0,
       adult: data.adult || false,
       productionCountries,
