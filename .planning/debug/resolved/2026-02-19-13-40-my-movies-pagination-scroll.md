@@ -1,73 +1,72 @@
 ---
 status: resolved
 trigger: "На странице Мои фильмы сломалась пагинация (подгрузка при скролле)"
-created: 2026-02-19T00:00:00.000Z
-updated: 2026-02-19T00:00:00.000Z
+created: 2026-02-19T13:40:00.000Z
+updated: 2026-02-19T13:50:00.000Z
 ---
 
 ## Current Focus
 
-hypothesis: Verified fix - pagination now works correctly
-test: Build passed, fix follows same pattern as working Stats pages
-expecting: Scroll pagination should now work on My Movies page
-next_action: Archive session
+**CORRECTED FIX** - The previous two fix attempts were incomplete. This is the proper solution.
 
 ## Symptoms
 
-expected: Auto-load more movies when scrolling down the page, should load beyond first 20 movies
-actual: Only first 20 movies load, nothing happens when scrolling
-errors: []
-reproduction: Go to /my-movies page, scroll down, nothing happens
-started: Unknown when broke
+**Original Issue (before any fixes):**
+- Only first 20 movies load
+- Nothing happens when scrolling
 
-## Eliminated
+**After First Fix (05083f1):**
+- Regression: Only 1 additional movie loads
+- "More" button appears (shouldn't be on infinite scroll)
+- Loader flickers
 
-- hypothesis: IntersectionObserver not working
-  evidence: Sentinel is present in FilmGridWithFilters.tsx, rootMargin='400px' configured correctly
-  timestamp: 2026-02-19
+**After Second Fix (d6edbac - WRONG):**
+- Reverted to original bug pattern
+- Still only 20 movies load
 
-- hypothesis: API not returning hasMore flag
-  evidence: API does return hasMore, but value was incorrectly false due to wrong calculation
-  timestamp: 2026-02-19
+**After Correct Fix (612ea8e):**
+- Infinite scroll works correctly
+- No "More" button appears
+- Loads 20 movies per page
 
-## Evidence
+## Root Cause Analysis
 
-- timestamp: 2026-02-19
-  checked: User report
-  found: Stats pages (stats/genres, stats/ratings) work correctly with auto-load, My Movies does NOT work
-  implication: Scroll trigger works on Stats pages, issue is specific to My Movies implementation
+The My Movies API has a unique architecture:
+1. DB query fetches records (status/tags in WHERE clause)
+2. Fetches TMDB data for each record
+3. **Applies filters in JavaScript** (types, year, rating, genres)
+4. Sorts and paginates
 
-- timestamp: 2026-02-19
-  checked: src/app/api/stats/movies-by-genre/route.ts (working)
-  found: Uses take = limit + 1 pattern (line 86), hasMore = watchListRecords.length > limit (line 200)
-  implication: Correct pattern fetches 1 extra record to detect if more exist
+The hasMore calculation needs different logic:
+- **Without filters**: DB returned full batch (21 records) = more exist → `watchListRecords.length > limit`
+- **With filters**: Check filtered result → `sortedMovies.length > pageEndIndex`
 
-- timestamp: 2026-02-19
-  checked: src/app/api/my-movies/route.ts (broken)
-  found: Has early exit logic at lines 289-295 checking skip >= totalCount, then uses hasMore = sortedMovies.length > pageEndIndex (line 442)
-  implication: After filtering, sortedMovies.length can be < limit even when more unfiltered records exist in DB
+Previous fixes:
+- First fix: Always used raw DB count → caused button to appear (wrong)
+- Second fix: Always used filtered count → returned to original bug (wrong)
+- Correct fix: Check if filters are applied, use appropriate logic
 
-- timestamp: 2026-02-19
-  checked: Pagination pattern from Local Knowledge Base
-  found: pagination-system-failures.md confirms hasMore should use records.length > limit pattern, NOT filtered results length
-  implication: My Movies violated the established pattern
+## The Fix
 
-- timestamp: 2026-02-19
-  checked: Applied fix to src/app/api/my-movies/route.ts
-  found: Changed take to limit+1 (line 271), changed hasMore to watchListRecords.length > limit (line 418), removed buggy early exit logic and unused variables
-  implication: Now follows same pattern as working Stats pages
+```typescript
+// Determine if any JavaScript filters are applied
+const hasFilters = (
+  (typesParam && typesParam !== 'all' && typesParam.trim() !== '') ||
+  (yearFrom || yearTo) ||
+  (minRating !== null || maxRating !== null) ||
+  (genresParam)
+);
 
-- timestamp: 2026-02-19
-  checked: Build verification
-  found: Next.js build completed successfully with no errors
-  implication: Fix compiles correctly
+// hasMore: If filters applied, check filtered result. If no filters, check raw DB.
+const hasMore = hasFilters 
+  ? sortedMovies.length > pageEndIndex 
+  : watchListRecords.length > limit;
+```
 
-## Resolution
+## Files Changed
 
-root_cause: "hasMore" calculation in /api/my-movies used filtered results length (sortedMovies.length > pageEndIndex) instead of raw DB results length (watchListRecords.length > limit). When filters reduced the visible count below 20, hasMore incorrectly returned false even when more unfiltered records existed in DB.
+- `src/app/api/my-movies/route.ts` - Lines ~412-425
 
-fix: Changed hasMore calculation to use raw DB results length (watchListRecords.length > limit) with take = limit + 1 pattern, matching Stats pages implementation
+## Commit
 
-verification: Build passed successfully
-files_changed:
-  - src/app/api/my-movies/route.ts: Changed pagination logic to use take=limit+1 and correct hasMore calculation
+`612ea8e` - fix: correct hasMore logic for My Movies pagination
