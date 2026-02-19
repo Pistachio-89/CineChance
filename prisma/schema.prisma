@@ -4,64 +4,55 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // url удалён — теперь в prisma.config.ts
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String?
-  hashedPassword String?
-  emailVerified  DateTime?
-  image          String?
-  birthDate      DateTime? // Дата рождения для фильтрации контента по возрасту
-  agreedToTerms  Boolean   @default(false) // Согласие с пользовательским соглашением
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-
-  // Поля для v2/v3 рекомендательной системы
-  recommendationStats   Json?   // Агрегированная статистика взаимодействия с рекомендациями
-  preferencesSnapshot   Json?   // Текущие предпочтения пользователя для ML-моделей
-  mlProfileVersion      String? // Версия ML-профиля пользователя
-
-  accounts            Account[]
-  sessions            Session[]
-  watchList           WatchList[]
-  blacklists          Blacklist[]
-  tags                Tag[]        // Теги, созданные пользователем
-  rewatchLogs         RewatchLog[]
-  ratingHistory       RatingHistory[]
-  recommendationLogs  RecommendationLog[]
+  id                     String                  @id @default(cuid())
+  name                   String?
+  email                  String                  @unique
+  emailVerified          DateTime?
+  image                  String?
+  hashedPassword         String?
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  mlProfileVersion       String?
+  preferencesSnapshot    Json?
+  recommendationStats    Json?
+  birthDate              DateTime?
+  agreedToTerms          Boolean                 @default(false)
+  accounts               Account[]
+  blacklists             Blacklist[]
+  filterSessions         FilterSession[]
+  intentSignals          IntentSignal[]
+  sentInvitations        Invitation[]            @relation("InvitedBy")
+  usedInvitations        Invitation[]            @relation("UsedBy")
+  negativeFeedbacks      NegativeFeedback[]
+  predictions            PredictionLog[]
+  ratingHistory          RatingHistory[]
+  recommendationEvents   RecommendationEvent[]
+  recommendationLogs     RecommendationLog[]
   recommendationSettings RecommendationSettings?
-  recommendationEvents RecommendationEvent[]
-  filterSessions      FilterSession[]
-  userSessions        UserSession[]
-  intentSignals       IntentSignal[]
-  negativeFeedbacks   NegativeFeedback[]
-  predictions         PredictionLog[]
-  userEmbedding       UserEmbedding?
-
-  // Приглашения
-  sentInvitations     Invitation[] @relation("InvitedBy")
-  usedInvitations     Invitation[] @relation("UsedBy")
+  rewatchLogs            RewatchLog[]
+  sessions               Session[]
+  tags                   Tag[]
+  userEmbedding          UserEmbedding?
+  userSessions           UserSession[]
+  watchList              WatchList[]
 
   @@index([updatedAt])
   @@index([createdAt])
   @@index([email])
 }
 
-// Модель приглашений на регистрацию
 model Invitation {
   id          String    @id @default(cuid())
-  email       String    // Email, на который отправлено приглашение
-  token       String    @unique // Уникальный токен приглашения
-  expiresAt   DateTime  // Срок действия приглашения
+  email       String
+  token       String    @unique
+  expiresAt   DateTime
   createdAt   DateTime  @default(now())
-  usedAt      DateTime? // Когда было использовано
-  usedById    String?   // Кем было использовано
-
-  // Связи
-  createdById String    // Кто создал приглашение
+  usedAt      DateTime?
+  usedById    String?
+  createdById String
   createdBy   User      @relation("InvitedBy", fields: [createdById], references: [id], onDelete: Cascade)
   usedBy      User?     @relation("UsedBy", fields: [usedById], references: [id])
 
@@ -71,35 +62,27 @@ model Invitation {
   @@index([expiresAt])
 }
 
-// Модель для логирования показов рекомендаций
-// Является единственным источником правды о взаимодействии пользователя с рекомендациями
-// Расширена для v2/v3: добавлены поля для полного событийного следа
 model RecommendationLog {
-  id          String   @id @default(cuid())
-  userId      String
-  tmdbId      Int
-  mediaType   String   // "movie" или "tv"
-  algorithm   String   // Версия алгоритма, например "random_v1", "smart_v2"
-  score       Float?   // Опциональный рассчитанный вес релевантности
-  action      String?  // Действие пользователя: 'shown', 'opened', 'skipped', 'watched', 'added_to_list'
-  context     Json?    // Контекст показа: время суток, устройство, сессия и т.д.
-  shownAt     DateTime @default(now())
-
-  // Поля для v2/v3 рекомендательной системы
-  filtersSnapshot      Json?   // Полный слепок конфигурации фильтров на момент показа
-  candidatePoolMetrics Json?   // Статистика о пуле кандидатов на этапе формирования
-  temporalContext      Json?   // Временной контекст показа (час, день недели, сессия и т.д.)
-  mlFeatures           Json?   // Предрассчитанные признаки для ML-моделей
-
-  // Связи для событийной модели
-  events               RecommendationEvent[]
+  id                   String                @id @default(cuid())
+  userId               String
+  tmdbId               Int
+  mediaType            String
+  algorithm            String
+  score                Float?
+  action               String?
+  context              Json?
+  shownAt              DateTime              @default(now())
+  candidatePoolMetrics Json?
+  filtersSnapshot      Json?
+  mlFeatures           Json?
+  temporalContext      Json?
   intentSignals        IntentSignal[]
   negativeFeedbacks    NegativeFeedback[]
   prediction           PredictionLog?
-
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rewatchLogs RewatchLog[]  // Обратная связь для отслеживания просмотров из этой рекомендации
-  ratingHistories RatingHistory[] // Обратная связь для истории оценок
+  ratingHistories      RatingHistory[]
+  events               RecommendationEvent[]
+  user                 User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rewatchLogs          RewatchLog[]
 
   @@index([userId, shownAt])
   @@index([userId, tmdbId, mediaType])
@@ -107,96 +90,85 @@ model RecommendationLog {
   @@index([userId, action, shownAt])
 }
 
-// Пользовательские настройки рекомендаций
-// Фундамент для персонализации алгоритма подбора
 model RecommendationSettings {
-  userId             String   @id
-  minRating          Float    @default(5.0)    // Минимальный рейтинг для рекомендаций
-  preferHighRating   Boolean  @default(true)   // Предпочитать фильмы с высоким рейтингом
-  avoidRewatches     Boolean  @default(false)  // Исключать пересмотры из рекомендаций
-  preferUnwatched    Boolean  @default(true)   // Приоритет непросмотренного контента
-  noveltyWeight      Float    @default(1.0)    // Вес новизны (1.0 = нейтрально)
-  randomnessWeight   Float    @default(1.0)    // Вес случайности (1.0 = нейтрально)
-  includeWant        Boolean  @default(true)   // Включать список "Хочу посмотреть"
-  includeWatched     Boolean  @default(true)   // Включать список "Уже просмотрено"
-  includeDropped     Boolean  @default(false)  // Включать список "Брошено"
-  includeMovie       Boolean  @default(true)   // Включать фильмы
-  includeTv          Boolean  @default(true)   // Включать сериалы
-  includeAnime       Boolean  @default(true)   // Включать аниме
-  includeCartoon    Boolean  @default(true)   // Включать мультфильмы
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId           String   @id
+  preferHighRating Boolean  @default(true)
+  avoidRewatches   Boolean  @default(false)
+  preferUnwatched  Boolean  @default(true)
+  noveltyWeight    Float    @default(1.0)
+  randomnessWeight Float    @default(1.0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  minRating        Float    @default(5.0)
+  includeDropped   Boolean  @default(false)
+  includeWant      Boolean  @default(true)
+  includeWatched   Boolean  @default(true)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
-  id                 String   @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-
-  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@index([userId])
 }
 
 model Session {
-  id           String    @id @default(cuid())
-  sessionToken String    @unique
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
   userId       String
   expires      DateTime
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
 model VerificationToken {
   identifier String
-  token      String    @unique
+  token      String   @unique
   expires    DateTime
 
   @@unique([identifier, token])
 }
 
 model WatchList {
-  id           String    @id @default(cuid())  // Счётчик
-  userId       String    // id пользователя сайта из таблицы User
-  tmdbId       Int       // id фильма с TMDB
-  mediaType    String    // "movie" или "tv"
-  title        String    // Название фильма/сериала (дублируем из TMDB для быстрого доступа)
-  voteAverage  Float     // Рейтинг на TMDB (например, 8.3)
-  userRating   Int?      // Рейтинг пользователя от 1 до 10 (опционально)
-  weightedRating Float?   // Взвешенная оценка с учетом всех пересмотров (опционально)
-  statusId     Int       // id статуса фильма из таблицы MovieStatus
-  addedAt      DateTime  @default(now()) // дата добавления фильма в таблицу
-  watchedDate  DateTime? // дата просмотра фильма
-  note         String?   @db.Text // Приватная заметка пользователя
-  watchCount   Int       @default(0) // Количество просмотров (включая пересмотры)
+  userId                    String
+  tmdbId                    Int
+  mediaType                 String
+  addedAt                   DateTime        @default(now())
+  statusId                  Int
+  title                     String
+  userRating                Int?
+  voteAverage               Float
+  id                        String          @id @default(cuid())
+  watchedDate               DateTime?
+  note                      String?
+  watchCount                Int             @default(0)
+  acceptanceCount           Int             @default(0)
+  hiddenFromRecommendations Boolean         @default(false)
+  hiddenReason              String?
+  lastRecommendedAt         DateTime?
+  recommendationCount       Int             @default(0)
+  weightedRating            Float?
+  ratingHistory             RatingHistory[]
+  rewatchLogs               RewatchLog[]
+  status                    MovieStatus     @relation(fields: [statusId], references: [id])
+  user                      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tags                      Tag[]           @relation("TagToWatchList")
 
-  // Поля для v2/v3 рекомендательной системы
-  recommendationCount   Int       @default(0)  // Количество показов в рекомендациях
-  lastRecommendedAt     DateTime?             // Время последнего показа в рекомендациях
-  acceptanceCount       Int       @default(0)  // Количество принятий рекомендации
-  hiddenFromRecommendations Boolean @default(false) // Скрыт из рекомендаций пользователем
-  hiddenReason          String?               // Причина скрытия
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  rewatchLogs  RewatchLog[]
-  ratingHistory RatingHistory[]
-  status       MovieStatus  @relation(fields: [statusId], references: [id])
-  tags         Tag[]        // Связь many-to-many с тегами
-
-  @@unique([userId, tmdbId, mediaType])  // Один фильм/сериал в списке только один раз (независимо от статуса)
+  @@unique([userId, tmdbId, mediaType])
   @@index([userId])
   @@index([tmdbId])
   @@index([statusId])
@@ -205,27 +177,25 @@ model WatchList {
   @@index([weightedRating])
   @@index([userId, statusId])
   @@index([userId, addedAt])
-  @@index([userId, statusId, addedAt])  // Для сортировки по addedAt в рамках userId и statusId
+  @@index([userId, statusId, addedAt])
   @@index([watchCount])
   @@index([recommendationCount])
   @@index([lastRecommendedAt])
 }
 
-// Таблица пересмотров фильмов
 model RewatchLog {
-  id                    String    @id @default(cuid())
-  userId                String
-  tmdbId                Int
-  mediaType             String
-  watchedAt             DateTime  @default(now()) // Дата пересмотра
-  ratingBefore          Float?    // Оценка до пересмотра
-  ratingAfter           Float?    // Оценка после пересмотра (если изменилась)
-  previousWatchCount    Int       // Счётчик просмотров до этого пересмотра
-  recommendationLogId   String?   // Ссылка на RecommendationLog, которая привела к просмотру
-
-  user                  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  watchList             WatchList? @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
-  recommendation        RecommendationLog? @relation(fields: [recommendationLogId], references: [id])
+  id                  String             @id @default(cuid())
+  userId              String
+  tmdbId              Int
+  mediaType           String
+  watchedAt           DateTime           @default(now())
+  ratingBefore        Float?
+  ratingAfter         Float?
+  previousWatchCount  Int
+  recommendationLogId String?
+  recommendation      RecommendationLog? @relation(fields: [recommendationLogId], references: [id])
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchList           WatchList          @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
   @@index([tmdbId, mediaType])
@@ -234,25 +204,21 @@ model RewatchLog {
   @@index([recommendationLogId])
 }
 
-// Таблица истории оценок
 model RatingHistory {
-  id          String    @id @default(cuid())
-  userId      String
-  tmdbId      Int
-  mediaType   String
-  rating      Float     // Оценка, которую поставили (0.5-10.0)
-  actionType  String    // 'initial', 'rating_change', 'rewatch'
-  createdAt   DateTime  @default(now())
-
-  // Поля для v2/v3 рекомендательной системы
-  recommendationLogId   String?               // Ссылка на RecommendationLog если оценка после рекомендации
-  previousRating        Float?                // Предыдущая оценка (при изменении)
-  ratingChange          Float?                // Изменение оценки
-  ratingSource          String?               // Источник: 'direct', 'rewatch_after', 'recommendation_feedback'
-
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  watchList   WatchList? @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
-  recommendationLog RecommendationLog? @relation(fields: [recommendationLogId], references: [id])
+  id                  String             @id @default(cuid())
+  userId              String
+  tmdbId              Int
+  mediaType           String
+  rating              Float
+  actionType          String
+  createdAt           DateTime           @default(now())
+  previousRating      Float?
+  ratingChange        Float?
+  ratingSource        String?
+  recommendationLogId String?
+  recommendationLog   RecommendationLog? @relation(fields: [recommendationLogId], references: [id])
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchList           WatchList          @relation(fields: [userId, tmdbId, mediaType], references: [userId, tmdbId, mediaType], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([userId])
   @@index([tmdbId, mediaType])
@@ -261,37 +227,31 @@ model RatingHistory {
   @@index([recommendationLogId])
 }
 
-
 model MovieStatus {
-  id   Int    @id @default(autoincrement())
-  name String @unique
-  
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
   watchLists WatchList[]
 
-  @@map("MovieStatus") // Явно указываем имя таблицы в БД
+  @@map("MovieStatus")
 }
 
-// Модель тега — полностью пользовательские теги
 model Tag {
-  id          String     @id @default(cuid())
-  name        String     // Название тега (например, "Шедевр", "Сложный фильм")
-  userId      String     // Пользователь, который создал тег
-  usageCount  Int        @default(0) // Счётчик использования для рекомендаций
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
+  id                   String      @id @default(cuid())
+  name                 String
+  userId               String
+  usageCount           Int         @default(0)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  isPromoted           Boolean     @default(false)
+  recommendationCount  Int         @default(0)
+  recommendationWeight Float       @default(1.0)
+  user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchLists           WatchList[] @relation("TagToWatchList")
 
-  // Поля для v2/v3 рекомендательной системы
-  recommendationWeight  Float    @default(1.0)  // Вес тега для алгоритма рекомендаций
-  isPromoted            Boolean  @default(false) // Флаг продвинутого тега
-  recommendationCount   Int      @default(0)     // Количество влияний на рекомендацию
-
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  watchLists  WatchList[] // Связь many-to-many с фильмами
-
-  @@unique([userId, name]) // У пользователя не может быть двух тегов с одинаковым названием
+  @@unique([userId, name])
   @@index([userId])
-  @@index([usageCount]) // Для сортировки по популярности
-  @@index([name]) // Для поиска и автодополнения
+  @@index([usageCount])
+  @@index([name])
   @@index([recommendationCount])
 }
 
@@ -301,35 +261,27 @@ model Blacklist {
   tmdbId    Int
   mediaType String
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, tmdbId, mediaType]) // Фильм можно заблокировать только один раз
+  @@unique([userId, tmdbId, mediaType])
   @@index([userId])
   @@index([tmdbId])
   @@index([createdAt])
-  @@index([userId, createdAt])  // Для сортировки по createdAt в рамках userId
+  @@index([userId, createdAt])
 }
 
-// ============================================
-// НОВЫЕ МОДЕЛИ ДЛЯ V2/V3 РЕКОМЕНДАЦИОННОЙ СИСТЕМЫ
-// ============================================
-
-// Модель событий — детальное логирование микровзаимодействий с рекомендациями
-// Позволяет восстановить полную историю пользовательской сессии
 model RecommendationEvent {
-  id            String   @id @default(cuid())
-  userId        String   // Денормализованное поле для быстрого доступа к пользователю
-  parentLogId   String?  // Ссылка на родительскую RecommendationLog (опционально для событий уровня сессии)
-  eventType     String   // Тип события: page_view, filter_change, recommendation_shown, modal_open, modal_close, hover_start, hover_end, action_click, scroll, tap, swipe, keyboard_shortcut
-  eventData     Json?    // Параметры события (структура зависит от типа)
-  sessionState  Json?    // Состояние сессии на момент события
-  timingMs      Int?     // Время в мс от родительского события
-  timestamp     DateTime @default(now())
-  deviceContext Json?    // Технический контекст: устройство, браузер, разрешение и т.д.
-
-  user          User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String             @id @default(cuid())
+  userId        String
+  parentLogId   String?
+  eventType     String
+  eventData     Json?
+  sessionState  Json?
+  timingMs      Int?
+  timestamp     DateTime           @default(now())
+  deviceContext Json?
   parentLog     RecommendationLog? @relation(fields: [parentLogId], references: [id], onDelete: Cascade)
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([parentLogId, timestamp])
   @@index([userId, timestamp])
@@ -337,63 +289,44 @@ model RecommendationEvent {
   @@index([parentLogId, eventType])
 }
 
-// Модель истории фильтров — отслеживает как пользователи модифицируют фильтры
-// Каждая сессия фильтров создаётся при первом изменении и обновляется при последующих
 model FilterSession {
-  id            String   @id @default(cuid())
-  userId        String
-  sessionId     String?  // Идентификатор сессии (связь с UserSession, опционально)
-  startedAt     DateTime @default(now())
-  endedAt       DateTime?
-  durationMs    Int?
-
-  // Состояния фильтров
-  initialState  Json?    // Конфигурация при первом изменении (опционально)
-  finalState    Json?    // Конфигурация на момент завершения
-  changesHistory Json?   // Массив всех изменений с временными метками
-
-  // Метрики результата
-  resultMetrics Json?    // Агрегированные метрики: recommendationsShown, acceptedCount, skippedCount
-  abandonedFilters Json? // Фильтры, изменённые после неудачной рекомендации
-
-  status        String   @default("active") // active, completed, abandoned
-  completedAt   DateTime?
-
-  user          User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userSession   UserSession? @relation(fields: [sessionId], references: [sessionId], onDelete: SetNull)
+  id               String       @id @default(cuid())
+  userId           String
+  sessionId        String?
+  startedAt        DateTime     @default(now())
+  endedAt          DateTime?
+  durationMs       Int?
+  initialState     Json?
+  finalState       Json?
+  changesHistory   Json?
+  resultMetrics    Json?
+  abandonedFilters Json?
+  status           String       @default("active")
+  completedAt      DateTime?
+  userSession      UserSession? @relation(fields: [sessionId], references: [sessionId])
+  user             User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startedAt])
   @@index([status, startedAt])
   @@index([userId, status])
 }
 
-// Модель пользовательской сессии — агрегирует все аспекты взаимодействия
-// Включает навигацию, действия, временные характеристики и результаты
 model UserSession {
-  id            String   @id @default(cuid())
-  sessionId     String   @unique // Уникальный идентификатор сессии (с клиента)
-  userId        String
-  startedAt     DateTime @default(now())
-  endedAt       DateTime?
-  durationMs    Int?
-  isActive      Boolean  @default(true)
-
-  // Точки входа и выхода
-  entryPoint    String?  // direct, menu, movie_card, deep_link, recommendation_redirect, search
-  exitPoint     String?  // accepted_recommendation, filtered_out, timeout, manual_close, navigation_away, error
-
-  // Технический контекст
-  deviceContext Json?    // deviceType, os, browser, screenResolution, viewportSize, isTouch, connectionType
-
-  // Агрегированные данные сессии
-  sessionFlow   Json?    // recommendationsShown, filtersChangedCount, modalOpenedCount, actionsCount, recommendationsAccepted, recommendationsSkipped, historyResetCount, errorsCount
-
-  // Результат сессии
-  outcome       String?  // success_recommendation, partial_success, abandonment, error, no_candidates
-  outcomeMetrics Json?   // timeToFirstActionMs, timeToAcceptMs, timeToFilterChangeMs, finalFilters
-
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  sessionId      String          @unique
+  userId         String
+  startedAt      DateTime        @default(now())
+  endedAt        DateTime?
+  durationMs     Int?
+  isActive       Boolean         @default(true)
+  entryPoint     String?
+  exitPoint      String?
+  deviceContext  Json?
+  sessionFlow    Json?
+  outcome        String?
+  outcomeMetrics Json?
   filterSessions FilterSession[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, startedAt])
   @@index([outcome, startedAt])
@@ -401,26 +334,19 @@ model UserSession {
   @@index([startedAt])
 }
 
-// Модель неявных сигналов — поведенческие паттерны, свидетельствующие об интересе
-// Эти сигналы часто информативнее явных действий
 model IntentSignal {
-  id              String   @id @default(cuid())
-  userId          String
-  recommendationLogId String? // Ссылка на RecommendationLog (опционально)
-
-  signalType      String   // hover_duration, dwell_time, scroll_depth, content_expansion, comparison_view, repeat_view, bookmark_action, tab_switch, minimize_window, rotation
-  intensityScore  Float    // Нормализованная сила сигнала от 0 до 1
-
-  elementContext  Json?    // elementType, elementPosition, elementVisibility, zIndex
-  temporalContext Json?    // timeSinceShownMs, timeSinceSessionStartMs, timeOfDay, dayOfWeek
-  userAgentContext Json?   // deviceType, os, browser, screenResolution, viewportSize, isTouch, connectionType, language
-
-  predictedIntent Json?    // ML-определённый вектор намерений: interestProbability, acceptanceProbability, skipProbability, explorationProbability
-
-  createdAt       DateTime @default(now())
-
-  user            User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recommendationLog RecommendationLog? @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  id                  String             @id @default(cuid())
+  userId              String
+  recommendationLogId String?
+  signalType          String
+  intensityScore      Float
+  elementContext      Json?
+  temporalContext     Json?
+  userAgentContext    Json?
+  predictedIntent     Json?
+  createdAt           DateTime           @default(now())
+  recommendationLog   RecommendationLog? @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([recommendationLogId, signalType])
@@ -428,27 +354,20 @@ model IntentSignal {
   @@index([signalType, createdAt])
 }
 
-// Модель негативной обратной связи — сбор причин отклонения рекомендаций
-// Позволяет алгоритму избегать подобных предложений в будущем
 model NegativeFeedback {
-  id              String   @id @default(cuid())
-  userId          String
+  id                  String            @id @default(cuid())
+  userId              String
   recommendationLogId String
-
-  feedbackType    String   // explicit_negative, implicit_skip, filter_override, session_abandon, timeout
-  detailedReason  String?  // wrong_genre, already_watched, wrong_language, wrong_year, low_rating, not_interested, wrong_type, low_quality, inappropriate, too_similar, too_new, too_old, unknown_cast, bad_reviews
-
-  isExplicit      Boolean  @default(false) // Явная обратная связь vs выведенная алгоритмически
-  contextualFactors Json?  // moodPredicted, recentAcceptedGenres, timeOfDay, sessionDuration, recommendationsInSession
-  correctiveAction Json?   // suggestedWeightAdjustment, suggestedFilterAdjustment, confidence, applied
-
-  severity        Float    @default(1.0)   // Нормализованная серьёзность от 0 до 1
-  durationMs      Int?     // Время от показа до отклонения
-
-  createdAt       DateTime @default(now())
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recommendationLog RecommendationLog @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  feedbackType        String
+  detailedReason      String?
+  isExplicit          Boolean           @default(false)
+  contextualFactors   Json?
+  correctiveAction    Json?
+  severity            Float             @default(1.0)
+  durationMs          Int?
+  createdAt           DateTime          @default(now())
+  recommendationLog   RecommendationLog @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([detailedReason, createdAt])
@@ -456,30 +375,23 @@ model NegativeFeedback {
   @@index([createdAt])
 }
 
-// Модель эксперимента — структурированная поддержка A/B-тестирования
-// Позволяет описывать эксперименты, распределять трафик, отслеживать результаты
 model AlgorithmExperiment {
-  id              String   @id @default(cuid())
-  experimentId    String   @unique // Бизнес-идентификатор: "v2_weighted_genre_boost"
-  name            String
-  description     String?  @db.Text
-
-  algorithmVersion String  // v1_random, v2_weighted, v2_ml, v3_neural, custom
-  variantLabel    String   // control, treatment, baseline
-  algorithmConfig Json?    // Конфигурация алгоритма для варианта
-
-  status          String   @default("draft") // draft, pending, active, paused, completed, cancelled, rolled_back
-  trafficAllocation Float  @default(0)       // Процент трафика 0-100
-
-  targetingCriteria Json?  // Критерии таргетинга: minRatings, maxRatings, userSegments, devices, languages, geo
-
-  successMetrics  Json?    // primaryMetric, primaryGoal, primaryThreshold, secondaryMetrics, guardRailMetrics
-  experimentResults Json?  // Агрегированные результаты после завершения
-
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                String    @id @default(cuid())
+  experimentId      String    @unique
+  name              String
+  description       String?
+  algorithmVersion  String
+  variantLabel      String
+  algorithmConfig   Json?
+  status            String    @default("draft")
+  trafficAllocation Float     @default(0)
+  targetingCriteria Json?
+  successMetrics    Json?
+  experimentResults Json?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([status, startedAt])
   @@index([algorithmVersion, status])
@@ -487,46 +399,30 @@ model AlgorithmExperiment {
   @@index([status, trafficAllocation])
 }
 
-// ============================================
-// ML-ИНФРАСТРУКТУРА V3
-// ============================================
-
-// Модель векторного представления пользователя
 model UserEmbedding {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-
-  // Векторное представление (используем vectorData для совместимости)
-  vectorData      Json?    // Массив чисел латентного пространства
-
-  embeddingVersion String? // Версия модели эмбеддинга
-  modelType       String?  // collaborative, content_based, hybrid
-  computedAt      DateTime @default(now())
-
-  qualityMetrics  Json?    // reconstructionError, nearestNeighborsRecall, userCoverage
-
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  vectorData       Json?
+  embeddingVersion String?
+  modelType        String?
+  computedAt       DateTime @default(now())
+  qualityMetrics   Json?
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([modelType])
   @@index([computedAt])
 }
 
-// Модель векторного представления фильма
 model MovieEmbedding {
-  id              String   @id @default(cuid())
-  tmdbId          Int      @unique
-  mediaType       String
-
-  // Векторное представление
-  vectorData      Json?    // Массив чисел латентного пространства
-
-  embeddingVersion String? // Версия модели эмбеддинга
-  modelType       String?  // collaborative, content_based, hybrid
-  computedAt      DateTime @default(now())
-
-  // Кэш похожих фильмов
-  similarityCache Json?    // topSimilar, genreSimilarity, castSimilarity
+  id               String   @id @default(cuid())
+  tmdbId           Int      @unique
+  mediaType        String
+  vectorData       Json?
+  embeddingVersion String?
+  modelType        String?
+  computedAt       DateTime @default(now())
+  similarityCache  Json?
 
   @@index([tmdbId])
   @@index([mediaType])
@@ -534,23 +430,18 @@ model MovieEmbedding {
   @@index([computedAt])
 }
 
-// Модель лога предсказаний — для анализа качества ML-моделей
 model PredictionLog {
-  id              String   @id @default(cuid())
-  recommendationLogId String @unique
-  userId          String   // Денормализованное поле для быстрого доступа
-
-  predictedScore  Float    // Предсказанный балл принятия
-  actualAction    String?  // Фактическое действие пользователя
-  predictionError Float?   // Ошибка предсказания
-
-  modelVersion    String?  // Версия модели
-  featureVector   Json?    // Вектор признаков для предсказания
-
-  computedAt      DateTime @default(now())
-
-  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  recommendationLog RecommendationLog @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  id                  String            @id @default(cuid())
+  recommendationLogId String            @unique
+  userId              String
+  predictedScore      Float
+  actualAction        String?
+  predictionError     Float?
+  modelVersion        String?
+  featureVector       Json?
+  computedAt          DateTime          @default(now())
+  recommendationLog   RecommendationLog @relation(fields: [recommendationLogId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([predictedScore])
   @@index([actualAction])
@@ -558,54 +449,38 @@ model PredictionLog {
   @@index([userId, computedAt])
 }
 
-// Модель версии модели — отслеживание версий ML-моделей
 model ModelVersion {
-  id              String   @id @default(cuid())
-  modelName       String   @unique
-  version         String
-
-  status          String   @default("staging") // staging, production, deprecated, archived
-
-  trainingConfig  Json?    // Конфигурация обучения
-  trainingDataInfo Json?   // Информация о данных обучения
-  metrics         Json?    // Метрики качества модели
-
-  trainedAt       DateTime?
-  deployedAt      DateTime?
-  retiredAt       DateTime?
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default(cuid())
+  modelName        String    @unique
+  version          String
+  status           String    @default("staging")
+  trainingConfig   Json?
+  trainingDataInfo Json?
+  metrics          Json?
+  trainedAt        DateTime?
+  deployedAt       DateTime?
+  retiredAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([modelName])
   @@index([status])
   @@index([deployedAt])
 }
 
-// ============================================
-// АНАЛИТИКА И МЕТРИКИ
-// ============================================
-
-// Модель агрегированных метрик — для быстрого построения отчётов и дашбордов
-// Обновляется периодически через фоновые задачи
 model RecommendationMetrics {
-  id              String   @id @default(cuid())
-  metricDate      DateTime @db.Date // Дата агрегации (без времени)
-  metricType      String   // daily_active_users, recommendations_shown, acceptance_rate, average_time_to_action, filters_changed_count, modal_opened_count, new_users, returning_users
-  segment         String   @default("all") // all, new_users, active_users, high_raters, low_engagement
-  aggregationLevel String  @default("daily") // daily, hourly, weekly, monthly
-
-  value           Float    // Числовое значение метрики
-  count           Int      // Количество наблюдений
-
-  percentiles     Json?    // p25, p50, p75, p90, p95
-
-  // Сравнение с предыдущим периодом
-  comparison      Json?    // previousValue, changeAbsolute, changePercent, trendDirection
-
-  computedAt      DateTime @default(now())
-  periodStart     DateTime
-  periodEnd       DateTime
+  id               String   @id @default(cuid())
+  metricDate       DateTime @db.Date
+  metricType       String
+  segment          String   @default("all")
+  aggregationLevel String   @default("daily")
+  value            Float
+  count            Int
+  percentiles      Json?
+  comparison       Json?
+  computedAt       DateTime @default(now())
+  periodStart      DateTime
+  periodEnd        DateTime
 
   @@unique([metricDate, metricType, segment, aggregationLevel])
   @@index([metricType, periodEnd])
