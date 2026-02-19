@@ -423,10 +423,12 @@ export async function GET(request: NextRequest) {
       (genresParam)
     );
 
-    // hasMore: If filters are applied in JavaScript, check filtered result.
-    // If no filters, check raw DB result (DB returned full batch = more exist).
+    // hasMore: 
+    // - Without filters: check raw DB result (DB returned full batch = more exist)
+    // - With filters: check if we got exactly limit records (might be more in DB)
+    //   BUT we fetch take=limit+1, so if we got limit+1, there's definitely more
     const hasMore = hasFilters 
-      ? sortedMovies.length > pageEndIndex 
+      ? paginatedMovies.length === limit 
       : watchListRecords.length > limit;
 
     return NextResponse.json({
