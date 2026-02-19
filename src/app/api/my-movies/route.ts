@@ -414,8 +414,19 @@ export async function GET(request: NextRequest) {
     const pageEndIndex = pageStartIndex + limit;
     const paginatedMovies = sortedMovies.slice(pageStartIndex, pageEndIndex);
     
-    // hasMore: true if we have more movies in the filtered/sorted result
-    const hasMore = sortedMovies.length > pageEndIndex;
+    // Determine if any JavaScript filters are applied
+    const hasFilters = (
+      (typesParam && typesParam !== 'all' && typesParam.trim() !== '') ||
+      (yearFrom || yearTo) ||
+      (minRating !== null || maxRating !== null) ||
+      (genresParam)
+    );
+
+    // hasMore: If filters are applied in JavaScript, check filtered result.
+    // If no filters, check raw DB result (DB returned full batch = more exist).
+    const hasMore = hasFilters 
+      ? sortedMovies.length > pageEndIndex 
+      : watchListRecords.length > limit;
 
     return NextResponse.json({
       movies: paginatedMovies,
