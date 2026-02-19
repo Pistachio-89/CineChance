@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from '@/middleware/rateLimit';
 
 export async function GET(req: Request) {
-  const { success } = await rateLimit(req, '/api/watchlist');
+  const { success } = await rateLimit(req, '/api/blacklist');
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }

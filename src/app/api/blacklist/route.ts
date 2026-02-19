@@ -9,7 +9,7 @@ import { rateLimit } from '@/middleware/rateLimit';
 
 // GET: Проверить, заблокирован ли фильм
 export async function GET(req: Request) {
-  const { success } = await rateLimit(req, '/api/user');
+  const { success } = await rateLimit(req, '/api/blacklist');
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
 
 // POST: Добавить в черный список
 export async function POST(req: Request) {
-  const { success } = await rateLimit(req, '/api/user');
+  const { success } = await rateLimit(req, '/api/blacklist');
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
@@ -93,7 +93,7 @@ export async function POST(req: Request) {
 
 // DELETE: Удалить из черного списка
 export async function DELETE(req: Request) {
-  const { success } = await rateLimit(req, '/api/user');
+  const { success } = await rateLimit(req, '/api/blacklist');
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
