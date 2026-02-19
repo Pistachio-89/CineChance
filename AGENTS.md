@@ -454,3 +454,51 @@ orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]  # Local knowledge wins
 - Synthesize context7 findings: "According to official docs [Link], method X changed, so we update line Y"
 - Local project docs always take priority over external documentation
 - Check `.planning/debug/resolved/SYSTEMIC_REFLECTION.md` for architectural patterns
+
+---
+
+## Alternative: Manual Debug Workflow (For Non-GSD Agents)
+
+**For agents that cannot use `/gsd-debug` command** (general, explore, or other OpenCode agents):
+
+### Quick Investigation Steps
+
+1. **Gather Symptoms**
+   - Ask user: "What did you expect to happen?" and "What actually happened?"
+   - Note any error messages
+   - Ask when it started (recent or always broken)
+
+2. **Search Local Knowledge (L2)**
+   ```bash
+   grep -r "keyword" .planning/debug/resolved/
+   cat .planning/debug/resolved/pagination-system-failures.md
+   ```
+   - Check for similar past issues in `.planning/debug/resolved/`
+   - Look at SYSTEMIC_REFLECTION.md for patterns
+
+3. **Investigate Code (L1)**
+   - Find relevant files: `glob "**/*module*.ts"` 
+   - Read the implementation
+   - Add logging if needed: `console.log('[DEBUG]', variable)`
+
+4. **Form Hypothesis & Fix**
+   - Make one change at a time
+   - Test after each change
+   - Verify the fix works
+
+5. **Document the Fix**
+   - Create a simple markdown file in `.planning/debug/resolved/`
+   - Include: issue, root cause, fix, files changed
+
+### When to Use This Approach
+
+**Manual investigation OK when:**
+- Simple typo or obvious syntax error
+- Single file change needed
+- You already know the root cause
+- You cannot use `/gsd-debug` command
+
+**Request GSD help when:**
+- Complex multi-file investigation needed
+- Root cause is unclear
+- Need persistent investigation session
