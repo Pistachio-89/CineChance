@@ -9,6 +9,7 @@
 - ✅ **v1.0 Stabilization** — Phases 1-2 (shipped 2026-02-17)
 - 🔄 **v1.1 Lint Cleanup** — Phase 3 (in progress)
 - ✅ **v1.2 Animation Filter** — Phase 4 (completed 2026-02-19)
+- ✅ **v1.3 Recommendation Filters Enhancement** — Phase 5 (completed 2026-02-19)
 
 ---
 
@@ -44,6 +45,20 @@
 
 Plans:
 - [x] 04-01-PLAN.md — Add "Мульт" filter button to Recommendations page (completed 2026-02-19)
+
+</details>
+
+<details>
+<summary>✅ v1.3 Recommendation Filters Enhancement (Phase 5) — COMPLETED 2026-02-19</summary>
+
+- [x] Phase 5: Дополнительный функционал фильтров Рекомендации
+
+**Requirements:** [FILTER-01, FILTER-02]
+
+**Plans:** 1 plan
+
+Plans:
+- [x] 05-01-PLAN.md — Rename Мульт→Мульты, add content type filters to Settings (completed 2026-02-19)
 
 </details>
 
