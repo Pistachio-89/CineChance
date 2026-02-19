@@ -167,7 +167,9 @@ export default function FilterForm({
           <span className="text-gray-400 text-xs sm:text-sm font-medium mb-2 block text-left">
             Выбор типа
           </span>
-          <div className="flex flex-wrap gap-2 w-full sm:w-82">
+          
+          {/* Первая строка: Фильмы, Сериалы */}
+          <div className="flex gap-2 w-full sm:w-82 mb-2">
             {/* Кнопка Фильмы */}
             <button
               type="button"
@@ -215,7 +217,10 @@ export default function FilterForm({
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-500/20 to-transparent"></div>
               )}
             </button>
-
+          </div>
+          
+          {/* Вторая строка: Аниме, Мульты */}
+          <div className="flex gap-2 w-full sm:w-82">
             {/* Кнопка Аниме */}
             <button
               type="button"
