@@ -422,6 +422,23 @@ export async function GET(request: NextRequest) {
       (genresParam)
     );
 
+    // DEBUG: Log pagination values
+    console.log('[DEBUG PAGINATION]', {
+      page,
+      limit,
+      skip,
+      take,
+      watchListRecordsLength: watchListRecords.length,
+      sortedMoviesLength: sortedMovies.length,
+      pageStartIndex,
+      pageEndIndex,
+      paginatedMoviesLength: paginatedMovies.length,
+      hasFilters,
+      hasMoreCalculated: hasFilters 
+        ? sortedMovies.length > pageEndIndex 
+        : watchListRecords.length > limit
+    });
+
     // hasMore: If filters are applied in JavaScript, check filtered result.
     // If no filters, check raw DB result (DB returned full batch = more exist).
     const hasMore = hasFilters 

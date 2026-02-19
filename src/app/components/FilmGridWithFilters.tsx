@@ -213,10 +213,13 @@ export default function FilmGridWithFilters({
 
   // Infinite scroll observer
   useEffect(() => {
+    console.log('[DEBUG CLIENT]', { hasMore, isFetchingNext, currentPage });
     const observer = new IntersectionObserver(
       (entries) => {
         const sentinel = entries[0];
+        console.log('[DEBUG OBSERVER]', { isIntersecting: sentinel.isIntersecting, hasMore, isFetchingNext });
         if (sentinel.isIntersecting && hasMore && !isFetchingNext && !isFetchingRef.current) {
+          console.log('[DEBUG FETCH]', 'Loading page', currentPage + 1);
           isFetchingRef.current = true;
           setIsFetchingNext(true);
           handleFetchMovies(currentPage + 1).then(() => {
