@@ -164,6 +164,17 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
     includeWatched: true,
     includeDropped: false,
   });
+  const [userContentTypePreferences, setUserContentTypePreferences] = useState<{
+    includeMovie: boolean;
+    includeTv: boolean;
+    includeAnime: boolean;
+    includeCartoon: boolean;
+  }>({
+    includeMovie: true,
+    includeTv: true,
+    includeAnime: true,
+    includeCartoon: true,
+  });
   const [availableGenres, setAvailableGenres] = useState<{ id: number; name: string }[]>([]);
   const [userTags, setUserTags] = useState<Array<{ id: string; name: string; count: number }>>([]);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true); // Флаг загрузки настроек
@@ -190,6 +201,13 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
             includeWant: data.includeWant ?? true,
             includeWatched: data.includeWatched ?? true,
             includeDropped: data.includeDropped ?? false,
+          });
+          // Загружаем настройки типов контента
+          setUserContentTypePreferences({
+            includeMovie: data.includeMovie ?? true,
+            includeTv: data.includeTv ?? true,
+            includeAnime: data.includeAnime ?? true,
+            includeCartoon: data.includeCartoon ?? true,
           });
         }
       } catch (error) {
@@ -647,6 +665,12 @@ export default function RecommendationsClient({ userId }: RecommendationsClientP
                 ...(userListPreferences.includeWant ? ['want'] as const : []),
                 ...(userListPreferences.includeWatched ? ['watched'] as const : []),
                 ...(userListPreferences.includeDropped ? ['dropped'] as const : []),
+              ],
+              types: [
+                ...(userContentTypePreferences.includeMovie ? ['movie'] as const : []),
+                ...(userContentTypePreferences.includeTv ? ['tv'] as const : []),
+                ...(userContentTypePreferences.includeAnime ? ['anime'] as const : []),
+                ...(userContentTypePreferences.includeCartoon ? ['cartoon'] as const : []),
               ],
             }}
             onFiltersChange={() => {}}

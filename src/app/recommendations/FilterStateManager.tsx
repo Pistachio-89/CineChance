@@ -32,7 +32,7 @@ interface FilterStateManagerProps {
 }
 
 const defaultFilters: FilterState = {
-  types: ['movie', 'tv', 'anime'],
+  types: ['movie', 'tv', 'anime', 'cartoon'],
   lists: ['want', 'watched'],
   additionalFilters: {
     minRating: 0,
