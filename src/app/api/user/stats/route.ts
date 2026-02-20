@@ -60,28 +60,60 @@ function isCartoon(movie: any): boolean {
   return hasAnimationGenre && isNotJapanese;
 }
 
-function getMediaTypeCondition(mediaType: string): { mediaType?: string } | Record<string, never> {
-  if (!mediaType) return {};
-  
+/**
+ * Returns DB-level filter condition for movie/tv.
+ * For cartoon/anime, returns null (in-memory filtering required).
+ */
+function getMediaTypeCondition(
+  mediaType: string
+): { mediaType?: string } | null {
+  if (!mediaType) return null;
+
   if (mediaType === 'movie' || mediaType === 'tv') {
     return { mediaType };
   }
-  
-  return {};
+
+  // cartoon/anime require in-memory filtering based on TMDB data
+  return null;
 }
 
-function calculateFilteredTypeCounts(
-  allRecords: Array<{ tmdbId: number; mediaType: string }>,
-  filterType: string
-): { movie: number; tv: number; cartoon: number; anime: number } {
-  const typeCounts = { movie: 0, tv: 0, cartoon: 0, anime: 0 };
-  
-  for (const record of allRecords) {
-    if (record.mediaType === 'movie') typeCounts.movie++;
-    else if (record.mediaType === 'tv') typeCounts.tv++;
+/**
+ * Classifies a media record as movie/tv/cartoon/anime based on TMDB data.
+ */
+function classifyMediaType(
+  tmdbData: unknown,
+  dbMediaType: string
+): 'movie' | 'tv' | 'cartoon' | 'anime' {
+  if (tmdbData && typeof tmdbData === 'object') {
+    const movie = tmdbData as Record<string, unknown>;
+    if (isAnime(movie)) return 'anime';
+    if (isCartoon(movie)) return 'cartoon';
   }
-  
-  return typeCounts;
+  return dbMediaType as 'movie' | 'tv';
+}
+
+/**
+ * Filters records in-memory for cartoon/anime types.
+ * Returns array of records that match the requested filter type.
+ */
+async function filterRecordsByMediaType(
+  records: Array<{ tmdbId: number; mediaType: string; statusId: number; userRating: number | null }>,
+  filterType: 'cartoon' | 'anime'
+): Promise<Array<{ tmdbId: number; mediaType: string; statusId: number; userRating: number | null }>> {
+  const tmdbDataMap = await fetchMediaDetailsBatch(records);
+  const filteredRecords: Array<{ tmdbId: number; mediaType: string; statusId: number; userRating: number | null }> = [];
+
+  for (const record of records) {
+    const key = `${record.mediaType}:${record.tmdbId}`;
+    const tmdbData = tmdbDataMap.get(key);
+    const classifiedType = classifyMediaType(tmdbData, record.mediaType);
+
+    if (classifiedType === filterType) {
+      filteredRecords.push(record);
+    }
+  }
+
+  return filteredRecords;
 }
 
 async function calculateTypeBreakdown(
@@ -119,8 +151,111 @@ async function calculateTypeBreakdown(
 }
 
 async function fetchStats(userId: string, mediaFilter?: string | null) {
+  // Check if we need in-memory filtering (cartoon/anime)
+  const needsInMemoryFilter = mediaFilter === 'cartoon' || mediaFilter === 'anime';
   const mediaFilterCondition = mediaFilter ? getMediaTypeCondition(mediaFilter) : undefined;
 
+  // For cartoon/anime, we need to fetch ALL records and filter in-memory
+  // For movie/tv, we can use DB-level filtering
+
+  if (needsInMemoryFilter) {
+    // Fetch ALL records with their status and rating info
+    const allRecords = await prisma.watchList.findMany({
+      where: {
+        userId,
+        statusId: {
+          in: [
+            MOVIE_STATUS_IDS.WANT_TO_WATCH,
+            MOVIE_STATUS_IDS.WATCHED,
+            MOVIE_STATUS_IDS.REWATCHED,
+            MOVIE_STATUS_IDS.DROPPED
+          ]
+        },
+      },
+      select: {
+        tmdbId: true,
+        mediaType: true,
+        statusId: true,
+        userRating: true,
+      },
+    });
+
+    // Filter by media type using TMDB classification
+    const filterType = mediaFilter as 'cartoon' | 'anime';
+    const filteredRecords = await filterRecordsByMediaType(allRecords, filterType);
+
+    // Calculate counts from filtered records
+    const watchedCount = filteredRecords.filter(
+      r => r.statusId === MOVIE_STATUS_IDS.WATCHED || r.statusId === MOVIE_STATUS_IDS.REWATCHED
+    ).length;
+    const wantToWatchCount = filteredRecords.filter(
+      r => r.statusId === MOVIE_STATUS_IDS.WANT_TO_WATCH
+    ).length;
+    const droppedCount = filteredRecords.filter(
+      r => r.statusId === MOVIE_STATUS_IDS.DROPPED
+    ).length;
+
+    const hiddenCount = await prisma.blacklist.count({ where: { userId } });
+
+    // Calculate typeBreakdown from ALL records (not filtered)
+    const allRecordsForBreakdown = await prisma.watchList.findMany({
+      where: {
+        userId,
+        statusId: {
+          in: [
+            MOVIE_STATUS_IDS.WANT_TO_WATCH,
+            MOVIE_STATUS_IDS.WATCHED,
+            MOVIE_STATUS_IDS.REWATCHED,
+            MOVIE_STATUS_IDS.DROPPED
+          ]
+        },
+      },
+      select: {
+        tmdbId: true,
+        mediaType: true,
+      },
+    });
+    const typeCounts = await calculateTypeBreakdown(allRecordsForBreakdown);
+
+    // Calculate average rating from filtered records with ratings
+    const ratedRecords = filteredRecords.filter(r => r.userRating !== null);
+    const ratedCount = ratedRecords.length;
+    const averageRating = ratedCount > 0
+      ? Math.round((ratedRecords.reduce((sum, r) => sum + (r.userRating || 0), 0) / ratedCount) * 10) / 10
+      : null;
+
+    // Calculate rating distribution from filtered records
+    const ratingDistribution: Record<number, number> = {};
+    for (let i = 10; i >= 1; i--) {
+      ratingDistribution[i] = 0;
+    }
+    for (const record of ratedRecords) {
+      if (record.userRating !== null) {
+        const roundedRating = Math.round(record.userRating);
+        if (roundedRating >= 1 && roundedRating <= 10) {
+          ratingDistribution[roundedRating]++;
+        }
+      }
+    }
+
+    const totalForPercentage = watchedCount + wantToWatchCount + droppedCount;
+
+    return {
+      total: {
+        watched: watchedCount,
+        wantToWatch: wantToWatchCount,
+        dropped: droppedCount,
+        hidden: hiddenCount,
+        totalForPercentage,
+      },
+      typeBreakdown: typeCounts,
+      averageRating,
+      ratedCount,
+      ratingDistribution,
+    };
+  }
+
+  // Standard DB-level filtering for movie/tv/all
   const [watchedCount, wantToWatchCount, droppedCount, hiddenCount] = await Promise.all([
     prisma.watchList.count({
       where: {
