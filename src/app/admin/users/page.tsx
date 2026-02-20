@@ -3,10 +3,27 @@ import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AdminSidebar from "../AdminSidebar";
-import { Users, Calendar, Mail, Shield } from 'lucide-react';
+import UsersTable from "./UsersTable";
+import { Users, Calendar, Shield } from 'lucide-react';
+import { Prisma } from '@prisma/client';
 
-export default async function UsersAdminPage() {
+interface SearchParams {
+  page?: string;
+  pageSize?: string;
+  sort?: string;
+  order?: string;
+  filterName?: string;
+  filterEmail?: string;
+  filterStatus?: string;
+}
+
+export default async function UsersAdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const session = await getServerSession(authOptions);
+  const params = await searchParams;
 
   // Проверка авторизации
   if (!session || !session.user) {
@@ -19,9 +36,64 @@ export default async function UsersAdminPage() {
     redirect('/');
   }
 
-  // Загрузка всех пользователей
+  // Параметры пагинации
+  const page = Math.max(1, parseInt(params.page || '1', 10));
+  const pageSize = Math.min(100, Math.max(10, parseInt(params.pageSize || '25', 10)));
+
+  // Параметры сортировки
+  const sortField = params.sort || 'createdAt';
+  const sortDirection = (params.order === 'asc' ? 'asc' : 'desc') as 'asc' | 'desc';
+
+  // Build where clause for filters
+  const where: Prisma.UserWhereInput = {};
+
+  if (params.filterName) {
+    where.name = { contains: params.filterName, mode: 'insensitive' };
+  }
+
+  if (params.filterEmail) {
+    where.email = { contains: params.filterEmail, mode: 'insensitive' };
+  }
+
+  if (params.filterStatus === 'verified') {
+    where.emailVerified = { not: null };
+  } else if (params.filterStatus === 'unverified') {
+    where.emailVerified = { equals: null };
+  }
+
+  // Build orderBy clause (using any for Prisma complex order types)
+  let orderBy: Prisma.UserOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
+
+  switch (sortField) {
+    case 'name':
+      orderBy = [{ name: sortDirection }, { id: 'desc' }];
+      break;
+    case 'email':
+      orderBy = [{ email: sortDirection }, { id: 'desc' }];
+      break;
+    case 'createdAt':
+      orderBy = [{ createdAt: sortDirection }, { id: 'desc' }];
+      break;
+    case 'watchList':
+      orderBy = [{ watchList: { _count: sortDirection } }, { id: 'desc' }];
+      break;
+    case 'recommendationLogs':
+      orderBy = [{ recommendationLogs: { _count: sortDirection } }, { id: 'desc' }];
+      break;
+    case 'status':
+      orderBy = [{ emailVerified: sortDirection === 'asc' ? 'desc' : 'asc' }, { id: 'desc' }];
+      break;
+  }
+
+  // Загрузка общего количества пользователей (с учётом фильтров)
+  const filteredCount = await prisma.user.count({ where });
+
+  // Загрузка пользователей с пагинацией, сортировкой и фильтрацией
   const users = await prisma.user.findMany({
-    orderBy: { createdAt: 'desc' },
+    where,
+    orderBy,
+    skip: (page - 1) * pageSize,
+    take: pageSize,
     select: {
       id: true,
       email: true,
@@ -38,25 +110,29 @@ export default async function UsersAdminPage() {
     },
   });
 
-  // Статистика
-  const totalUsers = users.length;
-  const verifiedUsers = users.filter((u: { emailVerified: Date | null }) => u.emailVerified).length;
-  const newUsers7Days = users.filter((u: { createdAt: Date }) => {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return u.createdAt > sevenDaysAgo;
-  }).length;
+  // Общая статистика (по всем пользователям, без фильтров)
+  const totalUsersCount = await prisma.user.count();
+  const verifiedCount = await prisma.user.count({
+    where: { emailVerified: { not: null } },
+  });
 
-  // Форматирование даты
-  const formatDate = (date: Date) => {
-    return new Date(date).toLocaleDateString('ru-RU', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const newUsers7DaysCount = await prisma.user.count({
+    where: { createdAt: { gt: sevenDaysAgo } },
+  });
+
+  // Расчёт пагинации
+  const totalPages = Math.ceil(filteredCount / pageSize);
+  const hasNextPage = page < totalPages;
+  const hasPrevPage = page > 1;
+
+  // Сериализация данных для клиента
+  const serializedUsers = users.map((user) => ({
+    ...user,
+    createdAt: user.createdAt,
+    emailVerified: user.emailVerified,
+  }));
 
   return (
     <div className="flex min-h-screen bg-gray-900">
@@ -80,7 +156,7 @@ export default async function UsersAdminPage() {
               <Users className="w-5 h-5 text-blue-400" />
               <span className="text-gray-400 text-sm">Всего пользователей</span>
             </div>
-            <p className="text-3xl font-bold text-white">{totalUsers}</p>
+            <p className="text-3xl font-bold text-white">{totalUsersCount}</p>
           </div>
 
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
@@ -88,7 +164,7 @@ export default async function UsersAdminPage() {
               <Shield className="w-5 h-5 text-green-400" />
               <span className="text-gray-400 text-sm">Подтверждённых</span>
             </div>
-            <p className="text-3xl font-bold text-green-400">{verifiedUsers}</p>
+            <p className="text-3xl font-bold text-green-400">{verifiedCount}</p>
           </div>
 
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
@@ -96,78 +172,22 @@ export default async function UsersAdminPage() {
               <Calendar className="w-5 h-5 text-purple-400" />
               <span className="text-gray-400 text-sm">За 7 дней</span>
             </div>
-            <p className="text-3xl font-bold text-purple-400">{newUsers7Days}</p>
+            <p className="text-3xl font-bold text-purple-400">{newUsers7DaysCount}</p>
           </div>
         </div>
 
         {/* Список пользователей */}
         <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
           <h2 className="text-xl font-semibold text-white mb-6">Все пользователи</h2>
-
-          {users.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Пользователей пока нет</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="text-left text-gray-400 text-sm border-b border-gray-700">
-                    <th className="pb-3 pr-4">Пользователь</th>
-                    <th className="pb-3 pr-4">Email</th>
-                    <th className="pb-3 pr-4">Дата регистрации</th>
-                    <th className="pb-3 pr-4">Фильмов</th>
-                    <th className="pb-3 pr-4">Рекомендаций</th>
-                    <th className="pb-3">Статус</th>
-                  </tr>
-                </thead>
-                <tbody className="text-white">
-                  {users.map((user: { id: string; name: string | null; email: string; createdAt: Date; emailVerified: Date | null; _count: { watchList: number; recommendationLogs: number } }) => (
-                    <tr key={user.id} className="border-b border-gray-700/50 hover:bg-gray-700/20">
-                      <td className="py-4 pr-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                            {user.name?.charAt(0) || user.email.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium">
-                            {user.name || 'Без имени'}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-4 pr-4">
-                        <div className="flex items-center gap-2 text-gray-300">
-                          <Mail className="w-4 h-4 text-gray-500" />
-                          {user.email}
-                        </div>
-                      </td>
-                      <td className="py-4 pr-4 text-gray-400">
-                        {formatDate(user.createdAt)}
-                      </td>
-                      <td className="py-4 pr-4 text-gray-300">
-                        {user._count.watchList}
-                      </td>
-                      <td className="py-4 pr-4 text-gray-300">
-                        {user._count.recommendationLogs}
-                      </td>
-                      <td className="py-4">
-                        {user.emailVerified ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
-                            <Shield className="w-3 h-3" />
-                            Подтверждён
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-xs">
-                            Неподтверждён
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <UsersTable
+            users={serializedUsers}
+            totalUsersCount={filteredCount}
+            page={page}
+            pageSize={pageSize}
+            totalPages={totalPages}
+            hasNextPage={hasNextPage}
+            hasPrevPage={hasPrevPage}
+          />
         </div>
       </main>
     </div>

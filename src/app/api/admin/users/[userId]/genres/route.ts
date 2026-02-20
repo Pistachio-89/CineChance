@@ -1,3 +1,5 @@
+// src/app/api/admin/users/[userId]/genres/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
@@ -5,6 +7,8 @@ import { prisma } from '@/lib/prisma';
 import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 import { withCache } from '@/lib/redis';
 import { logger } from '@/lib/logger';
+
+const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
 
 // Genre ID to name mapping (TMDb + Anime genres)
 const GENRE_MAP: Record<number, string> = {
@@ -79,7 +83,10 @@ async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   try {
     const session = await getServerSession(authOptions);
 
@@ -87,18 +94,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    // Admin check
+    if (session.user.id !== ADMIN_USER_ID) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { userId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const statusesParam = searchParams.get('statuses');
     const mediaFilter = searchParams.get('media');
     const validMedia = ['movie', 'tv', 'cartoon', 'anime'].includes(mediaFilter || '') ? mediaFilter : null;
     
-    const cacheKey = `user:${userId}:genres:${validMedia || 'all'}:${statusesParam || 'default'}`;
+    const cacheKey = `admin:user:${userId}:genres:${validMedia || 'all'}:${statusesParam || 'default'}`;
 
     const fetchGenres = async () => {
       const whereClause: Record<string, unknown> = { userId };
       
-      // По умолчанию включаем все значимые статусы для статистики
       if (!statusesParam) {
         whereClause.statusId = { 
           in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED, MOVIE_STATUS_IDS.DROPPED] 
@@ -178,9 +189,9 @@ export async function GET(request: NextRequest) {
     const result = await withCache(cacheKey, fetchGenres, 1800);
     return NextResponse.json(result);
   } catch (error) {
-    logger.error('Error fetching user genres', { 
+    logger.error('Error fetching admin user genres', { 
       error: error instanceof Error ? error.message : String(error),
-      context: 'GenresAPI'
+      context: 'AdminGenresAPI'
     });
     return NextResponse.json(
       { error: 'Failed to fetch genres' },

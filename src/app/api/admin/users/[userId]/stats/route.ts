@@ -1,4 +1,4 @@
-// src/app/api/user/stats/route.ts
+// src/app/api/admin/users/[userId]/stats/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -9,6 +9,7 @@ import { rateLimit } from '@/middleware/rateLimit';
 import { withCache } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 
+const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PARALLEL_TMDB_REQUESTS = 10;
 
@@ -48,15 +49,21 @@ async function fetchMediaDetailsBatch(
   return results;
 }
 
-function isAnime(movie: any): boolean {
-  const hasAnimeGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
-  const isJapanese = movie.original_language === 'ja';
+function isAnime(movie: unknown): boolean {
+  if (!movie || typeof movie !== 'object') return false;
+  const m = movie as Record<string, unknown>;
+  const genres = m.genres as Array<{ id: number }> | undefined;
+  const hasAnimeGenre = genres?.some((g) => g.id === 16) ?? false;
+  const isJapanese = m.original_language === 'ja';
   return hasAnimeGenre && isJapanese;
 }
 
-function isCartoon(movie: any): boolean {
-  const hasAnimationGenre = movie.genres?.some((g: any) => g.id === 16) ?? false;
-  const isNotJapanese = movie.original_language !== 'ja';
+function isCartoon(movie: unknown): boolean {
+  if (!movie || typeof movie !== 'object') return false;
+  const m = movie as Record<string, unknown>;
+  const genres = m.genres as Array<{ id: number }> | undefined;
+  const hasAnimationGenre = genres?.some((g) => g.id === 16) ?? false;
+  const isNotJapanese = m.original_language !== 'ja';
   return hasAnimationGenre && isNotJapanese;
 }
 
@@ -85,16 +92,14 @@ function classifyMediaType(
   dbMediaType: string
 ): 'movie' | 'tv' | 'cartoon' | 'anime' {
   if (tmdbData && typeof tmdbData === 'object') {
-    const movie = tmdbData as Record<string, unknown>;
-    if (isAnime(movie)) return 'anime';
-    if (isCartoon(movie)) return 'cartoon';
+    if (isAnime(tmdbData)) return 'anime';
+    if (isCartoon(tmdbData)) return 'cartoon';
   }
   return dbMediaType as 'movie' | 'tv';
 }
 
 /**
  * Filters records in-memory for cartoon/anime types.
- * Returns array of records that match the requested filter type.
  */
 async function filterRecordsByMediaType(
   records: Array<{ tmdbId: number; mediaType: string; statusId: number; userRating: number | null }>,
@@ -151,15 +156,10 @@ async function calculateTypeBreakdown(
 }
 
 async function fetchStats(userId: string, mediaFilter?: string | null) {
-  // Check if we need in-memory filtering (cartoon/anime)
   const needsInMemoryFilter = mediaFilter === 'cartoon' || mediaFilter === 'anime';
   const mediaFilterCondition = mediaFilter ? getMediaTypeCondition(mediaFilter) : undefined;
 
-  // For cartoon/anime, we need to fetch ALL records and filter in-memory
-  // For movie/tv, we can use DB-level filtering
-
   if (needsInMemoryFilter) {
-    // Fetch ALL records with their status and rating info
     const allRecords = await prisma.watchList.findMany({
       where: {
         userId,
@@ -180,11 +180,9 @@ async function fetchStats(userId: string, mediaFilter?: string | null) {
       },
     });
 
-    // Filter by media type using TMDB classification
     const filterType = mediaFilter as 'cartoon' | 'anime';
     const filteredRecords = await filterRecordsByMediaType(allRecords, filterType);
 
-    // Calculate counts from filtered records
     const watchedCount = filteredRecords.filter(
       r => r.statusId === MOVIE_STATUS_IDS.WATCHED || r.statusId === MOVIE_STATUS_IDS.REWATCHED
     ).length;
@@ -197,7 +195,6 @@ async function fetchStats(userId: string, mediaFilter?: string | null) {
 
     const hiddenCount = await prisma.blacklist.count({ where: { userId } });
 
-    // Calculate typeBreakdown from ALL records (not filtered)
     const allRecordsForBreakdown = await prisma.watchList.findMany({
       where: {
         userId,
@@ -217,14 +214,12 @@ async function fetchStats(userId: string, mediaFilter?: string | null) {
     });
     const typeCounts = await calculateTypeBreakdown(allRecordsForBreakdown);
 
-    // Calculate average rating from filtered records with ratings
     const ratedRecords = filteredRecords.filter(r => r.userRating !== null);
     const ratedCount = ratedRecords.length;
     const averageRating = ratedCount > 0
       ? Math.round((ratedRecords.reduce((sum, r) => sum + (r.userRating || 0), 0) / ratedCount) * 10) / 10
       : null;
 
-    // Calculate rating distribution from filtered records
     const ratingDistribution: Record<number, number> = {};
     for (let i = 10; i >= 1; i--) {
       ratingDistribution[i] = 0;
@@ -255,7 +250,6 @@ async function fetchStats(userId: string, mediaFilter?: string | null) {
     };
   }
 
-  // Standard DB-level filtering for movie/tv/all
   const [watchedCount, wantToWatchCount, droppedCount, hiddenCount] = await Promise.all([
     prisma.watchList.count({
       where: {
@@ -359,9 +353,12 @@ async function fetchStats(userId: string, mediaFilter?: string | null) {
   };
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   try {
-    const { success } = await rateLimit(request, '/api/user/stats');
+    const { success } = await rateLimit(request, '/api/admin/user/stats');
     if (!success) {
       return NextResponse.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -371,19 +368,24 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    // Admin check
+    if (session.user.id !== ADMIN_USER_ID) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { userId } = await params;
     const { searchParams } = new URL(request.url);
     const mediaFilter = searchParams.get('media');
-    const validMedia = ['movie', 'tv', 'cartoon', 'anime'].includes(mediaFilter) ? mediaFilter : null;
-    const cacheKey = `user:${userId}:stats:${validMedia || 'all'}`;
+    const validMedia = ['movie', 'tv', 'cartoon', 'anime'].includes(mediaFilter || '') ? mediaFilter : null;
+    const cacheKey = `admin:user:${userId}:stats:${validMedia || 'all'}`;
 
     const responseData = await withCache(cacheKey, () => fetchStats(userId, validMedia), 3600);
 
     return NextResponse.json(responseData);
   } catch (error) {
-    logger.error('Error fetching user stats', { 
+    logger.error('Error fetching admin user stats', { 
       error: error instanceof Error ? error.message : String(error),
-      context: 'UserStatsAPI'
+      context: 'AdminUserStatsAPI'
     });
     return NextResponse.json(
       { error: 'Failed to fetch stats' },

@@ -366,6 +366,12 @@ export default function PersonClient({ personId }: PersonClientProps) {
                       
                       return (
                         <div key={statusKey} className="p-1">
+                          {/* Роль актера - над карточкой, с отступом 2px от верхней плашки */}
+                          {movie.character && (
+                            <p className="text-xs text-gray-400 mb-0.5 px-1 truncate">
+                              {movie.character}
+                            </p>
+                          )}
                           <MovieCardErrorBoundary>
                           <MovieCard
                             movie={movie as Media}
@@ -377,12 +383,6 @@ export default function PersonClient({ personId }: PersonClientProps) {
                             priority={index < 6}
                           />
                           </MovieCardErrorBoundary>
-                          {/* Роль актера */}
-                          {movie.character && (
-                            <p className="text-xs text-gray-500 mt-1 px-1 truncate">
-                              {movie.character}
-                            </p>
-                          )}
                         </div>
                       );
                     })}

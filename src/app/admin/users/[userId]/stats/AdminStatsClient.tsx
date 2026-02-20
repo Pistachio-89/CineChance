@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Star, Tag as TagIcon, Music, ArrowLeft, Film, Tv, Monitor } from 'lucide-react';
 
 interface UserStats {
@@ -36,8 +35,10 @@ interface GenreData {
   count: number;
 }
 
-interface StatsClientProps {
+interface AdminStatsClientProps {
   userId: string;
+  userName: string | null;
+  userEmail: string;
 }
 
 function AverageRatingSkeleton() {
@@ -105,7 +106,7 @@ function GenresSkeleton() {
   );
 }
 
-export default function StatsClient({ userId }: StatsClientProps) {
+export default function AdminStatsClient({ userId, userName, userEmail }: AdminStatsClientProps) {
   const [stats, setStats] = useState<UserStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [averageRatingLoading, setAverageRatingLoading] = useState(true);
@@ -114,7 +115,6 @@ export default function StatsClient({ userId }: StatsClientProps) {
   const [watchedGenres, setWatchedGenres] = useState<GenreData[]>([]);
   const [watchedGenresLoading, setWatchedGenresLoading] = useState(true);
   const [progress, setProgress] = useState(0);
-  const [progressMessage, setProgressMessage] = useState('');
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -150,7 +150,7 @@ export default function StatsClient({ userId }: StatsClientProps) {
   };
 
   const getProgressSubtext = () => {
-    if (progress < 20) return 'Считаем ваши оценки и их распределение';
+    if (progress < 20) return 'Считаем оценки и их распределение';
     if (progress < 40) return 'Анализируем использование тегов';
     if (progress < 60) return 'Определяем любимые жанры';
     if (progress < 80) return 'Вычисляем средние значения';
@@ -162,7 +162,6 @@ export default function StatsClient({ userId }: StatsClientProps) {
     const loadDataInParallel = async () => {
       try {
         setProgress(0);
-        setProgressMessage(getProgressMessage());
 
         progressIntervalRef.current = setInterval(() => {
           setProgress(prev => {
@@ -177,16 +176,16 @@ export default function StatsClient({ userId }: StatsClientProps) {
         }, 200);
 
         const statsUrl = typeFilter 
-          ? `/api/user/stats?media=${typeFilter}` 
-          : '/api/user/stats';
+          ? `/api/admin/users/${userId}/stats?media=${typeFilter}` 
+          : `/api/admin/users/${userId}/stats`;
         
         const tagUsageUrl = typeFilter 
-          ? `/api/user/tag-usage?media=${typeFilter}` 
-          : '/api/user/tag-usage';
+          ? `/api/admin/users/${userId}/tag-usage?media=${typeFilter}` 
+          : `/api/admin/users/${userId}/tag-usage`;
         
         const genresUrl = typeFilter 
-          ? `/api/user/genres?media=${typeFilter}` 
-          : '/api/user/genres';
+          ? `/api/admin/users/${userId}/genres?media=${typeFilter}` 
+          : `/api/admin/users/${userId}/genres`;
         
         const [statsRes, tagUsageRes, genresRes] = await Promise.all([
           fetch(statsUrl),
@@ -259,19 +258,27 @@ export default function StatsClient({ userId }: StatsClientProps) {
         clearInterval(progressIntervalRef.current);
       }
     };
-  }, [typeFilter]);
+  }, [typeFilter, userId]);
 
   const isLoading = statsLoading || averageRatingLoading || tagUsageLoading || watchedGenresLoading;
 
   return (
     <div className="space-y-6">
       <Link
-        href="/profile"
+        href="/admin/users"
         className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        <span>Вернуться в профиль</span>
+        <span>Вернуться к списку пользователей</span>
       </Link>
+
+      {/* User info header */}
+      <div className="bg-gray-800 rounded-xl border border-gray-700 p-4 md:p-6">
+        <h2 className="text-xl font-bold text-white mb-2">
+          {userName || 'Без имени'}
+        </h2>
+        <p className="text-gray-400 text-sm">{userEmail}</p>
+      </div>
 
       {/* Type breakdown cards */}
       {!isLoading && stats?.typeBreakdown && (
@@ -400,9 +407,8 @@ export default function StatsClient({ userId }: StatsClientProps) {
                       const barWidth = maxValue > 0 ? (count / maxValue) * 100 : 0;
                       
                       return (
-                        <Link
+                        <div
                           key={rating}
-                          href={`/stats/ratings/${rating}?source=ratings`}
                           className="flex items-center gap-3 group hover:opacity-80 transition"
                         >
                           <div className="relative w-7 h-7 flex-shrink-0 group-hover:scale-110 transition">
@@ -436,7 +442,7 @@ export default function StatsClient({ userId }: StatsClientProps) {
                           </div>
                           
                           <span className="text-gray-300 text-xs w-6 text-right">{count}</span>
-                        </Link>
+                        </div>
                       );
                     })}
                   </div>
@@ -460,9 +466,8 @@ export default function StatsClient({ userId }: StatsClientProps) {
                 const percentage = totalTags > 0 ? (tag.count / totalTags) * 100 : 0;
                 
                 return (
-                  <Link
+                  <div
                     key={tag.id}
-                    href={`/stats/tags/${tag.id}?source=tags`}
                     className="flex items-center gap-3 group hover:opacity-80 transition"
                   >
                     <div className="w-5 h-5 bg-cyan-400/20 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-cyan-400/40 transition">
@@ -480,7 +485,7 @@ export default function StatsClient({ userId }: StatsClientProps) {
                         />
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>
@@ -491,7 +496,7 @@ export default function StatsClient({ userId }: StatsClientProps) {
               <TagIcon className="w-4 h-4 text-cyan-400" />
               <h3 className="text-sm font-medium text-white">Теги пользователя</h3>
             </div>
-            <p className="text-gray-500 text-sm">Пока нет тегов. Добавляйте их при оценке фильма.</p>
+            <p className="text-gray-500 text-sm">Пока нет тегов.</p>
           </div>
         ) : null}
 
@@ -509,9 +514,8 @@ export default function StatsClient({ userId }: StatsClientProps) {
                 const percentage = totalWatched > 0 ? (genre.count / totalWatched) * 100 : 0;
                 
                 return (
-                  <Link
+                  <div
                     key={genre.id}
-                    href={`/stats/genres/${genre.id}?source=genres`}
                     className="flex items-center gap-3 group hover:opacity-80 transition"
                   >
                     <div className="w-5 h-5 bg-pink-400/20 rounded flex items-center justify-center flex-shrink-0 group-hover:bg-pink-400/40 transition">
@@ -529,7 +533,7 @@ export default function StatsClient({ userId }: StatsClientProps) {
                         />
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

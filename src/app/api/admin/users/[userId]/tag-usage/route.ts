@@ -1,5 +1,6 @@
+// src/app/api/admin/users/[userId]/tag-usage/route.ts
+
 import { NextRequest, NextResponse } from 'next/server';
- 
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
@@ -7,6 +8,7 @@ import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 import { withCache } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 
+const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 
 function isAnime(movie: unknown): boolean {
@@ -54,14 +56,22 @@ async function fetchMediaDetailsBatch(
   return results;
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userId = session.user.id;
+    // Admin check
+    if (session.user.id !== ADMIN_USER_ID) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { userId } = await params;
     const searchParams = request.nextUrl.searchParams;
     const limitParam = searchParams.get('limit');
     const statusesParam = searchParams.get('statuses');
@@ -70,10 +80,9 @@ export async function GET(request: NextRequest) {
     
     const _limit = limitParam ? parseInt(limitParam, 10) : 10;
     
-    const cacheKey = `user:${userId}:tag_usage:${validMedia || 'all'}:${statusesParam || 'default'}`;
+    const cacheKey = `admin:user:${userId}:tag_usage:${validMedia || 'all'}:${statusesParam || 'default'}`;
 
     const fetchTags = async () => {
-      // По умолчанию включаем все значимые статусы для статистики
       let statusFilter = {
         statusId: { in: [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED, MOVIE_STATUS_IDS.DROPPED] }
       };
@@ -87,7 +96,6 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Получаем все теги пользователя без лимита
       const tags = await prisma.tag.findMany({
         where: {
           userId,
@@ -102,7 +110,6 @@ export async function GET(request: NextRequest) {
       const tagUsageCounts: Record<string, number> = {};
       
       if (tagIds.length > 0) {
-        // Build base query conditions
         const baseWhere = {
           userId,
           tags: {
@@ -113,15 +120,11 @@ export async function GET(request: NextRequest) {
           ...statusFilter
         };
 
-        // For movie/tv, we can filter at DB level
-        // For cartoon/anime, we need in-memory filtering
-        // For no filter, we need tmdbId and mediaType for type breakdown
         const needsMediaFiltering = validMedia === 'cartoon' || validMedia === 'anime';
         
         const watchListsWithTags = await prisma.watchList.findMany({
           where: {
             ...baseWhere,
-            // Add DB-level filter for movie/tv
             ...(validMedia === 'movie' || validMedia === 'tv' ? { mediaType: validMedia } : {}),
           },
           select: {
@@ -131,7 +134,6 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        // If filtering by cartoon/anime, we need to check TMDB data
         if (needsMediaFiltering && watchListsWithTags.length > 0) {
           const tmdbDataMap = await fetchMediaDetailsBatch(
             watchListsWithTags.map(r => ({ tmdbId: r.tmdbId, mediaType: r.mediaType }))
@@ -144,7 +146,6 @@ export async function GET(request: NextRequest) {
             const isAnimeContent = isAnime(tmdbData);
             const isCartoonContent = isCartoon(tmdbData);
             
-            // Only count tags for matching media type
             const matchesFilter = 
               (validMedia === 'anime' && isAnimeContent) ||
               (validMedia === 'cartoon' && isCartoonContent);
@@ -156,7 +157,6 @@ export async function GET(request: NextRequest) {
             }
           }
         } else {
-          // No in-memory filtering needed
           for (const item of watchListsWithTags) {
             for (const tag of item.tags) {
               tagUsageCounts[tag.id] = (tagUsageCounts[tag.id] || 0) + 1;
@@ -180,9 +180,9 @@ export async function GET(request: NextRequest) {
     const result = await withCache(cacheKey, fetchTags, 1800);
     return NextResponse.json(result);
   } catch (error) {
-    logger.error('Error fetching tag usage', { 
+    logger.error('Error fetching admin tag usage', { 
       error: error instanceof Error ? error.message : String(error),
-      context: 'TagUsageAPI'
+      context: 'AdminTagUsageAPI'
     });
     return NextResponse.json(
       { error: 'Failed to fetch tag usage' },
