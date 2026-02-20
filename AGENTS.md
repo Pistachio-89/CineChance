@@ -35,6 +35,16 @@ npm run lint            # ESLint check
 npm run lint:strict     # ESLint with max warnings 0
 ```
 
+### Verification After Tasks
+
+**MANDATORY after completing any code change:**
+```bash
+npm run lint            # ESLint check
+npm run test:ci         # Run all tests (Vitest, CI mode)
+```
+
+Both commands must pass before considering the task complete.
+
 ### Database
 ```bash
 npm run seed            # Seed database (ts-node prisma/seed.ts)
