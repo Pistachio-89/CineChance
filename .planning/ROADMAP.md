@@ -10,7 +10,7 @@
 - 🔄 **v1.1 Lint Cleanup** — Phase 3 (in progress)
 - ✅ **v1.2 Animation Filter** — Phase 4 (completed 2026-02-19)
 - ✅ **v1.3 Recommendation Filters Enhancement** — Phase 5 (completed 2026-02-19)
-- 🔄 **Phase 6** — Доработка страницы статистики /profile/stats
+- ✅ **Phase 6: Stats Page Enhancement** — Completed 2026-02-20
 
 ---
 
