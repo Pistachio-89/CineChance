@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Personal movie tracking with intelligent recommendations
-**Current focus:** Phase 7: Admin User Statistics
+**Current focus:** Phase 8: Admin Panel UI Improvements
 
 ## Current Status
 
 - **Phase:** 8 (Admin panel UI)
-- **Current Plan:** Not started
+- **Current Plan:** 01 Complete
 - **Total Plans:** 01/01
-- **Goal:** Admin panel UI improvements - sidebar, user table, stats
+- **Goal:** Admin panel UI improvements - COMPLETE
 
 ## Progress
 
@@ -25,14 +25,15 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 | 5 | Content Filters | ● Complete | 0 |
 | 6 | Stats Page | ● Complete | 0 |
 | 7 | Admin User Statistics | ● Complete | 0 |
-| 8 | Admin Panel UI | ○ Pending | 0 |
+| 8 | Admin Panel UI | ● Complete | 0 |
 
 ## Last Updated
 
-2026-02-20 after Phase 7 Plan 3 (07-03) - Created admin user statistics page at /admin/users/[userId]/stats with API routes for stats, tags, and genres. Added click navigation from user list.
+2026-02-21 after Phase 8 Plan 1 (08-01) - Redesigned admin panel UI: icon-only sidebar with tooltips, manual filtering with Go button, removed status column/filter, added site-wide stats cards (movies, recommendations, matches).
 
 ## Execution History
 
+- **08-01:** Completed (7 min) - Admin panel UI redesign: sidebar icons only with tooltips, user table with manual filtering, removed status column, renamed Реком., added site-wide stats (movies in lists, recommendations, matches)
 - **07-03:** Completed (16 min) - Admin user statistics page with content type filtering (movie/tv/cartoon/anime), rating distribution, tags, and genres. Created admin API routes for fetching any user's data. Added navigation from user list.
 - **07-02:** Completed (16 min) - Server-side column sorting (name, email, createdAt, watchList, recommendationLogs, status) and filtering (name, email, verification status) on admin users table with URL params and Prisma queries
 - **07-01:** Completed (4 min) - Server-side pagination for admin users page with URL params, page size selector (10/25/50/100), prev/next navigation, and efficient Prisma skip/take queries
@@ -53,3 +54,8 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ### Roadmap Evolution
 - Phase 7 added: Admin user statistics
 - Phase 8 added: Admin panel UI improvements
+
+### Key Decisions (Phase 8)
+- Removed status column/filter for cleaner UI
+- Added manual "Go" button for filtering to prevent excessive API calls
+- Used raw SQL for matches count to efficiently find shared movies between users
