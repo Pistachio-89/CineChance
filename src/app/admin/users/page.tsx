@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import AdminSidebar from "../AdminSidebar";
 import UsersTable from "./UsersTable";
-import { Users, Calendar, Shield } from 'lucide-react';
+import { Users, Calendar, Film, Sparkles, Heart } from 'lucide-react';
 import { Prisma } from '@prisma/client';
 
 interface SearchParams {
@@ -14,7 +14,6 @@ interface SearchParams {
   order?: string;
   filterName?: string;
   filterEmail?: string;
-  filterStatus?: string;
 }
 
 export default async function UsersAdminPage({
@@ -55,12 +54,6 @@ export default async function UsersAdminPage({
     where.email = { contains: params.filterEmail, mode: 'insensitive' };
   }
 
-  if (params.filterStatus === 'verified') {
-    where.emailVerified = { not: null };
-  } else if (params.filterStatus === 'unverified') {
-    where.emailVerified = { equals: null };
-  }
-
   // Build orderBy clause (using any for Prisma complex order types)
   let orderBy: Prisma.UserOrderByWithRelationInput[] = [{ createdAt: 'desc' }, { id: 'desc' }];
 
@@ -79,9 +72,6 @@ export default async function UsersAdminPage({
       break;
     case 'recommendationLogs':
       orderBy = [{ recommendationLogs: { _count: sortDirection } }, { id: 'desc' }];
-      break;
-    case 'status':
-      orderBy = [{ emailVerified: sortDirection === 'asc' ? 'desc' : 'asc' }, { id: 'desc' }];
       break;
   }
 
@@ -112,15 +102,31 @@ export default async function UsersAdminPage({
 
   // Общая статистика (по всем пользователям, без фильтров)
   const totalUsersCount = await prisma.user.count();
-  const verifiedCount = await prisma.user.count({
-    where: { emailVerified: { not: null } },
-  });
 
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const newUsers7DaysCount = await prisma.user.count({
     where: { createdAt: { gt: sevenDaysAgo } },
   });
+
+  // Site-wide stats for the new cards
+  const totalMoviesCount = await prisma.watchList.count();
+  const totalRecommendationsCount = await prisma.recommendationLog.count();
+  
+  // Count matches: watchlist items where the same movie (tmdbId + mediaType) 
+  // appears in multiple users' watchlists
+  const matchesResult = await prisma.$queryRaw<[{ count: bigint }]>`
+    SELECT COUNT(*) as count
+    FROM (
+      SELECT DISTINCT w1."tmdbId", w1."mediaType"
+      FROM "WatchList" w1
+      INNER JOIN "WatchList" w2 
+        ON w1."tmdbId" = w2."tmdbId" 
+        AND w1."mediaType" = w2."mediaType" 
+        AND w1."userId" != w2."userId"
+    ) matches
+  `;
+  const totalMatchesCount = Number(matchesResult[0].count);
 
   // Расчёт пагинации
   const totalPages = Math.ceil(filteredCount / pageSize);
@@ -149,8 +155,8 @@ export default async function UsersAdminPage({
           </p>
         </div>
 
-        {/* Статистика */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Статистика пользователей */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
             <div className="flex items-center gap-3 mb-2">
               <Users className="w-5 h-5 text-blue-400" />
@@ -161,18 +167,37 @@ export default async function UsersAdminPage({
 
           <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
             <div className="flex items-center gap-3 mb-2">
-              <Shield className="w-5 h-5 text-green-400" />
-              <span className="text-gray-400 text-sm">Подтверждённых</span>
-            </div>
-            <p className="text-3xl font-bold text-green-400">{verifiedCount}</p>
-          </div>
-
-          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
-            <div className="flex items-center gap-3 mb-2">
               <Calendar className="w-5 h-5 text-purple-400" />
               <span className="text-gray-400 text-sm">За 7 дней</span>
             </div>
             <p className="text-3xl font-bold text-purple-400">{newUsers7DaysCount}</p>
+          </div>
+        </div>
+
+        {/* Статистика по контенту */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Film className="w-5 h-5 text-cyan-400" />
+              <span className="text-gray-400 text-sm">Всего фильмов в списках</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{totalMoviesCount}</p>
+          </div>
+
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Sparkles className="w-5 h-5 text-yellow-400" />
+              <span className="text-gray-400 text-sm">Всего рекомендаций</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{totalRecommendationsCount}</p>
+          </div>
+
+          <div className="bg-gray-800 rounded-xl border border-gray-700 p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <Heart className="w-5 h-5 text-pink-400" />
+              <span className="text-gray-400 text-sm">Всего совпадений</span>
+            </div>
+            <p className="text-3xl font-bold text-white">{totalMatchesCount}</p>
           </div>
         </div>
 
