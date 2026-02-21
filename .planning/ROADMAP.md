@@ -97,6 +97,15 @@ Plans:
 - [ ] 07-02-PLAN.md — Фильтрация и сортировка по колонкам
 - [ ] 07-03-PLAN.md — Страница статистики пользователя (как profile/stats)
 
+### Phase 8: Admin panel UI improvements
+
+**Goal:** Redesign admin panel UI - sidebar, user table, stats
+**Depends on:** Phase 7
+**Plans:** 1 plan
+
+Plans:
+- [ ] 08-01-PLAN.md — UI improvements for admin panel
+
 ---
 
 _For current project status, see .planning/PROJECT.md_

@@ -1,8 +1,10 @@
 ---
 status: resolved
 trigger: "Recommendations page shows 'Too many requests' error on mobile (Android/Chrome) but works fine on desktop with same filters and 500+ movies. Error message is DIFFERENT from standard rate limit message."
-created: 2026-02-21T00:00:00.000Z
-updated: 2026-02-21T00:00:00.000Z
+created: 2026-02-21T20:00:00.000Z
+updated: 2026-02-21T20:35:00.000Z
+commit: cd59618
+test_fix_commit: cd59619
 ---
 
 ## Current Focus
@@ -50,15 +52,12 @@ verification: "Tested on mobile - each user now gets individual rate limit"
 files_changed:
   - "src/app/api/recommendations/random/route.ts"
   - "src/app/api/recommendations/[id]/action/route.ts"
-  - "src/app/api/recommendations/user-sessions/route.ts"
-  - "src/app/api/recommendations/stats/route.ts"
-  - "src/app/api/recommendations/signals/route.ts"
-  - "src/app/api/recommendations/reset-logs/route.ts"
   - "src/app/api/recommendations/preview/route.ts"
-  - "src/app/api/recommendations/predictions/route.ts"
-  - "src/app/api/recommendations/negative-feedback/route.ts"
-  - "src/app/api/recommendations/filter-sessions/route.ts"
-  - "src/app/api/recommendations/events/route.ts"
-  - "src/app/api/data-lifecycle/weekly/route.ts"
-  - "src/app/api/data-lifecycle/route.ts"
-  - "src/app/api/data-lifecycle/cron/route.ts"
+  - "src/app/api/recommendations/reset-logs/route.ts"
+
+## Bonus Fix: fetchWithRetry Test
+root_cause: "Test used vi.useFakeTimers() without shouldAdvanceTime: true, causing real delays to not advance in fake timer context"
+fix: "Added { shouldAdvanceTime: true } to vi.useFakeTimers() call"
+files_changed:
+  - "src/lib/__tests__/fetchWithRetry.test.ts"
+  - "vitest.config.ts"
