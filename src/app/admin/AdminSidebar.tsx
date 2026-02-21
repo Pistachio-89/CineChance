@@ -2,11 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const menuItems = [
     {
@@ -65,8 +63,7 @@ export default function AdminSidebar() {
               <li key={item.href} className="relative">
                 <Link
                   href={item.href}
-                  onMouseEnter={() => setHoveredItem(item.href)}
-                  onMouseLeave={() => setHoveredItem(null)}
+                  title={item.title}
                   className={`flex items-center justify-center w-10 h-10 rounded-lg transition ${
                     isActive
                       ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
@@ -75,14 +72,6 @@ export default function AdminSidebar() {
                 >
                   {item.icon}
                 </Link>
-                {/* Tooltip */}
-                {hoveredItem === item.href && (
-                  <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50">
-                    <div className="bg-gray-800 text-white text-sm px-3 py-1.5 rounded-lg whitespace-nowrap border border-gray-700 shadow-lg">
-                      {item.title}
-                    </div>
-                  </div>
-                )}
               </li>
             );
           })}

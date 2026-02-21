@@ -70,6 +70,9 @@ export default function UsersTable({
   // Local state for input fields (not applied until Go clicked)
   const [localFilters, setLocalFilters] = useState<Filters>(appliedFilters);
   
+  // Filter panel visibility (expanded by default)
+  const [showFilters, setShowFilters] = useState(true);
+  
   // Sync local state with URL filters on mount/URL change
   useEffect(() => {
     setLocalFilters(appliedFilters);
@@ -201,12 +204,12 @@ export default function UsersTable({
       {/* Filter controls */}
       <div className="flex items-center gap-4 flex-wrap">
         <button
-          onClick={() => {
-            if (hasActiveFilters) {
-              clearFilters();
-            }
-          }}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            showFilters 
+              ? 'bg-purple-600 hover:bg-purple-500 text-white' 
+              : 'bg-gray-700 hover:bg-gray-600 text-white'
+          }`}
         >
           <Search className="w-4 h-4" />
           Фильтры
@@ -230,39 +233,42 @@ export default function UsersTable({
         </span>
       </div>
 
-      {/* Filter inputs - always visible for simplicity */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-700/30 rounded-lg border border-gray-700">
-        <div>
-          <label className="block text-gray-400 text-sm mb-2">Имя</label>
-          <input
-            type="text"
-            placeholder="Поиск по имени..."
-            value={localFilters.name}
-            onChange={(e) => setLocalFilters(prev => ({ ...prev, name: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-          />
+      {/* Filter inputs - toggleable */}
+      {showFilters && (
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 bg-gray-700/30 rounded-lg border border-gray-700">
+          <div className="md:col-span-4">
+            <label className="block text-gray-400 text-sm mb-2">Имя</label>
+            <input
+              type="text"
+              placeholder="Поиск по имени..."
+              value={localFilters.name}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, name: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="md:col-span-4">
+            <label className="block text-gray-400 text-sm mb-2">Email</label>
+            <input
+              type="text"
+              placeholder="Поиск по email..."
+              value={localFilters.email}
+              onChange={(e) => setLocalFilters(prev => ({ ...prev, email: e.target.value }))}
+              onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
+              className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            />
+          </div>
+          <div className="md:col-span-4 flex items-end gap-2">
+            <button
+              onClick={applyFilters}
+              className="w-10 h-10 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium flex items-center justify-center"
+              title="Найти"
+            >
+              Go
+            </button>
+          </div>
         </div>
-        <div>
-          <label className="block text-gray-400 text-sm mb-2">Email</label>
-          <input
-            type="text"
-            placeholder="Поиск по email..."
-            value={localFilters.email}
-            onChange={(e) => setLocalFilters(prev => ({ ...prev, email: e.target.value }))}
-            onKeyDown={(e) => e.key === 'Enter' && applyFilters()}
-            className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500"
-          />
-        </div>
-        <div className="flex items-end">
-          <button
-            onClick={applyFilters}
-            className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-lg transition-colors font-medium"
-          >
-            Найти
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* Table */}
       <div className="overflow-x-auto">
