@@ -11,18 +11,21 @@ import { rateLimit } from '@/middleware/rateLimit';
  * Удаляет все записи из RecommendationLog
  */
 export async function POST(req: Request) {
-  const { success } = await rateLimit(req, '/api/recommendations');
+  // Check authentication FIRST to get userId for user-based rate limiting
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id;
+
+  // Apply rate limiting with userId for per-user limits (not IP-based)
+  const { success } = await rateLimit(req, '/api/recommendations', userId);
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
   
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id;
 
     // Удаляем все записи RecommendationLog для пользователя
     const deletedCount = await prisma.recommendationLog.deleteMany({

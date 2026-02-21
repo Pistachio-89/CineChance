@@ -270,22 +270,24 @@ export async function GET(req: Request) {
   const startTime = Date.now();
   const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
   
-  // Apply rate limiting
-  const { success } = await rateLimit(req, '/api/recommendations');
+  // Check authentication FIRST to get userId for user-based rate limiting
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    const unknownReqId = requestId || 'unknown';
+    logger.warn(formatRecLog(unknownReqId, endpoint, '-', 'unauthorized'));
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id as string;
+  
+  // Apply rate limiting with userId for per-user limits (not IP-based)
+  const { success } = await rateLimit(req, '/api/recommendations', userId);
   if (!success) {
-    logger.warn(formatRecLog(requestId, endpoint, '-', 'rate_limit'));
+    logger.warn(formatRecLog(requestId, endpoint, userId, 'rate_limit'));
     return NextResponse.json({ success: false, message: 'Too many requests' }, { status: 429 });
   }
   
   try {
-    // Проверка аутентификации
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      logger.warn(formatRecLog(requestId, endpoint, '-', 'unauthorized'));
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const userId = session.user.id as string;
     const url = new URL(req.url);
     const { types, lists, minRating, yearFrom, yearTo, genres, tags } = parseFilterParams(url);
     

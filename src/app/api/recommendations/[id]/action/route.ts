@@ -10,19 +10,22 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { success } = await rateLimit(req, '/api/recommendations');
+  // Check authentication FIRST to get userId for user-based rate limiting
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id as string;
+
+  // Apply rate limiting with userId for per-user limits (not IP-based)
+  const { success } = await rateLimit(req, '/api/recommendations', userId);
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
 
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await params;
-    const userId = session.user.id as string;
 
     // Проверяем запись - используем select для минимизации данных
     const logEntry = await prisma.recommendationLog.findFirst({
@@ -111,19 +114,22 @@ export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { success } = await rateLimit(req, '/api/recommendations');
+  // Check authentication FIRST to get userId for user-based rate limiting
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const userId = session.user.id as string;
+
+  // Apply rate limiting with userId for per-user limits (not IP-based)
+  const { success } = await rateLimit(req, '/api/recommendations', userId);
   if (!success) {
     return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
   }
 
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await params;
-    const userId = session.user.id as string;
 
     // Оптимизированный запрос - выбираем только необходимые поля
     const logEntry = await prisma.recommendationLog.findFirst({
