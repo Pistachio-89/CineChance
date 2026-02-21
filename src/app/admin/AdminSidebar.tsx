@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const menuItems = [
     {
@@ -46,50 +48,46 @@ export default function AdminSidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
+    <aside className="w-16 bg-gray-900 border-r border-gray-800 flex flex-col h-full">
       {/* Заголовок */}
-      <div className="p-6 border-b border-gray-800">
-        <h2 className="text-xl font-bold text-white">Админ-панель</h2>
+      <div className="p-4 border-b border-gray-800 flex items-center justify-center">
+        <span className="text-xl font-bold text-white">A</span>
       </div>
 
       {/* Навигация */}
-      <nav className="flex-1 px-4 py-6 overflow-y-auto">
-        <ul className="space-y-2">
+      <nav className="flex-1 py-6 overflow-y-auto">
+        <ul className="space-y-2 flex flex-col items-center">
           {menuItems.map((item) => {
             const isActive = pathname === item.href || 
               (item.href !== '/admin' && pathname.startsWith(item.href));
 
             return (
-              <li key={item.href}>
+              <li key={item.href} className="relative">
                 <Link
                   href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition ${
+                  onMouseEnter={() => setHoveredItem(item.href)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                  className={`flex items-center justify-center w-10 h-10 rounded-lg transition ${
                     isActive
                       ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30'
                       : 'text-gray-300 hover:text-white hover:bg-gray-800'
                   }`}
                 >
                   {item.icon}
-                  <span className="font-medium">{item.title}</span>
                 </Link>
+                {/* Tooltip */}
+                {hoveredItem === item.href && (
+                  <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50">
+                    <div className="bg-gray-800 text-white text-sm px-3 py-1.5 rounded-lg whitespace-nowrap border border-gray-700 shadow-lg">
+                      {item.title}
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </nav>
-
-      {/* Кнопка назад */}
-      <div className="p-4 border-t border-gray-800">
-        <Link
-          href="/"
-          className="flex items-center gap-2 px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span>Назад к сайту</span>
-        </Link>
-      </div>
     </aside>
   );
 }
