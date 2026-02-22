@@ -9,10 +9,10 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 ## Current Status
 
-- **Phase:** 9 (ML Database Schema)
-- **Current Plan:** Not started
-- **Total Plans:** 01/01
-- **Goal:** Add ML tables to Prisma schema ✓
+- **Phase:** 10 (Taste Map Infrastructure)
+- **Current Plan:** 01/02
+- **Total Plans:** 02/02
+- **Goal:** Create TasteMap data structure + Redis + Similarity calculation ✓
 
 ## Progress
 
@@ -20,6 +20,7 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 |-------|------|--------|--------------|
 | 1-8 | v1.0 Stabilization | ● Complete | 10 |
 | 9 | ML Database Schema | ● Complete | 0 |
+| 10 | Taste Map Infrastructure | ◐ In Progress | 0 |
 
 ---
 
@@ -39,10 +40,11 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 ## Last Updated
 
-2026-02-22 - Phase 9 complete: ML schema tables added
+2026-02-22 - Phase 10-01 complete: TasteMap infrastructure created (types, Redis storage, computation functions)
 
 ## Execution History
 
+- **10-01:** Completed (11 min) - Created TasteMap infrastructure: TypeScript interfaces (TasteMap, GenreProfile, PersonProfiles, BehaviorProfile, ComputedMetrics), Redis storage helpers with 24h TTL, core computation functions querying Prisma WatchList and TMDB credits
 - **09-01:** Completed (19 min) - Added 4 ML feedback loop tables to Prisma schema: RecommendationDecision, PredictionOutcome, ModelCorrection, ModelTraining. Migration pending manual execution due to DB connection issues.
 - **08-01:** Completed (7 min) - Admin panel UI redesign: sidebar icons only with tooltips, user table with manual filtering, removed status column, renamed Реком., added site-wide stats (movies in lists, recommendations, matches)
 - **07-03:** Completed (16 min) - Admin user statistics page with content type filtering (movie/tv/cartoon/anime), rating distribution, tags, and genres. Created admin API routes for fetching any user's data. Added navigation from user list.
@@ -69,6 +71,12 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ### Key Decisions (Phase 9)
 - ModelTraining is global (no userId) - tracks model versions, not per-user data
 - ModelCorrection has optional userId for global or user-specific corrections
+
+### Key Decisions (Phase 10)
+- Used withCache pattern from existing @/lib/redis
+- 24h TTL matches RESEARCH.md specifications
+- Empty profile returned for new users
+- Limited TMDB fetch to 50 items for performance
 
 ### Key Decisions (Phase 8)
 - Removed status column/filter for cleaner UI
