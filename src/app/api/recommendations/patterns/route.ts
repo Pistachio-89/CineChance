@@ -239,11 +239,12 @@ async function applyCooldownFilter(
 
 /**
  * Log recommendations to RecommendationLog
+ * Returns array of created log IDs
  */
 async function logRecommendations(
   userId: string,
   recommendations: RecommendationItem[]
-): Promise<void> {
+): Promise<string[]> {
   try {
     const logPromises = recommendations.map(rec => 
       prisma.recommendationLog.create({
@@ -262,13 +263,15 @@ async function logRecommendations(
       })
     );
 
-    await Promise.all(logPromises);
+    const createdLogs = await Promise.all(logPromises);
+    return createdLogs.map(log => log.id);
   } catch (error) {
     logger.error('Failed to log recommendations', {
       error: error instanceof Error ? error.message : String(error),
       userId,
       context: 'PatternsAPI',
     });
+    return [];
   }
 }
 
@@ -491,9 +494,10 @@ export async function GET(req: Request) {
       });
     }
 
-    // Log recommendations
+    // Log recommendations and capture the log IDs
+    let logIds: string[] = [];
     if (recommendations.length > 0) {
-      await logRecommendations(userId, recommendations);
+      logIds = await logRecommendations(userId, recommendations);
     }
 
     // Calculate confidence score
@@ -524,6 +528,7 @@ export async function GET(req: Request) {
     const responseData = {
       success: true,
       recommendations,
+      logIds,
       meta: {
         isColdStart,
         coldStart: {
