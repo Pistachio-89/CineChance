@@ -177,7 +177,7 @@ Plans:
 
 **Goal:** Интегрировать рекомендации в UI
 **Depends on:** Phase 13
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 14-01-PLAN.md — Main page: Top-12 recommendations horizontal scroll

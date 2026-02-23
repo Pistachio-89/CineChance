@@ -10,7 +10,7 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ## Current Status
 
 - **Phase:** 14 (UI Integration)
-- **Current Plan:** 14-02 Complete
+- **Current Plan:** Not started
 - **Goal:** Recommendations UI integration complete
 
 ## Progress
