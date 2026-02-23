@@ -26,6 +26,7 @@ interface RecommendationItem {
 interface RecommendationsResponse {
   success: boolean;
   recommendations: RecommendationItem[];
+  logIds?: string[];
   meta: {
     isColdStart: boolean;
     coldStart?: {
@@ -72,6 +73,7 @@ function recommendationToMedia(item: RecommendationItem): Media {
 
 export default function RecommendationsGrid() {
   const [recommendations, setRecommendations] = useState<RecommendationItem[]>([]);
+  const [logIds, setLogIds] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<RecommendationsResponse['meta'] | null>(null);
@@ -99,6 +101,23 @@ export default function RecommendationsGrid() {
         if (data.success) {
           setRecommendations(data.recommendations);
           setMeta(data.meta);
+          
+          // Store logIds mapping in localStorage for outcome tracking
+          if (data.logIds && data.recommendations.length > 0) {
+            const logIdMap: Record<string, string> = {};
+            data.recommendations.forEach((rec, index) => {
+              if (data.logIds && data.logIds[index]) {
+                logIdMap[String(rec.tmdbId)] = data.logIds[index];
+              }
+            });
+            
+            // Store mapping in localStorage
+            if (Object.keys(logIdMap).length > 0) {
+              localStorage.setItem('rec_logid_map', JSON.stringify(logIdMap));
+            }
+            
+            setLogIds(data.logIds);
+          }
         } else {
           setRecommendations([]);
         }
