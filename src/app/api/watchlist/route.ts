@@ -10,6 +10,7 @@ import { rateLimit } from "@/middleware/rateLimit";
 import { calculateWeightedRating } from "@/lib/calculateWeightedRating";
 import { invalidateUserCache } from "@/lib/redis";
 import { recomputeTasteMap } from '@/lib/taste-map/compute';
+import { trackOutcome } from '@/lib/recommendation-outcome-tracking';
 import { randomUUID } from 'crypto';
 
 // Helper to get or generate request ID
@@ -138,7 +139,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { tmdbId, mediaType, status, title, voteAverage, userRating, watchedDate, isRewatch, isRatingOnly } = body;
+    const { tmdbId, mediaType, status, title, voteAverage, userRating, watchedDate, isRewatch, isRatingOnly, recommendationLogId } = body;
     
     logger.debug(formatWatchlistLog(requestId, endpoint, session.user.id, 'request', tmdbId, `status: ${status}, isRewatch: ${isRewatch}, isRatingOnly: ${isRatingOnly}`));
 
@@ -489,6 +490,29 @@ export async function POST(req: Request) {
     }
 
     await invalidateUserCache(session.user.id);
+
+    // Track recommendation outcome if recommendationLogId provided and status is watched/rewatched
+    if (recommendationLogId && (status === 'watched' || status === 'rewatched')) {
+      try {
+        await trackOutcome({
+          recommendationLogId,
+          action: 'added',
+        });
+        logger.debug('Recommendation outcome tracked', {
+          recommendationLogId,
+          userId: session.user.id,
+          tmdbId,
+          status,
+        });
+      } catch (error) {
+        // Non-blocking - outcome tracking failure shouldn't fail the request
+        logger.error('Failed to track recommendation outcome', {
+          error: error instanceof Error ? error.message : String(error),
+          recommendationLogId,
+          userId: session.user.id,
+        });
+      }
+    }
 
     // Trigger background taste map recomputation
     after(async () => {
