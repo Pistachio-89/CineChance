@@ -11,6 +11,8 @@ import { dropPatterns } from './recommendation-algorithms/drop-patterns';
 import { typeTwins } from './recommendation-algorithms/type-twins';
 import { personTwins } from './recommendation-algorithms/person-twins';
 import { personRecommendations } from './recommendation-algorithms/person-recommendations';
+import { genreTwins } from './recommendation-algorithms/genre-twins';
+import { genreRecommendations } from './recommendation-algorithms/genre-recommendations';
 
 // Re-export types and interface
 export type {
@@ -35,6 +37,8 @@ export { dropPatterns } from './recommendation-algorithms/drop-patterns';
 export { typeTwins } from './recommendation-algorithms/type-twins';
 export { personTwins } from './recommendation-algorithms/person-twins';
 export { personRecommendations } from './recommendation-algorithms/person-recommendations';
+export { genreTwins } from './recommendation-algorithms/genre-twins';
+export { genreRecommendations } from './recommendation-algorithms/genre-recommendations';
 
 /**
  * All available recommendation algorithms
@@ -48,6 +52,8 @@ export { personRecommendations } from './recommendation-algorithms/person-recomm
  * Pattern 4 (typeTwins): Content type preference matching
  * Pattern 5 (personTwins): Users with similar favorite actors/directors
  * Pattern 6 (personRecommendations): Movies featuring user's favorite persons
+ * Pattern 7 (genreTwins): Users with similar genre preferences
+ * Pattern 8 (genreRecommendations): Movies in user's dominant genres
  */
 export const recommendationAlgorithms = [
   tasteMatch,
@@ -56,6 +62,8 @@ export const recommendationAlgorithms = [
   typeTwins,
   personTwins,
   personRecommendations,
+  genreTwins,
+  genreRecommendations,
 ];
 
 /**
