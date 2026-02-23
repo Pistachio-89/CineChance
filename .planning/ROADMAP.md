@@ -127,7 +127,7 @@ Plans:
 
 **Goal:** Создать инфраструктуру для вычисления и хранения Taste Map
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 3/3 plans complete
 
 Plans:
 - [x] 10-01-PLAN.md — TasteMap структура данных и Redis хранение
@@ -139,11 +139,11 @@ Plans:
 
 **Goal:** Реализовать базовые паттерны рекомендаций (1-4)
 **Depends on:** Phase 10
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 11-01-PLAN.md — Patterns 1-2: Taste Match, Want-to-watch Overlap
-- [ ] 11-02-PLAN.md — Patterns 3-4: Drop Patterns, Type Twins
+- [x] 11-01-PLAN.md — Patterns 1-2: Taste Match, Want-to-watch Overlap
+- [x] 11-02-PLAN.md — Patterns 3-4: Drop Patterns, Type Twins
 
 ---
 
@@ -151,7 +151,7 @@ Plans:
 
 **Goal:** Реализовать продвинутые паттерны рекомендаций (5-8)
 **Depends on:** Phase 11
-**Plans:** 2 plans
+**Plans:** 2/2 plans created
 
 Plans:
 - [ ] 12-01-PLAN.md — Patterns 5-6: Genre Twins, Genre Recommendations
