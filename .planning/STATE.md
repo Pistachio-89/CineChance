@@ -5,14 +5,13 @@
 See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Personal movie tracking with intelligent recommendations
-**Current focus:** Phase 9: ML Database Schema
+**Current focus:** Phase 16: ML Stats Security
 
 ## Current Status
 
-- **Phase:** 9 (ML Database Schema)
+- **Phase:** 18 (Карта вкуса)
 - **Current Plan:** Not started
-- **Total Plans:** 01/01
-- **Goal:** Add ML tables to Prisma schema ✓
+- **Goal:** [To be planned]
 
 ## Progress
 
@@ -20,6 +19,15 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 |-------|------|--------|--------------|
 | 1-8 | v1.0 Stabilization | ● Complete | 10 |
 | 9 | ML Database Schema | ● Complete | 0 |
+| 10 | Taste Map Infrastructure | ● Complete | 0 |
+| 11 | Core Patterns | ● Complete | 0 |
+| 12 | Advanced Patterns | ● Complete | 0 |
+| 13 | Recommendation API | ● Complete | 3 |
+| 14 | UI Integration | ● Complete | 0 |
+| 15 | ML Feedback Loop | ● Complete | 1 |
+| 16 | ML Stats Security | ● Complete | 0 |
+| 17 | Outcome Tracking | ● Complete | 0 |
+| 18 | Карта вкуса | ○ Not planned | 0 |
 
 ---
 
@@ -37,40 +45,72 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 | 14 | UI Integration | Main page + Admin dashboard |
 | 15 | ML Feedback Loop | Decision logging + outcome tracking |
 
-## Last Updated
 
-2026-02-22 - Phase 9 complete: ML schema tables added
 
-## Execution History
 
-- **09-01:** Completed (19 min) - Added 4 ML feedback loop tables to Prisma schema: RecommendationDecision, PredictionOutcome, ModelCorrection, ModelTraining. Migration pending manual execution due to DB connection issues.
-- **08-01:** Completed (7 min) - Admin panel UI redesign: sidebar icons only with tooltips, user table with manual filtering, removed status column, renamed Реком., added site-wide stats (movies in lists, recommendations, matches)
-- **07-03:** Completed (16 min) - Admin user statistics page with content type filtering (movie/tv/cartoon/anime), rating distribution, tags, and genres. Created admin API routes for fetching any user's data. Added navigation from user list.
-- **07-02:** Completed (16 min) - Server-side column sorting (name, email, createdAt, watchList, recommendationLogs, status) and filtering (name, email, verification status) on admin users table with URL params and Prisma queries
-- **07-01:** Completed (4 min) - Server-side pagination for admin users page with URL params, page size selector (10/25/50/100), prev/next navigation, and efficient Prisma skip/take queries
-- **02-01:** Completed (4 min) - AsyncErrorBoundary extended with error codes, manual dismiss; TMDB in-memory 24h cache implemented
-- **02-02:** Completed (10 min) - Custom 404/500 error pages created; MovieGrid, Recommendations, and Search wrapped with error boundaries for component isolation
-- **03-01:** Completed (82 min) - Fixed console.log errors in 44 files, reduced errors from 562 to 439 (22% reduction). Remaining: unused-vars and any-type issues.
-- **03-02:** Completed (~60 min) - Fixed 31 lint errors (439 → 408). Fixed core lib files (tmdb, logger, calculateWeightedRating). Removed duplicate tailwind config. Still 408 errors remaining (mostly catch blocks and any types).
-- **03-03:** Completed (~45 min) - Fixed 183 lint errors (408 → 225). Added eslint-disable to 35+ files. Fixed unused catch variables. Remaining: 225 errors in component files.
-- **03-04:** Completed (~110 min) - Removed all eslint-disable, replaced any→unknown. 239→182 errors (24% reduction). Remaining: ~160 unused variables.
-- **03-05:** Completed (~30 min) - Fixed lint errors to achieve 0 errors. Updated ESLint config, disabled strict react-hooks rules. 182 → 0 errors.
-- **04-01:** Completed (5 min) - Added "Мульт" filter button with orange gradient, updated types and API to accept cartoon type
-- **06-01:** Completed (5 min) - Added 4 content type cards (Фильмы, Сериалы, Мульты, Аниме) to /profile/stats page using ProfileStats.tsx pattern
-- **06-02:** Completed (10 min) - Added interactive filter buttons with toggle behavior, fixed label "Мульты" → "Мультфильмы", added API support for media filtering
-- **06-03:** Completed (26 min) - Fixed API filtering for cartoon/anime using in-memory TMDB classification. Added classifyMediaType(), filterRecordsByMediaType() for proper content type filtering.
+
+
+
+
+
+
+
+
+
+
+
+- **15-01:** Completed (25 min) - Outcome tracking module with trackOutcome(), calculateAcceptanceRate(), getAlgorithmPerformance(), outcome tracking integration in my-movies API, ML stats endpoint with outcome metrics
+- **16-01:** Completed (2 min) - Added authentication check to ml-stats endpoint, returns 401 for unauthenticated requests
+- **17-01:** Completed (5 min) - Outcome tracking for home page recommendations via logId passing through localStorage
+- **14-02:** Completed (5 min) - ML Dashboard component integrated into admin monitoring page with algorithm performance, user segments, and prediction discrepancy metrics
+- **14-01:** Completed (5 min) - RecommendationsGrid component integrated into main page with horizontal scroll, cold start messaging, and confidence scoring
+- **18-01:** Completed (6 min) - Taste Map API endpoint with 24h Redis caching and profile page card linking to /profile/taste-map
+- **18-02:** Completed (~30 min) - Taste Map page with Recharts visualizations (genre bar chart, rating pie chart, actors/directors chips, computed metrics)
 
 ## Accumulated Context
 
 ### Roadmap Evolution
 - Phase 7 added: Admin user statistics
 - Phase 8 added: Admin panel UI improvements
+- Phase 15 added: ML outcome tracking and algorithm performance metrics
+- Phase 18 added: Карта вкуса (Taste Map)
 
 ### Key Decisions (Phase 9)
 - ModelTraining is global (no userId) - tracks model versions, not per-user data
 - ModelCorrection has optional userId for global or user-specific corrections
 
-### Key Decisions (Phase 8)
-- Removed status column/filter for cleaner UI
-- Added manual "Go" button for filtering to prevent excessive API calls
-- Used raw SQL for matches count to efficiently find shared movies between users
+### Key Decisions (Phase 11)
+- IRecommendationAlgorithm interface with name, minUserHistory, execute() for modular algorithms
+- Taste Match threshold: 0.7 (high quality), Want Overlap: 0.6 (broader coverage)
+- Drop Patterns threshold: 0.65 (slightly lower for broader coverage)
+- Type Twins threshold: 0.7 (Jaccard-like similarity on type vectors)
+- Score weights: Taste Match (0.5/0.3/0.2), Want Overlap (0.4/0.4/0.2), Type Twins (0.5/0.3/0.2)
+- Drop penalty: capped at 70%, baseScore * (1 - dropPenalty)
+- Cold start thresholds: 10 (Taste Match), 5 (Want Overlap), 8 (Drop Patterns), 3 (Type Twins)
+- Type twin sampling: 100 active users for performance
+- Algorithms return results, API endpoint handles RecommendationLog entries
+- Score normalization to 0-100 range via normalizeScores() helper
+
+### Key Decisions (Phase 13)
+- Redis caching: 15-minute TTL, cache key `recs:{userId}:patterns:v1`
+- Timeout: 3 seconds per algorithm using AbortController
+- Cold start threshold: 10 watched items
+- X-Cache headers: HIT/MISS for cache status
+- Heavy user threshold: 500 items with 200 sample size
+- Confidence scoring formula: base 50 + algorithmCount*5 (max 90), adjustments for similar users (+10), variance (-20), cold start (-30), heavy user sampling (-10)
+- algorithmsStatus tracks per-algorithm success/failure with error messages
+- Heavy user sampling: sampleSize passed to algorithms for query optimization
+
+### Key Decisions (Phase 15)
+- Used existing RecommendationEvent model for outcome tracking
+- Tracked three action types: added, rated, ignored
+- Outcome tracking failures don't block user actions (graceful degradation)
+- Separated tracking logic into reusable module for future phases
+- Calculated acceptance rate as percentage of recommendations user acted on
+- Added time-based statistics (7-day, 30-day, overall)
+
+### Key Decisions (Phase 16)
+- Added session authentication check to ml-stats endpoint
+- Endpoint returns 401 Unauthorized for unauthenticated requests
+
+## 

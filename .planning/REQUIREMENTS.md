@@ -8,14 +8,14 @@
 
 ### Testing
 
-- [ ] **TEST-01**: Интеграционные тесты для критических API (auth, watchlist, recommendations)
+- [ ] **TEST-01**: Интеграционные тесты для критических API (auth, watchlist, recommendations) — PARTIAL (unit tests exist, no API integration tests)
 - [ ] **TEST-02**: Unit тесты для утилит (weighted rating, score calculation)
 - [ ] **TEST-03**: Unit тесты для валидации (filter validation)
 
 ### Logging
 
 - [ ] **LOG-01**:的统一 логирование с контекстом во всех API routes
-- [ ] **LOG-02**: Логирование в server actions
+- [ ] **LOG-02**: Логирование в server actions — NOT IMPLEMENTED (no server actions exist)
 
 ### Error Handling
 
@@ -40,7 +40,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Partial |
 | TEST-02 | Phase 1 | Pending |
 | TEST-03 | Phase 1 | Pending |
 | LOG-01 | Phase 1 | Pending |

@@ -9,7 +9,7 @@ import { rateLimit } from '@/middleware/rateLimit';
  */
 
 export async function GET(request: NextRequest) {
-  const { success } = await rateLimit(request, '/api/recommendations');
+  const { success } = await rateLimit(request, '/api/recommendations/stats');
   if (!success) {
     return NextResponse.json(
       { success: false, error: 'Too Many Requests' },

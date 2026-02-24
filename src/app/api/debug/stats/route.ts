@@ -7,6 +7,9 @@ import { prisma } from '@/lib/prisma';
 import { MOVIE_STATUS_IDS, getStatusIdByName, getStatusNameById } from '@/lib/movieStatusConstants';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 // Вспомогательная функция для получения деталей с TMDB
 async function fetchMediaDetails(tmdbId: number, mediaType: 'movie' | 'tv') {
   const apiKey = process.env.TMDB_API_KEY;

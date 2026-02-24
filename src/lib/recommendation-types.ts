@@ -441,3 +441,29 @@ export interface PeriodComparison {
   trendDirection: 'up' | 'down' | 'stable';
   [key: string]: any;
 }
+
+// ============================================
+// Confidence Scoring
+// ============================================
+
+/**
+ * Confidence score for recommendations
+ * Indicates quality/reliability of the recommendation
+ */
+export interface ConfidenceScore {
+  /** Overall confidence value 0-100 */
+  value: number;
+  /** Factors that contributed to the confidence score */
+  factors: {
+    /** Number of algorithms that contributed */
+    algorithmCount: number;
+    /** Number of similar users found (for collaborative filtering) */
+    similarUsersFound: number;
+    /** Score variance across recommendations */
+    scoreVariance: number;
+    /** Whether user is in cold start state */
+    isColdStart: boolean;
+    /** Whether heavy user sampling was applied */
+    isHeavyUser: boolean;
+  };
+}

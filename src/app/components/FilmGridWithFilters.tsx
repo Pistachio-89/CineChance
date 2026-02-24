@@ -146,7 +146,8 @@ export default function FilmGridWithFilters({
         const data = await fetchMovies(page, filters);
         const newMovies = data.movies || [];
 
-        console.log('[FilmGrid DEBUG]', {
+        logger.debug('FilmGrid fetch result', {
+          context: 'FilmGridWithFilters',
           page,
           newMoviesCount: newMovies.length,
           hasMore: data.hasMore,
@@ -158,7 +159,8 @@ export default function FilmGridWithFilters({
         } else {
           setMovies((prev) => {
             const combined = [...prev, ...newMovies];
-            console.log('[FilmGrid SETMOVIES]', {
+            logger.debug('FilmGrid setMovies', {
+              context: 'FilmGridWithFilters',
               prevCount: prev.length,
               newCount: newMovies.length,
               combinedCount: combined.length

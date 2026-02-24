@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Star, Tag as TagIcon, Music, ArrowLeft, Film, Tv, Monitor } from 'lucide-react';
+import { Star, Tag as TagIcon, Music, ArrowLeft, Film, Tv, Monitor, Cpu } from 'lucide-react';
+import UserRecommendationAlgorithms from '@/app/components/UserRecommendationAlgorithms';
 
 interface UserStats {
   total: {
@@ -543,6 +544,9 @@ export default function StatsClient({ userId }: StatsClientProps) {
             <p className="text-gray-500 text-sm">Жанры появятся после просмотра фильмов.</p>
           </div>
         ) : null}
+
+        {/* User Recommendation Algorithms */}
+        <UserRecommendationAlgorithms userId={userId} />
       </div>
     </div>
   );

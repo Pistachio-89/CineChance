@@ -1,0 +1,537 @@
+import { prisma } from '@/lib/prisma';
+import { logger } from '@/lib/logger';
+
+/**
+ * Outcome tracking module for ML feedback loop.
+ * Tracks when users interact with recommendations and calculates performance metrics.
+ */
+
+export type OutcomeAction = 'added' | 'rated' | 'ignored' | 'dropped' | 'hidden';
+export type OutcomeRating = number; // 1-10
+
+export interface TrackOutcomeParams {
+  recommendationLogId: string;
+  userId: string;
+  action: OutcomeAction;
+  userRating?: OutcomeRating;
+}
+
+export interface OutcomeData {
+  outcomeAction: OutcomeAction;
+  outcomeRating?: OutcomeRating;
+  outcomeAt: Date;
+  predictionScore?: number;
+  algorithm?: string;
+}
+
+/**
+ * Track a user's outcome on a recommendation.
+ * Creates a RecommendationEvent to log the interaction.
+ */
+export async function trackOutcome(params: TrackOutcomeParams): Promise<void> {
+  try {
+    const { recommendationLogId, userId, action, userRating } = params;
+
+    // Create outcome event
+    await prisma.recommendationEvent.create({
+      data: {
+        parentLogId: recommendationLogId,
+        userId,
+        eventType: action,
+        eventData: userRating ? { rating: userRating } : undefined,
+        timestamp: new Date(),
+      } as any,
+    });
+
+    logger.info('Outcome tracked', {
+      recommendationLogId,
+      action,
+      userRating,
+      context: 'recommendation-outcome-tracking',
+    });
+  } catch (error) {
+    logger.error('Failed to track outcome', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    // Don't throw - tracking failures shouldn't block user actions
+  }
+}
+
+/**
+ * Calculate acceptance rate for a user.
+ * Returns percentage of recommendations the user acted on (added/rated).
+ */
+export async function calculateAcceptanceRate(
+  userId: string,
+  algorithm?: string,
+  dateRange?: { start: Date; end: Date }
+): Promise<{ overallRate: number; accepted: number; shown: number }> {
+  try {
+    const where: any = {
+      userId,
+      eventType: { in: ['added', 'rated'] },
+    };
+
+    if (algorithm) {
+      where.parentLog = { algorithm };
+    }
+
+    if (dateRange) {
+      where.timestamp = {
+        gte: dateRange.start,
+        lte: dateRange.end,
+      };
+    }
+
+    // Get recommendation logs shown to user
+    const shownWhere: any = {
+      userId,
+      shownAt: dateRange ? { gte: dateRange.start, lte: dateRange.end } : undefined,
+    };
+
+    if (algorithm) {
+      shownWhere.algorithm = algorithm;
+    }
+
+    const [shownCount, eventCount] = await Promise.all([
+      prisma.recommendationLog.count({ where: shownWhere }),
+      prisma.recommendationEvent.count({ where }),
+    ]);
+
+    const overallRate = shownCount > 0 ? (eventCount / shownCount) * 100 : 0;
+
+    return {
+      overallRate: Math.round(overallRate * 10) / 10, // Round to 1 decimal
+      accepted: eventCount,
+      shown: shownCount,
+    };
+  } catch (error) {
+    logger.error('Failed to calculate acceptance rate', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return { overallRate: 0, accepted: 0, shown: 0 };
+  }
+}
+
+/**
+ * Get algorithm performance metrics based on outcome tracking.
+ * Returns acceptance rates and acceptance counts per algorithm.
+ */
+export async function getAlgorithmPerformance(
+  userId: string,
+  dateRange?: { start: Date; end: Date }
+): Promise<{
+  overall: { rate: number; accepted: number; shown: number };
+  byAlgorithm: Array<{
+    algorithm: string;
+    rate: number;
+    accepted: number;
+    shown: number;
+  }>;
+}> {
+  try {
+    // Get shown recommendations for this user
+    const where: any = {
+      userId,
+      shownAt: dateRange ? { gte: dateRange.start, lte: dateRange.end } : undefined,
+    };
+
+    const shownLogs = await prisma.recommendationLog.findMany({
+      where,
+      select: { algorithm: true },
+    });
+
+    const algorithms = Array.from(new Set(shownLogs.map((log) => log.algorithm))).filter(
+      Boolean
+    );
+
+    // Calculate acceptance rate for each algorithm
+    const byAlgorithm = await Promise.all(
+      algorithms.map(async (algorithm) => {
+        const result = await calculateAcceptanceRate(userId, algorithm, dateRange);
+        return {
+          algorithm,
+          rate: result.overallRate,
+          accepted: result.accepted,
+          shown: result.shown,
+        };
+      })
+    );
+
+    // Calculate overall rate
+    const totalShown = shownLogs.length;
+    const totalAccepted = byAlgorithm.reduce((sum, item) => sum + item.accepted, 0);
+    const overallRate = totalShown > 0 ? (totalAccepted / totalShown) * 100 : 0;
+
+    return {
+      overall: {
+        rate: Math.round(overallRate * 10) / 10,
+        accepted: totalAccepted,
+        shown: totalShown,
+      },
+      byAlgorithm,
+    };
+  } catch (error) {
+    logger.error('Failed to get algorithm performance', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return {
+      overall: { rate: 0, accepted: 0, shown: 0 },
+      byAlgorithm: [],
+    };
+  }
+}
+
+/**
+ * Get algorithm performance metrics aggregated across ALL users in the system.
+ * Includes ALL algorithms (active and passive).
+ */
+
+// All possible algorithm names in the system
+const ALL_ALGORITHMS = [
+  'random_v1',
+  'taste_match_v1',
+  'want_overlap_v1',
+  'drop_patterns_v1',
+  'type_twins_v1',
+  'person_twins_v1',
+  'person_recommendations_v1',
+  'genre_twins_v1',
+  'genre_recommendations_v1',
+];
+
+const ALGORITHM_HEALTH_CHECK_HOURS = 24;
+const ALGORITHM_WARNING_DAYS = 7;
+
+export async function getSystemAlgorithmPerformance(): Promise<{
+  overall: { rate: number; accepted: number; shown: number; negative: number };
+  byAlgorithm: Array<{
+    algorithm: string;
+    rate: number;
+    accepted: number;
+    shown: number;
+    negative: number;
+    dropped: number;
+    hidden: number;
+    lastUsed: string | null;
+    healthStatus: 'ok' | 'warning' | 'critical';
+  }>;
+}> {
+  try {
+    // Use predefined list of all algorithms
+    const algorithms = ALL_ALGORITHMS;
+    const now = new Date();
+    const healthCheckTime = new Date(now.getTime() - ALGORITHM_HEALTH_CHECK_HOURS * 60 * 60 * 1000);
+    const warningTime = new Date(now.getTime() - ALGORITHM_WARNING_DAYS * 24 * 60 * 60 * 1000);
+
+    // Calculate metrics for each algorithm across all users
+    const byAlgorithm = await Promise.all(
+      algorithms.map(async (algorithm) => {
+        // Count total shown for this algorithm
+        const shownCount = await prisma.recommendationLog.count({
+          where: {
+            algorithm,
+            action: 'shown',
+          },
+        });
+
+        // Get last usage time
+        const lastLog = await prisma.recommendationLog.findFirst({
+          where: { algorithm },
+          orderBy: { shownAt: 'desc' },
+          select: { shownAt: true },
+        });
+
+        // Count accepted (added + rated) for this algorithm
+        const acceptedCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['added', 'rated'] },
+            parentLog: {
+              algorithm,
+            },
+          },
+        });
+
+        // Count negative outcomes (dropped + hidden)
+        const droppedCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: 'dropped',
+            parentLog: {
+              algorithm,
+            },
+          },
+        });
+
+        const hiddenCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: 'hidden',
+            parentLog: {
+              algorithm,
+            },
+          },
+        });
+
+        const negativeCount = droppedCount + hiddenCount;
+        const rate = shownCount > 0 ? (acceptedCount / shownCount) * 100 : 0;
+
+        // Determine health status
+        let healthStatus: 'ok' | 'warning' | 'critical' = 'critical';
+        if (lastLog) {
+          const lastUsed = new Date(lastLog.shownAt);
+          if (lastUsed >= healthCheckTime) {
+            healthStatus = 'ok';
+          } else if (lastUsed >= warningTime) {
+            healthStatus = 'warning';
+          } else {
+            healthStatus = 'critical';
+          }
+        }
+
+        return {
+          algorithm,
+          rate: Math.round(rate * 10) / 10,
+          accepted: acceptedCount,
+          shown: shownCount,
+          negative: negativeCount,
+          dropped: droppedCount,
+          hidden: hiddenCount,
+          lastUsed: lastLog ? lastLog.shownAt.toISOString() : null,
+          healthStatus,
+        };
+      })
+    );
+
+    // Calculate overall rate
+    const totalShown = byAlgorithm.reduce((sum, item) => sum + item.shown, 0);
+    const totalAccepted = byAlgorithm.reduce((sum, item) => sum + item.accepted, 0);
+    const totalNegative = byAlgorithm.reduce((sum, item) => sum + item.negative, 0);
+    const overallRate = totalShown > 0 ? (totalAccepted / totalShown) * 100 : 0;
+
+    return {
+      overall: {
+        rate: Math.round(overallRate * 10) / 10,
+        accepted: totalAccepted,
+        shown: totalShown,
+        negative: totalNegative,
+      },
+      byAlgorithm,
+    };
+  } catch (error) {
+    logger.error('Failed to get system algorithm performance', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return {
+      overall: { rate: 0, accepted: 0, shown: 0, negative: 0 },
+      byAlgorithm: [],
+    };
+  }
+}
+
+/**
+ * Get combined API and Algorithm performance metrics.
+ * API Level: Shows performance of the two main APIs (random, patterns)
+ * Algorithm Level: Shows contribution of each algorithm
+ */
+export async function getCombinedPerformanceStats(): Promise<{
+  api: {
+    active: { calls: number; returns: number; accuracy: number };
+    passive: { calls: number; returns: number; accuracy: number };
+  };
+  algorithms: Array<{
+    name: string;
+    uses: number;
+    positive?: number;
+    negative?: number;
+    lastUsed: string | null;
+    healthStatus: 'ok' | 'warning' | 'critical';
+  }>;
+}> {
+  try {
+    const now = new Date();
+    const healthCheckTime = new Date(now.getTime() - ALGORITHM_HEALTH_CHECK_HOURS * 60 * 60 * 1000);
+    const warningTime = new Date(now.getTime() - ALGORITHM_WARNING_DAYS * 24 * 60 * 60 * 1000);
+
+    // API Level Stats
+    // Active: algorithm = 'random_v1'
+    const [activeStats, passiveStats] = await Promise.all([
+      // Active: /api/recommendations/random
+      Promise.all([
+        prisma.recommendationLog.count({ where: { algorithm: 'random_v1' } }),
+        prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['added', 'rated'] },
+            parentLog: { algorithm: 'random_v1' },
+          },
+        }),
+      ]),
+      // Passive: context->source = 'patterns_api'
+      Promise.all([
+        prisma.recommendationLog.count({
+          where: {
+            context: { path: ['source'], equals: 'patterns_api' },
+          },
+        }),
+        prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['added', 'rated'] },
+            parentLog: {
+              context: { path: ['source'], equals: 'patterns_api' },
+            },
+          },
+        }),
+      ]),
+    ]);
+
+    const activeCalls = activeStats[0];
+    const activeAccepted = activeStats[1];
+    const passiveCalls = passiveStats[0];
+    const passiveAccepted = passiveStats[1];
+
+    // Algorithm Level Stats
+    const algorithms = await Promise.all(
+      ALL_ALGORITHMS.map(async (algorithm) => {
+        const returns = await prisma.recommendationLog.count({
+          where: { algorithm, action: 'shown' },
+        });
+
+        const accepted = await prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['added', 'rated'] },
+            parentLog: { algorithm },
+          },
+        });
+
+        const negative = await prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['dropped', 'hidden'] },
+            parentLog: { algorithm },
+          },
+        });
+
+        const lastLog = await prisma.recommendationLog.findFirst({
+          where: { algorithm },
+          orderBy: { shownAt: 'desc' },
+          select: { shownAt: true },
+        });
+
+        let healthStatus: 'ok' | 'warning' | 'critical' = 'critical';
+        if (lastLog) {
+          const lastUsed = new Date(lastLog.shownAt);
+          if (lastUsed >= healthCheckTime) {
+            healthStatus = 'ok';
+          } else if (lastUsed >= warningTime) {
+            healthStatus = 'warning';
+          }
+        }
+
+        return {
+          name: algorithm,
+          uses: returns,
+          positive: accepted,
+          negative: negative,
+          lastUsed: lastLog ? lastLog.shownAt.toISOString() : null,
+          healthStatus,
+        };
+      })
+    );
+
+    return {
+      api: {
+        active: {
+          calls: activeCalls,
+          returns: activeCalls,
+          accuracy: activeCalls > 0 ? activeAccepted / activeCalls : 0,
+        },
+        passive: {
+          calls: passiveCalls,
+          returns: passiveCalls,
+          accuracy: passiveCalls > 0 ? passiveAccepted / passiveCalls : 0,
+        },
+      },
+      algorithms,
+    };
+  } catch (error) {
+    logger.error('Failed to get combined performance stats', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return {
+      api: {
+        active: { calls: 0, returns: 0, accuracy: 0 },
+        passive: { calls: 0, returns: 0, accuracy: 0 },
+      },
+      algorithms: [],
+    };
+  }
+}
+
+/**
+ * Get outcome statistics over time.
+ * Returns counts for added/rated/ignored actions per day.
+ */
+export async function getOutcomeStats(
+  userId: string,
+  algorithm?: string,
+  days?: number
+): Promise<
+  Array<{
+    date: string;
+    added: number;
+    rated: number;
+    ignored: number;
+    total: number;
+  }>
+> {
+  try {
+    const startDate = days ? new Date(Date.now() - days * 24 * 60 * 60 * 1000) : undefined;
+
+    const where: any = {
+      userId,
+      timestamp: startDate ? { gte: startDate } : undefined,
+    };
+
+    if (algorithm) {
+      where.parentLog = { algorithm };
+    }
+
+    // Group events by date and type
+    const events = await prisma.recommendationEvent.findMany({
+      where,
+      orderBy: { timestamp: 'asc' },
+    });
+
+    // Group by date
+    const statsMap = new Map<string, { added: number; rated: number; ignored: number }>();
+
+    events.forEach((event) => {
+      const date = event.timestamp.toISOString().split('T')[0];
+      if (!statsMap.has(date)) {
+        statsMap.set(date, { added: 0, rated: 0, ignored: 0 });
+      }
+
+      const stats = statsMap.get(date)!;
+      stats[event.eventType as 'added' | 'rated' | 'ignored']++;
+    });
+
+    // Convert to array sorted by date
+    const stats = Array.from(statsMap.entries())
+      .map(([date, counts]) => ({
+        date,
+        ...counts,
+        total: counts.added + counts.rated + counts.ignored,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return stats;
+  } catch (error) {
+    logger.error('Failed to get outcome stats', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return [];
+  }
+}

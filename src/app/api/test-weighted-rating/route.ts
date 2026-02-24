@@ -4,6 +4,9 @@ import { authOptions } from '@/auth';
 import { calculateWeightedRating } from '@/lib/calculateWeightedRating';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);

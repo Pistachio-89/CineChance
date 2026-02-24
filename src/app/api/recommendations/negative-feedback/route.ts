@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { ContextualFactors, CorrectiveAction } from '@/lib/recommendation-types';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rateLimit';
+import { trackOutcome } from '@/lib/recommendation-outcome-tracking';
 
 /**
  * API endpoint для записи негативной обратной связи от пользователя
@@ -113,6 +114,20 @@ export async function POST(request: NextRequest) {
         // Игнорируем ошибку если запись уже существует
       });
     }
+
+    // Track outcome: user gave negative feedback (hidden)
+    // Это важный сигнал для ML - пользователь явно скрыл эту рекомендацию
+    await trackOutcome({
+      recommendationLogId,
+      userId,
+      action: 'hidden',
+    });
+    logger.info('Outcome tracked: recommendation hidden via negative feedback', {
+      recommendationLogId,
+      feedbackType,
+      userId,
+      context: 'negative-feedback-api',
+    });
 
     return NextResponse.json(
       {

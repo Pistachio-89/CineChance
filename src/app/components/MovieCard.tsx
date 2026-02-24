@@ -277,6 +277,17 @@ export default function MovieCard({
   const handleSaveRating = (rating: number, date: string) => {
     const saveStatus = async () => {
       try {
+        // Get recommendationLogId from localStorage if available
+        let recommendationLogId: string | undefined;
+        if (typeof window !== 'undefined') {
+          try {
+            const logIdMap = JSON.parse(localStorage.getItem('rec_logid_map') || '{}');
+            recommendationLogId = logIdMap[String(movie.id)];
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
         const res = await fetch('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -290,6 +301,7 @@ export default function MovieCard({
             watchedDate: isReratingOnly ? undefined : date,
             isRewatch: isReratingOnly ? false : pendingRewatch,
             isRatingOnly: isReratingOnly,
+            recommendationLogId,
           }),
         });
         
@@ -342,6 +354,17 @@ export default function MovieCard({
     setShowOverlay(false);
 
     try {
+      // Get recommendationLogId from localStorage if available
+      let recommendationLogId: string | undefined;
+      if (typeof window !== 'undefined' && newStatus !== null) {
+        try {
+          const logIdMap = JSON.parse(localStorage.getItem('rec_logid_map') || '{}');
+          recommendationLogId = logIdMap[String(movie.id)];
+        } catch {
+          // Ignore parse errors
+        }
+      }
+
       const res = await fetch('/api/watchlist', {
         method: newStatus === null ? 'DELETE' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -351,6 +374,7 @@ export default function MovieCard({
           status: newStatus,
           title: title,
           voteAverage: movie.vote_average,
+          recommendationLogId,
         }),
       });
       if (!res.ok) setStatus(oldStatus);

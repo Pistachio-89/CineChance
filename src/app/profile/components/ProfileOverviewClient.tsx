@@ -6,7 +6,7 @@ import { ru } from 'date-fns/locale';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 const TermsOfServiceModal = dynamic(() => import('@/app/components/TermsOfServiceModal'), { ssr: false });
-import { Settings, ArrowRight, TrendingUp, Monitor, Tv, Smile, CheckIcon, XIcon, Clock as ClockIcon, EyeOff as EyeOffIcon, PieChart as PieChartIcon, Film, Users, BarChart3, Clapperboard, UserPlus, FileText } from 'lucide-react';
+import { Settings, ArrowRight, TrendingUp, Monitor, Tv, Smile, CheckIcon, XIcon, Clock as ClockIcon, EyeOff as EyeOffIcon, PieChart as PieChartIcon, Film, Users, BarChart3, Clapperboard, UserPlus, FileText, Map } from 'lucide-react';
 import NicknameEditor from './NicknameEditor';
 
 interface UserStats {
@@ -450,6 +450,20 @@ export default function ProfileOverviewClient({ userId }: ProfileOverviewClientP
           <ArrowRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
         </Link>
       </div>
+
+      <Link
+        href="/profile/taste-map"
+        className="flex items-center gap-3 bg-gray-900 rounded-lg md:rounded-xl p-4 md:p-5 border border-gray-800 hover:border-purple-500/50 hover:bg-gray-800/80 transition cursor-pointer"
+      >
+        <div className="w-10 h-10 md:w-12 md:h-12 bg-purple-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+          <Map className="w-5 h-5 text-purple-400" />
+        </div>
+        <div className="flex-1">
+          <p className="text-white font-medium text-sm md:text-base">Карта вкуса</p>
+          <p className="text-gray-500 text-xs md:text-sm">Ваши предпочтения в фильмах</p>
+        </div>
+        <ArrowRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
+      </Link>
 
       <div className="space-y-3">
         <Link

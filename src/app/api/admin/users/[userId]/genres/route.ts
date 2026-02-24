@@ -8,6 +8,9 @@ import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 import { withCache } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
 
 // Genre ID to name mapping (TMDb + Anime genres)

@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 // src/app/api/my-movies/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -6,6 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { MOVIE_STATUS_IDS, getStatusIdByName, getStatusNameById } from '@/lib/movieStatusConstants';
 import { calculateCineChanceScore } from '@/lib/calculateCineChanceScore';
 import { logger } from '@/lib/logger';
+import { trackOutcome } from '@/lib/recommendation-outcome-tracking';
 
 const ITEMS_PER_PAGE = 20;
 
@@ -107,7 +111,8 @@ export async function GET(request: NextRequest) {
     const genresParam = searchParams.get('genres');
     const tagsParam = searchParams.get('tags');
 
-    console.log('[API DEBUG] Request params:', {
+    logger.debug('Request params', {
+      context: 'my-movies',
       page,
       limit,
       typesParam,
@@ -294,7 +299,7 @@ export async function GET(request: NextRequest) {
     const skip = 0;
     const take = recordsNeeded;
 
-    console.log('[API DEBUG] Pagination strategy:', { page, limit, hasFilters, recordsNeeded, skip, take });
+    logger.debug('Pagination strategy', { context: 'my-movies', page, limit, hasFilters, recordsNeeded, skip, take });
 
     const watchListRecords = await prisma.watchList.findMany({
       where: whereClause,
@@ -345,7 +350,7 @@ export async function GET(request: NextRequest) {
     );
 
     // Filter movies
-    console.log('[API DEBUG] Before filter:', moviesWithDetails.length, 'movies');
+    logger.debug('Before filter', { context: 'my-movies', count: moviesWithDetails.length });
     const filteredMovies = moviesWithDetails.filter(({ record, tmdbData, isAnime, isCartoon }) => {
       if (!tmdbData) return false;
 
@@ -398,7 +403,7 @@ export async function GET(request: NextRequest) {
       return true;
     });
 
-    console.log('[API DEBUG] After filter:', filteredMovies.length, 'movies');
+    logger.debug('After filter', { context: 'my-movies', count: filteredMovies.length });
 
     // Transform to output format
     const movies = filteredMovies.map(({ record, tmdbData, cineChanceData }) => {
@@ -446,7 +451,8 @@ export async function GET(request: NextRequest) {
     // hasMore: Check if more movies exist in filtered result OR if we loaded full batch from DB
     const hasMore = sortedMovies.length > pageEndIndex || watchListRecords.length === recordsNeeded;
 
-    console.log('[API DEBUG]', {
+    logger.debug('Pagination result', {
+      context: 'my-movies',
       page,
       limit,
       recordsNeeded,
@@ -553,6 +559,20 @@ export async function POST(request: NextRequest) {
             watchedDate: new Date(),
           },
         });
+
+        // Track outcome: user added recommendation to their list
+        if (recommendationLogId) {
+          await trackOutcome({
+            recommendationLogId,
+            userId,
+            action: 'added',
+          });
+          logger.info('Outcome tracked: movie added to watchlist', {
+            recommendationLogId,
+            userId,
+            context: 'my-movies-api',
+          });
+        }
       } else {
         // Обновляем существующую запись
         const previousWatchCount = watchListEntry.watchCount;
@@ -569,6 +589,20 @@ export async function POST(request: NextRequest) {
               statusId: status.id,
             },
           });
+
+          // Track outcome: user dropped recommendation
+          if (recommendationLogId && newStatus === 'Брошено') {
+            await trackOutcome({
+              recommendationLogId,
+              userId,
+              action: 'dropped',
+            });
+            logger.info('Outcome tracked: movie dropped', {
+              recommendationLogId,
+              userId,
+              context: 'my-movies-api',
+            });
+          }
         }
       }
 
@@ -596,6 +630,22 @@ export async function POST(request: NextRequest) {
             actionType: 'update',
           },
         });
+
+        // Track outcome: user rated recommendation
+        if (recommendationLogId) {
+          await trackOutcome({
+            recommendationLogId,
+            userId,
+            action: 'rated',
+            userRating: rating,
+          });
+          logger.info('Outcome tracked: movie rated', {
+            recommendationLogId,
+            userId,
+            rating,
+            context: 'my-movies-api',
+          });
+        }
 
         // Обновляем оценку в WatchList
         await prisma.watchList.update({

@@ -9,6 +9,9 @@ import { rateLimit } from '@/middleware/rateLimit';
 import { withCache } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 
+export const dynamic = 'force-dynamic';
+export const dynamicParams = true;
+
 const ADMIN_USER_ID = 'cmkbc7sn2000104k3xd3zyf2a';
 const TMDB_API_KEY = process.env.TMDB_API_KEY;
 const PARALLEL_TMDB_REQUESTS = 10;

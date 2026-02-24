@@ -1,9 +1,33 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import AdminSidebar from "../AdminSidebar";
 import RecommendationStats from '@/app/components/RecommendationStats';
-import { Database, Clock } from 'lucide-react';
+import MLDashboard from '@/app/components/MLDashboard';
+import ActiveRecommendationsBlock from '@/app/components/ActiveRecommendationsBlock';
+import AlgorithmPerformanceBlock from '@/app/components/AlgorithmPerformanceBlock';
+import { Clock } from 'lucide-react';
+import LoaderSkeleton from "@/app/components/LoaderSkeleton";
+
+function MLDashboardSkeleton() {
+  return (
+    <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="w-5 h-5 bg-gray-700 rounded animate-pulse" />
+        <div className="h-6 w-32 bg-gray-700 rounded animate-pulse" />
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="bg-gray-800/50 rounded-xl p-4 border border-gray-700">
+            <div className="h-4 w-20 bg-gray-700 rounded animate-pulse mb-2" />
+            <div className="h-8 w-16 bg-gray-700 rounded animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default async function MonitoringPage() {
   const session = await getServerSession(authOptions);
@@ -35,49 +59,31 @@ export default async function MonitoringPage() {
         </div>
 
         <div className="space-y-6">
+          {/* ML Мониторинг - Общий заголовок */}
+          <div className="mb-2">
+            <h2 className="text-2xl font-bold text-white">ML Мониторинг</h2>
+          </div>
+
+          {/* Блок активных рекомендаций */}
+          <Suspense fallback={<MLDashboardSkeleton />}>
+            <ActiveRecommendationsBlock />
+          </Suspense>
+
+          {/* Блок пассивных рекомендаций */}
+          <Suspense fallback={<MLDashboardSkeleton />}>
+            <MLDashboard />
+          </Suspense>
+
+          {/* Блок производительности алгоритмов */}
+          <AlgorithmPerformanceBlock />
+
+          {/* Мониторинг системы */}
+          <div className="mb-2 mt-8">
+            <h2 className="text-2xl font-bold text-white">Мониторинг системы</h2>
+          </div>
+
           {/* Компонент статистики */}
           <RecommendationStats />
-
-          {/* Информация о системе */}
-          <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-            <div className="flex items-center gap-3 mb-6">
-              <Database className="w-5 h-5 text-blue-400" />
-              <h3 className="text-lg font-semibold text-white">Политика хранения данных</h3>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">События рекомендаций</p>
-                <p className="text-gray-500 text-sm">90 дней</p>
-              </div>
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">Сигналы намерений</p>
-                <p className="text-gray-500 text-sm">30 дней</p>
-              </div>
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">Сессии пользователей</p>
-                <p className="text-gray-500 text-sm">60 дней</p>
-              </div>
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">Негативная обратная связь</p>
-                <p className="text-gray-500 text-sm">180 дней</p>
-              </div>
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">Логи рекомендаций</p>
-                <p className="text-gray-500 text-sm">365 дней</p>
-              </div>
-              <div className="p-4 bg-gray-800/50 rounded-lg">
-                <p className="text-gray-400 text-xs mb-2">Тип данных</p>
-                <p className="text-white font-medium">ML предсказания</p>
-                <p className="text-gray-500 text-sm">90 дней</p>
-              </div>
-            </div>
-          </div>
 
           {/* Расписание очистки */}
           <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">

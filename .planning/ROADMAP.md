@@ -6,10 +6,10 @@
 ## Milestones
 
 - ✅ **v1.0 Stabilization** — Phases 1-8 (shipped 2026-02-21)
-- 🚀 **v2.0 Recommendations** — Phases 9-15 (in progress)
+- ✅ **v2.0 Recommendations** — Phases 9-15 (last phase!)
   - User-to-user recommendations based on Taste Map
   - 8 pattern matching algorithms
-  - ML feedback loop
+  - ML feedback loop (Phase 15 pending)
 
 ---
 
@@ -127,11 +127,11 @@ Plans:
 
 **Goal:** Создать инфраструктуру для вычисления и хранения Taste Map
 **Depends on:** Phase 9
-**Plans:** 2 plans
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 10-01-PLAN.md — TasteMap структура данных и Redis хранение
-- [ ] 10-02-PLAN.md — Similarity calculation (поиск похожих пользователей)
+- [x] 10-01-PLAN.md — TasteMap структура данных и Redis хранение
+- [x] 10-02-PLAN.md — Similarity calculation (поиск похожих пользователей)
 
 ---
 
@@ -139,11 +139,11 @@ Plans:
 
 **Goal:** Реализовать базовые паттерны рекомендаций (1-4)
 **Depends on:** Phase 10
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 11-01-PLAN.md — Patterns 1-2: Taste Match, Want-to-watch Overlap
-- [ ] 11-02-PLAN.md — Patterns 3-4: Drop Patterns, Type Twins
+- [x] 11-01-PLAN.md — Patterns 1-2: Taste Match, Want-to-watch Overlap
+- [x] 11-02-PLAN.md — Patterns 3-4: Drop Patterns, Type Twins
 
 ---
 
@@ -151,11 +151,11 @@ Plans:
 
 **Goal:** Реализовать продвинутые паттерны рекомендаций (5-8)
 **Depends on:** Phase 11
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 12-01-PLAN.md — Patterns 5-6: Genre Twins, Genre Recommendations
-- [ ] 12-02-PLAN.md — Patterns 7-8: Person Twins, Person Recommendations
+- [x] 12-01-PLAN.md — Patterns 5-6: Genre Twins, Genre Recommendations
+- [x] 12-02-PLAN.md — Patterns 7-8: Person Twins, Person Recommendations
 
 ---
 
@@ -163,11 +163,13 @@ Plans:
 
 **Goal:** Создать API для получения рекомендаций с обработкой Edge Cases
 **Depends on:** Phase 12
-**Plans:** 2 plans
+**Status:** ✅ Complete (2026-02-23)
+**Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 13-01-PLAN.md — Recommendation API endpoint + Cold Start handling
-- [ ] 13-02-PLAN.md — Heavy Users handling, Graceful Degradation, Confidence Scoring
+- [x] 13-01-PLAN.md — Redis caching, timeout protection, cold start metadata
+- [x] 13-02-PLAN.md — Heavy Users handling, Graceful Degradation, Confidence Scoring
+- [x] 13-03-PLAN.md — Heavy user sampling implementation (gap closure)
 
 ---
 
@@ -175,11 +177,12 @@ Plans:
 
 **Goal:** Интегрировать рекомендации в UI
 **Depends on:** Phase 13
-**Plans:** 2 plans
+**Status:** ✅ Complete (2026-02-23)
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 14-01-PLAN.md — Main page: Top-12 recommendations horizontal scroll
-- [ ] 14-02-PLAN.md — Admin ML Dashboard: discrepancy monitoring, model corrections
+- [x] 14-01-PLAN.md — Main page: Top-12 recommendations horizontal scroll
+- [x] 14-02-PLAN.md — Admin ML Dashboard: discrepancy monitoring, model corrections
 
 ---
 
@@ -187,10 +190,44 @@ Plans:
 
 **Goal:** Замкнуть цикл: логирование решений → отслеживание исходов → коррекция модели
 **Depends on:** Phase 14
-**Plans:** 1 plan
+**Plans:** 2/2 plans complete
 
 Plans:
-- [ ] 15-01-PLAN.md — Decision logging, outcome tracking, auto-corrections
+- [x] 15-01-PLAN.md — Decision logging, outcome tracking, auto-corrections
+- [x] 15-02-PLAN.md — Gap closure: fix trackOutcome import and ML stats format
+
+---
+
+### Phase 16: ML Stats API Security — GAP CLOSURE
+
+**Goal:** Add authentication to unprotected ML stats API
+**Depends on:** Phase 15
+**Gap Closure:** Closes critical security issue from audit
+
+Plans:
+- [x] 16-01-PLAN.md — Add session check to /api/recommendations/ml-stats
+
+---
+
+### Phase 17: Outcome Tracking Completeness — GAP CLOSURE
+
+**Goal:** Enable outcome tracking from main page recommendations
+**Depends on:** Phase 16
+**Gap Closure:** Closes integration and flow gaps from audit
+
+Plans:
+- [ ] 17-01-PLAN.md — Capture recommendationLogId in RecommendationsGrid, pass to watchlist API
+
+### Phase 18: Карта вкуса (Taste Map)
+
+**Goal:** Создать карту вкуса пользователя с визуализацией предпочтений
+**Depends on:** Phase 17
+**Status:** ✅ Planned
+**Plans:** 2/2 plans complete
+
+Plans:
+- [ ] 18-01-PLAN.md — API endpoint + Profile card
+- [ ] 18-02-PLAN.md — Taste Map page with visualizations
 
 ---
 
