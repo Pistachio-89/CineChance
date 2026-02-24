@@ -187,6 +187,20 @@ export async function getAlgorithmPerformance(
  * Get algorithm performance metrics aggregated across ALL users in the system.
  * Includes ALL algorithms (active and passive).
  */
+
+// All possible algorithm names in the system
+const ALL_ALGORITHMS = [
+  'random_v1',
+  'taste_match_v1',
+  'want_overlap_v1',
+  'drop_patterns_v1',
+  'type_twins_v1',
+  'person_twins_v1',
+  'person_recommendations_v1',
+  'genre_twins_v1',
+  'genre_recommendations_v1',
+];
+
 export async function getSystemAlgorithmPerformance(): Promise<{
   overall: { rate: number; accepted: number; shown: number; negative: number };
   byAlgorithm: Array<{
@@ -200,23 +214,8 @@ export async function getSystemAlgorithmPerformance(): Promise<{
   }>;
 }> {
   try {
-    // Get all unique algorithms from ALL recommendation logs
-    const allLogs = await prisma.recommendationLog.findMany({
-      where: {
-        action: 'shown',
-      },
-      select: { algorithm: true },
-      distinct: ['algorithm'],
-    });
-
-    const algorithms = allLogs.map((log) => log.algorithm).filter(Boolean);
-
-    if (algorithms.length === 0) {
-      return {
-        overall: { rate: 0, accepted: 0, shown: 0, negative: 0 },
-        byAlgorithm: [],
-      };
-    }
+    // Use predefined list of all algorithms
+    const algorithms = ALL_ALGORITHMS;
 
     // Calculate metrics for each algorithm across all users
     const byAlgorithm = await Promise.all(

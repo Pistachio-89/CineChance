@@ -386,7 +386,9 @@ export default function MLDashboard() {
       <div className="mb-4">
         <p className="text-gray-400 text-sm mb-3">Производительность алгоритмов:</p>
         <div className="space-y-2">
-          {Object.entries(stats.algorithmPerformance).map(([algorithm, data]) => (
+          {Object.entries(stats.algorithmPerformance)
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([algorithm, data]) => (
             <AlgorithmCard
               key={algorithm}
               name={algorithm}
