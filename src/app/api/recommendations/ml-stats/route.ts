@@ -39,6 +39,10 @@ export async function GET(request: NextRequest) {
     const [
       totalRecommendations,
       totalShown,
+      totalAddedToWant,
+      totalWatched,
+      totalDropped,
+      totalHidden,
       allUsers,
     ] = await Promise.all([
       // Passive recommendations - сгенерировано (source: 'patterns_api')
@@ -62,6 +66,58 @@ export async function GET(request: NextRequest) {
         },
       }),
       
+      // Добавлено в хочу - из RecommendationEvent, связанных с passive рекомендациями
+      prisma.recommendationEvent.count({
+        where: {
+          eventType: 'added',
+          parentLog: {
+            context: {
+              path: ['source'],
+              equals: 'patterns_api',
+            },
+          },
+        },
+      }),
+      
+      // Просмотрено (с оценкой) - из RecommendationEvent
+      prisma.recommendationEvent.count({
+        where: {
+          eventType: 'rated',
+          parentLog: {
+            context: {
+              path: ['source'],
+              equals: 'patterns_api',
+            },
+          },
+        },
+      }),
+      
+      // Брошено - из RecommendationEvent
+      prisma.recommendationEvent.count({
+        where: {
+          eventType: 'dropped',
+          parentLog: {
+            context: {
+              path: ['source'],
+              equals: 'patterns_api',
+            },
+          },
+        },
+      }),
+      
+      // Скрыто - из RecommendationEvent
+      prisma.recommendationEvent.count({
+        where: {
+          eventType: 'hidden',
+          parentLog: {
+            context: {
+              path: ['source'],
+              equals: 'patterns_api',
+            },
+          },
+        },
+      }),
+      
       // Get all users with watch count
       prisma.user.findMany({
         select: {
@@ -76,17 +132,7 @@ export async function GET(request: NextRequest) {
     // Get first user ID for algorithm performance (fallback if no user)
     const firstUserId = allUsers.length > 0 ? allUsers[0].id : 'system';
 
-    // Get outcome metrics using tracking functions
-    // For admin overview, we use firstUserId to get representative stats
-    const [last7DaysStats, last30DaysStats, overallStats] = await Promise.all([
-      // Outcome stats for last 7 days
-      getOutcomeStats(firstUserId, null, DATE_RANGE_7_DAYS),
-      // Outcome stats for last 30 days
-      getOutcomeStats(firstUserId, null, DATE_RANGE_30_DAYS),
-      // Overall outcome stats
-      getOutcomeStats(firstUserId, null, null),
-    ]);
-
+    // Get algorithm performance using tracking functions
     const [last7DaysAlgorithmPerf, last30DaysAlgorithmPerf, overallAlgorithmPerf] = await Promise.all([
       // Algorithm performance for last 7 days
       getAlgorithmPerformance(firstUserId, {
@@ -118,11 +164,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Calculate totals - для пассивных рекомендаций из базы
-    // Добавлено в хочу и просмотрено - эти метрики тоже нужно фильтровать по source
-    const totalAddedToWant = 0; // TODO: фильтровать по action='added' + source='patterns_api'
-    const totalWatched = 0; // TODO: фильтровать по action='rated' + source='patterns_api'
-    
     // Calculate rates
     const acceptanceRate = totalShown > 0 ? (totalAddedToWant + totalWatched) / totalShown : 0;
     const wantRate = totalShown > 0 ? totalAddedToWant / totalShown : 0;
@@ -146,6 +187,8 @@ export async function GET(request: NextRequest) {
         totalShown,
         totalAddedToWant,
         totalWatched,
+        totalDropped,
+        totalHidden,
         acceptanceRate,
         wantRate,
         watchRate,

@@ -585,6 +585,19 @@ export async function POST(request: NextRequest) {
               statusId: status.id,
             },
           });
+
+          // Track outcome: user dropped recommendation
+          if (recommendationLogId && newStatus === 'Брошено') {
+            await trackOutcome({
+              recommendationLogId,
+              action: 'dropped',
+            });
+            logger.info('Outcome tracked: movie dropped', {
+              recommendationLogId,
+              userId,
+              context: 'my-movies-api',
+            });
+          }
         }
       }
 

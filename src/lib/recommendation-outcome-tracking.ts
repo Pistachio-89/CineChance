@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
  * Tracks when users interact with recommendations and calculates performance metrics.
  */
 
-export type OutcomeAction = 'added' | 'rated' | 'ignored';
+export type OutcomeAction = 'added' | 'rated' | 'ignored' | 'dropped' | 'hidden';
 export type OutcomeRating = number; // 1-10
 
 export interface TrackOutcomeParams {
