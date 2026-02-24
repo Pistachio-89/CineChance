@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rateLimit';
-import { calculateAcceptanceRate, getAlgorithmPerformance, getOutcomeStats } from '@/lib/recommendation-outcome-tracking';
+import { calculateAcceptanceRate, getAlgorithmPerformance, getOutcomeStats, getSystemAlgorithmPerformance } from '@/lib/recommendation-outcome-tracking';
 
 /**
  * API endpoint for ML recommendation system statistics
@@ -143,24 +143,8 @@ export async function GET(request: NextRequest) {
 
     const uniqueUsersWithRecs = uniqueUsersGrouped.length;
 
-    // Get first user ID for algorithm performance (fallback if no user)
-    const firstUserId = allUsers.length > 0 ? allUsers[0].id : 'system';
-
-    // Get algorithm performance using tracking functions
-    const [last7DaysAlgorithmPerf, last30DaysAlgorithmPerf, overallAlgorithmPerf] = await Promise.all([
-      // Algorithm performance for last 7 days
-      getAlgorithmPerformance(firstUserId, {
-        start: new Date(Date.now() - DATE_RANGE_7_DAYS * 24 * 60 * 60 * 1000),
-        end: new Date(),
-      }),
-      // Algorithm performance for last 30 days
-      getAlgorithmPerformance(firstUserId, {
-        start: new Date(Date.now() - DATE_RANGE_30_DAYS * 24 * 60 * 60 * 1000),
-        end: new Date(),
-      }),
-      // Overall algorithm performance
-      getAlgorithmPerformance(firstUserId, undefined),
-    ]);
+    // Get algorithm performance aggregated across ALL users in the system
+    const systemAlgorithmPerf = await getSystemAlgorithmPerformance();
 
     // Calculate discrepancy: Predicted vs Actual
     // Predicted: Number of generated passive recommendations
@@ -193,7 +177,7 @@ export async function GET(request: NextRequest) {
 
     // Map algorithm performance to expected format
     const algorithmPerformance: Record<string, { total: number; success: number; failure: number; successRate: number }> = {};
-    for (const perf of overallAlgorithmPerf.byAlgorithm) {
+    for (const perf of systemAlgorithmPerf.byAlgorithm) {
       algorithmPerformance[perf.algorithm] = {
         total: perf.shown,
         success: perf.accepted,

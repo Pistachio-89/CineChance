@@ -184,6 +184,106 @@ export async function getAlgorithmPerformance(
 }
 
 /**
+ * Get algorithm performance metrics aggregated across ALL users in the system.
+ * Filters by passive recommendations (source: 'patterns_api').
+ */
+export async function getSystemAlgorithmPerformance(): Promise<{
+  overall: { rate: number; accepted: number; shown: number };
+  byAlgorithm: Array<{
+    algorithm: string;
+    rate: number;
+    accepted: number;
+    shown: number;
+  }>;
+}> {
+  try {
+    // Get all unique algorithms from passive recommendations
+    const allLogs = await prisma.recommendationLog.findMany({
+      where: {
+        context: {
+          path: ['source'],
+          equals: 'patterns_api',
+        },
+      },
+      select: { algorithm: true },
+      distinct: ['algorithm'],
+    });
+
+    const algorithms = allLogs.map((log) => log.algorithm).filter(Boolean);
+
+    if (algorithms.length === 0) {
+      return {
+        overall: { rate: 0, accepted: 0, shown: 0 },
+        byAlgorithm: [],
+      };
+    }
+
+    // Calculate metrics for each algorithm across all users
+    const byAlgorithm = await Promise.all(
+      algorithms.map(async (algorithm) => {
+        // Count total shown for this algorithm
+        const shownCount = await prisma.recommendationLog.count({
+          where: {
+            context: {
+              path: ['source'],
+              equals: 'patterns_api',
+            },
+            algorithm,
+            action: 'shown',
+          },
+        });
+
+        // Count accepted (added + rated) for this algorithm
+        const acceptedCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: { in: ['added', 'rated'] },
+            parentLog: {
+              context: {
+                path: ['source'],
+                equals: 'patterns_api',
+              },
+              algorithm,
+            },
+          },
+        });
+
+        const rate = shownCount > 0 ? (acceptedCount / shownCount) * 100 : 0;
+
+        return {
+          algorithm,
+          rate: Math.round(rate * 10) / 10,
+          accepted: acceptedCount,
+          shown: shownCount,
+        };
+      })
+    );
+
+    // Calculate overall rate
+    const totalShown = byAlgorithm.reduce((sum, item) => sum + item.shown, 0);
+    const totalAccepted = byAlgorithm.reduce((sum, item) => sum + item.accepted, 0);
+    const overallRate = totalShown > 0 ? (totalAccepted / totalShown) * 100 : 0;
+
+    return {
+      overall: {
+        rate: Math.round(overallRate * 10) / 10,
+        accepted: totalAccepted,
+        shown: totalShown,
+      },
+      byAlgorithm,
+    };
+  } catch (error) {
+    logger.error('Failed to get system algorithm performance', {
+      error: error instanceof Error ? error.message : String(error),
+      context: 'recommendation-outcome-tracking',
+    });
+    return {
+      overall: { rate: 0, accepted: 0, shown: 0 },
+      byAlgorithm: [],
+    };
+  }
+}
+
+/**
  * Get outcome statistics over time.
  * Returns counts for added/rated/ignored actions per day.
  */
