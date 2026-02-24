@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
       totalDropped,
       totalHidden,
       allUsers,
-      uniqueUsersCount,
+      uniqueUsersGrouped,
     ] = await Promise.all([
       // Passive recommendations - сгенерировано (source: 'patterns_api')
       prisma.recommendationLog.count({
