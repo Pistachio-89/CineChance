@@ -85,15 +85,13 @@ function AlgorithmCard({
           <p className={`text-lg font-bold ${getStatusColor(data.rate / 100)}`}>
             {formatPercent(data.rate / 100)}
           </p>
-          <p className="text-gray-500 text-xs">успех</p>
+          <p className="text-gray-500 text-xs">% Точности</p>
         </div>
         <div>
           <p className="text-white font-medium text-sm">{name}</p>
           <p className="text-gray-400 text-xs mt-0.5">
             {formatNumber(data.shown)} показов · {formatNumber(data.accepted)} успешных
-            {data.negative > 0 && (
-              <span className="text-red-400"> · {formatNumber(data.negative)} негативных</span>
-            )}
+            <span className="text-red-400"> · {formatNumber(data.negative)} негативных</span>
           </p>
           {data.dropped > 0 && data.hidden > 0 && (
             <p className="text-gray-500 text-xs">
