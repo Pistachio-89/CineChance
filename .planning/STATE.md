@@ -10,7 +10,7 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 ## Current Status
 
 - **Phase:** 18 (Карта вкуса)
-- **Current Plan:** 01 completed
+- **Current Plan:** 02 completed
 - **Goal:** [To be planned]
 
 ## Progress
@@ -65,6 +65,7 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 - **14-02:** Completed (5 min) - ML Dashboard component integrated into admin monitoring page with algorithm performance, user segments, and prediction discrepancy metrics
 - **14-01:** Completed (5 min) - RecommendationsGrid component integrated into main page with horizontal scroll, cold start messaging, and confidence scoring
 - **18-01:** Completed (6 min) - Taste Map API endpoint with 24h Redis caching and profile page card linking to /profile/taste-map
+- **18-02:** Completed (~30 min) - Taste Map page with Recharts visualizations (genre bar chart, rating pie chart, actors/directors chips, computed metrics)
 
 ## Accumulated Context
 
