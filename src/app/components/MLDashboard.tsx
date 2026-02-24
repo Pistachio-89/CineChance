@@ -351,6 +351,13 @@ export default function MLDashboard() {
           icon={CheckCircle}
           color="bg-emerald-400/10 text-emerald-400"
         />
+        <StatCard
+          title="Пользователей"
+          value={formatNumber(stats.overview.uniqueUsersWithRecs)}
+          subtitle="с рекомендациями"
+          icon={Users}
+          color="bg-orange-400/10 text-orange-400"
+        />
       </div>
 
       {/* Секции */}
