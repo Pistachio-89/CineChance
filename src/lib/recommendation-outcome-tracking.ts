@@ -185,25 +185,25 @@ export async function getAlgorithmPerformance(
 
 /**
  * Get algorithm performance metrics aggregated across ALL users in the system.
- * Filters by passive recommendations (source: 'patterns_api').
+ * Includes ALL algorithms (active and passive).
  */
 export async function getSystemAlgorithmPerformance(): Promise<{
-  overall: { rate: number; accepted: number; shown: number };
+  overall: { rate: number; accepted: number; shown: number; negative: number };
   byAlgorithm: Array<{
     algorithm: string;
     rate: number;
     accepted: number;
     shown: number;
+    negative: number;
+    dropped: number;
+    hidden: number;
   }>;
 }> {
   try {
-    // Get all unique algorithms from passive recommendations
+    // Get all unique algorithms from ALL recommendation logs
     const allLogs = await prisma.recommendationLog.findMany({
       where: {
-        context: {
-          path: ['source'],
-          equals: 'patterns_api',
-        },
+        action: 'shown',
       },
       select: { algorithm: true },
       distinct: ['algorithm'],
@@ -213,7 +213,7 @@ export async function getSystemAlgorithmPerformance(): Promise<{
 
     if (algorithms.length === 0) {
       return {
-        overall: { rate: 0, accepted: 0, shown: 0 },
+        overall: { rate: 0, accepted: 0, shown: 0, negative: 0 },
         byAlgorithm: [],
       };
     }
@@ -224,10 +224,6 @@ export async function getSystemAlgorithmPerformance(): Promise<{
         // Count total shown for this algorithm
         const shownCount = await prisma.recommendationLog.count({
           where: {
-            context: {
-              path: ['source'],
-              equals: 'patterns_api',
-            },
             algorithm,
             action: 'shown',
           },
@@ -238,15 +234,31 @@ export async function getSystemAlgorithmPerformance(): Promise<{
           where: {
             eventType: { in: ['added', 'rated'] },
             parentLog: {
-              context: {
-                path: ['source'],
-                equals: 'patterns_api',
-              },
               algorithm,
             },
           },
         });
 
+        // Count negative outcomes (dropped + hidden)
+        const droppedCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: 'dropped',
+            parentLog: {
+              algorithm,
+            },
+          },
+        });
+
+        const hiddenCount = await prisma.recommendationEvent.count({
+          where: {
+            eventType: 'hidden',
+            parentLog: {
+              algorithm,
+            },
+          },
+        });
+
+        const negativeCount = droppedCount + hiddenCount;
         const rate = shownCount > 0 ? (acceptedCount / shownCount) * 100 : 0;
 
         return {
@@ -254,6 +266,9 @@ export async function getSystemAlgorithmPerformance(): Promise<{
           rate: Math.round(rate * 10) / 10,
           accepted: acceptedCount,
           shown: shownCount,
+          negative: negativeCount,
+          dropped: droppedCount,
+          hidden: hiddenCount,
         };
       })
     );
@@ -261,6 +276,7 @@ export async function getSystemAlgorithmPerformance(): Promise<{
     // Calculate overall rate
     const totalShown = byAlgorithm.reduce((sum, item) => sum + item.shown, 0);
     const totalAccepted = byAlgorithm.reduce((sum, item) => sum + item.accepted, 0);
+    const totalNegative = byAlgorithm.reduce((sum, item) => sum + item.negative, 0);
     const overallRate = totalShown > 0 ? (totalAccepted / totalShown) * 100 : 0;
 
     return {
@@ -268,6 +284,7 @@ export async function getSystemAlgorithmPerformance(): Promise<{
         rate: Math.round(overallRate * 10) / 10,
         accepted: totalAccepted,
         shown: totalShown,
+        negative: totalNegative,
       },
       byAlgorithm,
     };
@@ -277,7 +294,7 @@ export async function getSystemAlgorithmPerformance(): Promise<{
       context: 'recommendation-outcome-tracking',
     });
     return {
-      overall: { rate: 0, accepted: 0, shown: 0 },
+      overall: { rate: 0, accepted: 0, shown: 0, negative: 0 },
       byAlgorithm: [],
     };
   }

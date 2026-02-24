@@ -176,13 +176,16 @@ export async function GET(request: NextRequest) {
     const watchRate = totalShown > 0 ? totalWatched / totalShown : 0;
 
     // Map algorithm performance to expected format
-    const algorithmPerformance: Record<string, { total: number; success: number; failure: number; successRate: number }> = {};
+    const algorithmPerformance: Record<string, { total: number; success: number; failure: number; successRate: number; negative: number; dropped: number; hidden: number }> = {};
     for (const perf of systemAlgorithmPerf.byAlgorithm) {
       algorithmPerformance[perf.algorithm] = {
         total: perf.shown,
         success: perf.accepted,
-        failure: perf.shown - perf.accepted,
+        failure: perf.negative,
         successRate: perf.shown > 0 ? perf.accepted / perf.shown : 0,
+        negative: perf.negative,
+        dropped: perf.dropped,
+        hidden: perf.hidden,
       };
     }
 

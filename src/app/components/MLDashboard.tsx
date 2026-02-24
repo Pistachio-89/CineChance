@@ -33,6 +33,9 @@ interface MLStatsData {
     success: number;
     failure: number;
     successRate: number;
+    negative: number;
+    dropped: number;
+    hidden: number;
   }>;
   userSegments: {
     totalUsers: number;
@@ -95,7 +98,7 @@ function AlgorithmCard({
   data 
 }: { 
   name: string; 
-  data: { total: number; success: number; failure: number; successRate: number };
+  data: { total: number; success: number; failure: number; successRate: number; negative: number; dropped: number; hidden: number };
 }) {
   const getStatusColor = (rate: number) => {
     if (rate >= 0.7) return 'text-green-400';
@@ -109,7 +112,15 @@ function AlgorithmCard({
         <p className="text-white font-medium text-sm">{name}</p>
         <p className="text-gray-400 text-xs mt-0.5">
           {formatNumber(data.total)} показов · {formatNumber(data.success)} успешных
+          {data.negative > 0 && (
+            <span className="text-red-400"> · {formatNumber(data.negative)} негативных</span>
+          )}
         </p>
+        {data.dropped > 0 && data.hidden > 0 && (
+          <p className="text-gray-500 text-xs">
+            (Брошено: {formatNumber(data.dropped)} · Скрыто: {formatNumber(data.hidden)})
+          </p>
+        )}
       </div>
       <div className="text-right">
         <p className={`text-lg font-bold ${getStatusColor(data.successRate)}`}>
