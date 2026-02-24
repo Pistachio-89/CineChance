@@ -374,6 +374,8 @@ export async function GET(req: Request) {
     const algorithmTimeouts: string[] = [];
     const algorithmsStatus: Record<string, { success: boolean; error?: string }> = {};
     let allRecommendations: RecommendationItem[] = [];
+    let afterDedupCount = 0;
+    let afterCooldownCount = 0;
 
     if (isColdStart) {
       // Cold start: use TMDB fallback
@@ -478,6 +480,8 @@ export async function GET(req: Request) {
 
       // Apply final cooldown filter
       const filtered = await applyCooldownFilter(deduplicated, userId);
+      afterDedupCount = deduplicated.length;
+      afterCooldownCount = filtered.length;
 
       // Sort by score and take top N
       recommendations = filtered
@@ -547,6 +551,9 @@ export async function GET(req: Request) {
         algorithmsStatus: isColdStart ? {} : algorithmsStatus,
         algorithmTimeouts,
         timeoutThresholdMs: 3000,
+        totalCandidates: isColdStart ? 0 : allRecommendations.length,
+        afterDedup: isColdStart ? 0 : afterDedupCount,
+        afterCooldown: isColdStart ? 0 : afterCooldownCount,
         confidence,
         durationMs: duration,
         cacheHit: false,
