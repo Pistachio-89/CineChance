@@ -323,12 +323,12 @@ async function buildWatchListItem(
  * Main function to compute complete TasteMap for a user
  */
 export async function computeTasteMap(userId: string): Promise<TasteMap> {
-  // Get watched items from database
+  // Get items from database (watched + want to watch for better coverage)
   const watchedItems = await prisma.watchList.findMany({
     where: {
       userId,
       status: {
-        name: { in: COMPLETED_STATUSES },
+        name: { in: [...COMPLETED_STATUSES, 'want_to_watch'] },
       },
     },
     select: {
