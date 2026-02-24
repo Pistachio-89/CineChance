@@ -297,7 +297,7 @@ export default function MLDashboard() {
       {/* Заголовок */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
-          <h3 className="text-lg font-semibold text-white">ML Мониторинг</h3>
+          <h3 className="text-lg font-semibold text-white">Пассивные рекомендации</h3>
           <button
             onClick={fetchStats}
             className="p-1.5 hover:bg-gray-800 rounded-lg transition"
@@ -315,7 +315,7 @@ export default function MLDashboard() {
           ) : (
             <span className="flex items-center gap-1.5 px-3 py-1.5 bg-green-400/10 text-green-400 rounded-full text-xs border border-green-400/30">
               <CheckCircle className="w-3.5 h-3.5" />
-              Без коррекций
+              Активен
             </span>
           )}
         </div>

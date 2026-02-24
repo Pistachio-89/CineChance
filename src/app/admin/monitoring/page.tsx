@@ -5,7 +5,8 @@ import { Suspense } from "react";
 import AdminSidebar from "../AdminSidebar";
 import RecommendationStats from '@/app/components/RecommendationStats';
 import MLDashboard from '@/app/components/MLDashboard';
-import { Clock } from 'lucide-react';
+import ActiveRecommendationsBlock from '@/app/components/ActiveRecommendationsBlock';
+import { Clock, Brain } from 'lucide-react';
 import LoaderSkeleton from "@/app/components/LoaderSkeleton";
 
 function MLDashboardSkeleton() {
@@ -60,7 +61,18 @@ export default async function MonitoringPage() {
           {/* Компонент статистики */}
           <RecommendationStats />
 
-          {/* ML Мониторинг */}
+          {/* ML Мониторинг - Общий заголовок */}
+          <div className="flex items-center gap-3 mb-2">
+            <Brain className="w-6 h-6 text-purple-400" />
+            <h2 className="text-2xl font-bold text-white">ML Мониторинг</h2>
+          </div>
+
+          {/* Блок активных рекомендаций */}
+          <Suspense fallback={<MLDashboardSkeleton />}>
+            <ActiveRecommendationsBlock />
+          </Suspense>
+
+          {/* Блок пассивных рекомендаций */}
           <Suspense fallback={<MLDashboardSkeleton />}>
             <MLDashboard />
           </Suspense>
