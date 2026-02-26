@@ -22,24 +22,6 @@ interface TasteMapClientProps {
   userId: string;
 }
 
-interface ActorData {
-  id: number;
-  name: string;
-  actor_score: number;
-  average_rating: number | null;
-  watched_movies: number;
-  total_movies: number;
-}
-
-interface DirectorData {
-  id: number;
-  name: string;
-  creator_score: number;
-  average_rating: number | null;
-  watched_movies: number;
-  total_movies: number;
-}
-
 const COLORS = {
   high: '#22c55e', // green-500
   medium: '#eab308', // yellow-500
@@ -55,20 +37,20 @@ export default function TasteMapClient({ tasteMap, userId }: TasteMapClientProps
   const [loadingActors, setLoadingActors] = useState(false);
   const [loadingDirectors, setLoadingDirectors] = useState(false);
 
-  // Load actors from API
+  // Load actors from PersonProfile table
   useEffect(() => {
     const loadActors = async () => {
       setLoadingActors(true);
       try {
-        const response = await fetch(`/api/user/achiev_actors?limit=50&singleLoad=true&offset=0`);
+        const response = await fetch(`/api/user/person-profile?personType=actor&limit=10`);
         if (response.ok) {
           const data = await response.json();
-          const actorsList: Array<[string, number]> = (data.actors || [])
-            .slice(0, 10)
-            .map((actor: ActorData) => [
-              actor.name,
-              actor.average_rating ?? 0,
-            ]);
+          const actorsList: Array<[string, number]> = (data.persons || []).map(
+            (person: { name: string; avgWeightedRating: number }) => [
+              person.name,
+              person.avgWeightedRating,
+            ]
+          );
           setTopActors(actorsList);
         }
       } catch (error) {
@@ -81,20 +63,20 @@ export default function TasteMapClient({ tasteMap, userId }: TasteMapClientProps
     loadActors();
   }, [userId]);
 
-  // Load directors from API
+  // Load directors from PersonProfile table
   useEffect(() => {
     const loadDirectors = async () => {
       setLoadingDirectors(true);
       try {
-        const response = await fetch(`/api/user/achiev_creators?limit=50&singleLoad=true&offset=0`);
+        const response = await fetch(`/api/user/person-profile?personType=director&limit=10`);
         if (response.ok) {
           const data = await response.json();
-          const directorsList: Array<[string, number]> = (data.creators || [])
-            .slice(0, 10)
-            .map((creator: DirectorData) => [
-              creator.name,
-              creator.average_rating ?? 0,
-            ]);
+          const directorsList: Array<[string, number]> = (data.persons || []).map(
+            (person: { name: string; avgWeightedRating: number }) => [
+              person.name,
+              person.avgWeightedRating,
+            ]
+          );
           setTopDirectors(directorsList);
         }
       } catch (error) {

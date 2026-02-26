@@ -50,26 +50,58 @@ export default function CollectionClient({ collectionId }: { collectionId: strin
   const [watchlistStatuses, setWatchlistStatuses] = useState<Map<string, WatchlistStatus>>(new Map());
 
   useEffect(() => {
+    const abortController = new AbortController();
+    let isMounted = true;
+
     const fetchCollection = async () => {
       try {
-        const res = await fetch(`/api/collection/${collectionId}`);
-        if (!res.ok) throw new Error('Failed to fetch collection');
-        const data = await res.json();
-        setCollection(data);
+        const res = await fetch(`/api/collection/${collectionId}`, {
+          signal: abortController.signal
+        });
+        
+        if (!abortController.signal.aborted && isMounted) {
+          if (!res.ok) throw new Error(`API returned ${res.status}`);
+          const data = await res.json();
+          
+          if (!abortController.signal.aborted && isMounted) {
+            setCollection(data);
+            setError(null);
+          }
+        }
       } catch (err) {
-        setError('Failed to load collection');
-        logger.error('Collection fetch error', { error: err instanceof Error ? err.message : String(err) });
+        if (!abortController.signal.aborted && isMounted) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          // Не логируем AbortError - это нормально при отмене
+          if (errorMsg !== 'The operation was aborted.') {
+            setError('Failed to load collection');
+            logger.error('Collection fetch error', { 
+              error: errorMsg,
+              collectionId,
+              context: 'CollectionClient'
+            });
+          }
+        }
       } finally {
-        setLoading(false);
+        if (!abortController.signal.aborted && isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchCollection();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [collectionId]);
 
   // Batch-загрузка статусов из вишлиста для всех фильмов коллекции
   useEffect(() => {
     if (!collection) return;
+
+    const abortController = new AbortController();
+    let isMounted = true;
 
     const fetchWatchlistStatuses = async () => {
       const movies = collection.parts.map(item => ({
@@ -82,33 +114,52 @@ export default function CollectionClient({ collectionId }: { collectionId: strin
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ movies }),
+          signal: abortController.signal
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          const statuses = new Map<string, WatchlistStatus>();
-          
-          collection.parts.forEach(item => {
-            const key = `${item.media_type}_${item.id}`;
-            const movieData = data[key];
-            if (movieData) {
-              statuses.set(key, {
-                tmdbId: item.id,
-                mediaType: item.media_type,
-                status: movieData.status,
-                userRating: movieData.userRating,
+        if (!abortController.signal.aborted && isMounted) {
+          if (res.ok) {
+            const data = await res.json();
+            
+            if (!abortController.signal.aborted && isMounted) {
+              const statuses = new Map<string, WatchlistStatus>();
+              
+              collection.parts.forEach(item => {
+                const key = `${item.media_type}_${item.id}`;
+                const movieData = data[key];
+                if (movieData) {
+                  statuses.set(key, {
+                    tmdbId: item.id,
+                    mediaType: item.media_type,
+                    status: movieData.status,
+                    userRating: movieData.userRating,
+                  });
+                }
               });
+              
+              setWatchlistStatuses(statuses);
             }
-          });
-          
-          setWatchlistStatuses(statuses);
+          }
         }
       } catch (err) {
-        logger.error('Failed to fetch watchlist statuses', { error: err instanceof Error ? err.message : String(err) });
+        if (!abortController.signal.aborted && isMounted) {
+          const errorMsg = err instanceof Error ? err.message : String(err);
+          if (errorMsg !== 'The operation was aborted.') {
+            logger.error('Failed to fetch watchlist statuses', { 
+              error: errorMsg,
+              context: 'CollectionClient'
+            });
+          }
+        }
       }
     };
 
     fetchWatchlistStatuses();
+
+    return () => {
+      isMounted = false;
+      abortController.abort();
+    };
   }, [collection]);
 
   if (loading) {

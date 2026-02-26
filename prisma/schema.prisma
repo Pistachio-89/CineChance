@@ -38,6 +38,7 @@ model User {
   userEmbedding          UserEmbedding?
   userSessions           UserSession[]
   watchList              WatchList[]
+  personProfiles         PersonProfile[]
 
   // ML Feedback Loop relations
   recommendationDecisions RecommendationDecision[]
@@ -635,4 +636,84 @@ model ModelTraining {
 
   @@index([modelVersion])
   @@index([status])
+}
+
+/// Similarity scores between users
+/// Persisted to DB for consistency across all API calls
+/// Recalculated weekly by scheduler
+model SimilarityScore {
+  id String @id @default(cuid())
+
+  // User pair (userIdA < userIdB for consistency)
+  userIdA String
+  userIdB String
+
+  // Main metric (0.0 to 1.0)
+  overallMatch Decimal @db.Decimal(5, 4)
+
+  // Components (for debugging and analytics)
+  tasteSimilarity Decimal  @db.Decimal(5, 4) // Genres: 30%
+  ratingCorrelation Decimal @db.Decimal(6, 4) // Pearson: -1.0 to 1.0
+  personOverlap Decimal    @db.Decimal(5, 4) // Persons: 20%
+
+  // Snapshots for reproducibility
+  tasteMapASnapshot Json
+  tasteMapBSnapshot Json
+
+  // Metadata
+  computedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  computedBy String // "scheduler" | "manual" | "on-demand"
+
+  @@unique([userIdA, userIdB])
+  @@index([userIdA])
+  @@index([userIdB])
+  @@index([computedAt])
+  @@index([updatedAt])
+}
+
+/**
+ * PersonProfile model - stores top-50 actors/directors for each user
+ * Built from top-5 from each watched movie
+ * Ratings calculated on-the-fly through WatchList junction
+ */
+model PersonProfile {
+  id                String   @id @default(cuid())
+  userId            String
+  personType        String   // 'actor' | 'director'
+  
+  // Array of top-50 persons with metadata
+  // Structure: { tmdbPersonId: number, name: string, count: number, avgWeightedRating: number }
+  topPersons        Json     @default("[]")
+  
+  // Statistics
+  totalMoviesAnalyzed Int    @default(0)
+  computedAt        DateTime @default(now()) @updatedAt
+  computationMethod String   @default("full") // 'full' | 'incremental'
+  
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, personType])
+  @@index([userId])
+}
+
+/**
+ * MoviePersonCache model - caches top-5 actors/directors for each movie from TMDB
+ * Used to avoid repeated TMDB API calls when building PersonProfiles
+ */
+model MoviePersonCache {
+  id            String   @id @default(cuid())
+  tmdbId        Int
+  mediaType     String   // 'movie' | 'tv'
+  
+  // Top-5 actors and directors from TMDB API
+  // Structure: { id: number, name: string, character?: string }
+  topActors     Json     @default("[]")
+  topDirectors  Json     @default("[]")
+  
+  // Cache metadata
+  lastFetchedAt DateTime @default(now()) @updatedAt
+  
+  @@unique([tmdbId, mediaType])
+  @@index([tmdbId])
 }

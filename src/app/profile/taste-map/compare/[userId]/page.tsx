@@ -16,6 +16,7 @@ interface RatingMatchPatterns {
   perfectMatches: number;
   closeMatches: number;
   moderateMatches: number;
+  largeDifference: number;
   sameCategory: number;
   differentIntensity: number;
   avgRatingUser1: number;
@@ -37,6 +38,26 @@ interface SharedMovie {
   difference: number;
 }
 
+interface PersonOverlapDetail {
+  name: string;
+  userScore: number;
+  comparedScore: number;
+  average: number;
+}
+
+interface PersonSet {
+  mutual: PersonOverlapDetail[];
+  onlyInUser: PersonOverlapDetail[];
+  onlyInCompared: PersonOverlapDetail[];
+  jaccardIndex: number;
+}
+
+interface PersonComparisonResult {
+  actors: PersonSet;
+  directors: PersonSet;
+  overallMatch: number;
+}
+
 interface ComparisonData {
   userId: string;
   comparedUserId: string;
@@ -46,6 +67,7 @@ interface ComparisonData {
     current: Record<string, number>;
     compared: Record<string, number>;
   };
+  personComparison?: PersonComparisonResult;
   sharedMovies: SharedMovie[];
   myWatchedCount: number;
   theirWatchedCount: number;
@@ -185,20 +207,37 @@ export default function ComparisonPage() {
         </div>
 
         {/* Overall Match Card */}
-        <div className={`border rounded-lg p-8 mb-8 ${getMatchBgColor(comparison.metrics.overallMatch * 100)}`}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-white">Общее совпадение</h2>
-            <div className={`text-4xl font-bold ${getMatchColor(comparison.metrics.overallMatch * 100)}`}>
-              {(comparison.metrics.overallMatch * 100).toFixed(0)}%
+        {(() => {
+          // Calculate components
+          const genreScore = comparison.metrics.tasteSimilarity;
+          const personScore = comparison.personComparison 
+            ? (comparison.personComparison.actors.jaccardIndex + comparison.personComparison.directors.jaccardIndex) / 2
+            : comparison.metrics.personOverlap;
+          const movieScore = comparison.ratingPatterns?.overallMovieMatch || 0;
+          
+          // Weighted overall match:
+          // - Movies: 50% (most important)
+          // - Genres: 30%
+          // - Persons: 20% (least important)
+          const overallMatch = (movieScore * 0.5) + (genreScore * 0.3) + (personScore * 0.2);
+          
+          return (
+            <div className={`border rounded-lg p-8 mb-8 ${getMatchBgColor(overallMatch * 100)}`}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-2xl font-bold text-white">Общее совпадение</h2>
+                <div className={`text-4xl font-bold ${getMatchColor(overallMatch * 100)}`}>
+                  {(overallMatch * 100).toFixed(0)}%
+                </div>
+              </div>
+              <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-purple-500 to-blue-500 h-full transition-all duration-300"
+                  style={{ width: `${overallMatch * 100}%` }}
+                />
+              </div>
             </div>
-          </div>
-          <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-purple-500 to-blue-500 h-full transition-all duration-300"
-              style={{ width: `${comparison.metrics.overallMatch * 100}%` }}
-            />
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -242,8 +281,12 @@ export default function ComparisonPage() {
               {/* Key metrics */}
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between items-center py-2 border-t border-gray-700">
-                  <span className="text-gray-400">Фильмов с полным совпадением:</span>
+                  <span className="text-gray-400">Полное совпадение (diff = 0):</span>
                   <span className="text-white font-semibold">{comparison.ratingPatterns.perfectMatches}</span>
+                </div>
+                <div className="flex justify-between items-center py-2 border-t border-gray-700">
+                  <span className="text-gray-400">Близкое совпадение (diff ≤ 1):</span>
+                  <span className="text-white font-semibold">{comparison.ratingPatterns.closeMatches}</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-t border-gray-700">
                   <span className="text-gray-400">Средняя разница оценок:</span>
@@ -260,17 +303,31 @@ export default function ComparisonPage() {
                   </div>
                 )}
               </div>
+              
+              {/* Legend/Explanation */}
+              <div className="mt-4 p-3 bg-gray-800 rounded border border-gray-700">
+                <p className="text-xs text-gray-400 mb-2">💡 Как считается процент:</p>
+                <p className="text-xs text-gray-500">
+                  100% = все общие просмотренные фильмы<br/>
+                  Считаем = Полное (diff=0) + Близкое (0&lt;diff≤1)<br/>
+                  Отсеиваем: Умеренное (1&lt;diff≤2) и Большую разницу (diff&gt;2)
+                </p>
+              </div>
             </div>
           )}
 
           {/* Person Overlap */}
           <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-white font-semibold">Актеры</h3>
+              <h3 className="text-white font-semibold">Персоны</h3>
               <span className="text-2xl">👥</span>
             </div>
             <p className="text-3xl font-bold text-blue-400 mb-2">
-              {(comparison.metrics.personOverlap * 100).toFixed(0)}%
+              {comparison.personComparison ? (
+                ((comparison.personComparison.actors.jaccardIndex + comparison.personComparison.directors.jaccardIndex) / 2 * 100).toFixed(0)
+              ) : (
+                (comparison.metrics.personOverlap * 100).toFixed(0)
+              )}%
             </p>
             <p className="text-sm text-gray-400">
               Пересечение любимых актеров и режиссеров
@@ -278,7 +335,7 @@ export default function ComparisonPage() {
             <div className="mt-4 w-full bg-gray-800 rounded-full h-2 overflow-hidden">
               <div
                 className="bg-blue-500 h-full"
-                style={{ width: `${comparison.metrics.personOverlap * 100}%` }}
+                style={{ width: `${comparison.personComparison ? ((comparison.personComparison.actors.jaccardIndex + comparison.personComparison.directors.jaccardIndex) / 2 * 100) : (comparison.metrics.personOverlap * 100)}%` }}
               />
             </div>
           </div>
@@ -311,28 +368,40 @@ export default function ComparisonPage() {
             {/* Pattern 1: Perfect/Close/Moderate Matches */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-gray-300 uppercase mb-3">Паттерн 1: Совпадение оценок</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-gray-800 rounded p-4 border border-green-800">
                   <div className="text-2xl font-bold text-green-400 mb-1">
                     {comparison.ratingPatterns.perfectMatches}
                   </div>
                   <div className="text-xs text-gray-400">Полное совпадение</div>
-                  <div className="text-xs text-gray-500 mt-1">(Оценка одинаковая)</div>
+                  <div className="text-xs text-gray-500 mt-1">(Оценка одинаковая, diff = 0)</div>
                 </div>
                 <div className="bg-gray-800 rounded p-4 border border-yellow-800">
                   <div className="text-2xl font-bold text-yellow-400 mb-1">
                     {comparison.ratingPatterns.closeMatches}
                   </div>
                   <div className="text-xs text-gray-400">Близкое совпадение</div>
-                  <div className="text-xs text-gray-500 mt-1">(Разница ±1 балл)</div>
+                  <div className="text-xs text-gray-500 mt-1">(Разница ±1 балл, 0 &lt; diff ≤ 1)</div>
                 </div>
                 <div className="bg-gray-800 rounded p-4 border border-orange-800">
                   <div className="text-2xl font-bold text-orange-400 mb-1">
                     {comparison.ratingPatterns.moderateMatches}
                   </div>
                   <div className="text-xs text-gray-400">Умеренное совпадение</div>
-                  <div className="text-xs text-gray-500 mt-1">(Разница ±2 балла)</div>
+                  <div className="text-xs text-gray-500 mt-1">(Разница ±2 балла, 1 &lt; diff ≤ 2)</div>
                 </div>
+                <div className="bg-gray-800 rounded p-4 border border-red-800">
+                  <div className="text-2xl font-bold text-red-400 mb-1">
+                    {comparison.ratingPatterns.largeDifference}
+                  </div>
+                  <div className="text-xs text-gray-400">Большая разница</div>
+                  <div className="text-xs text-gray-500 mt-1">(Существенно отличаются, diff &gt; 2)</div>
+                </div>
+              </div>
+              <div className="mt-3 p-3 bg-gray-800 rounded border border-gray-700">
+                <p className="text-xs text-gray-400">
+                  💡 Итого фильмов: <span className="font-semibold text-white">{comparison.ratingPatterns.perfectMatches + comparison.ratingPatterns.closeMatches + comparison.ratingPatterns.moderateMatches + comparison.ratingPatterns.largeDifference}</span> (совпадение от diff=0 до diff&gt;2)
+                </p>
               </div>
             </div>
 
@@ -424,30 +493,37 @@ export default function ComparisonPage() {
         {/* Shared Movies */}
 
         {comparison.sharedMovies.length > 0 && (
-          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6">
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
             <h2 className="text-xl font-bold text-white mb-4">
               Общие просмотренные фильмы ({comparison.sharedMovies.length})
             </h2>
             <div className="space-y-3">
-              {comparison.sharedMovies.slice(0, 10).map((movie) => (
-                <div
-                  key={movie.tmdbId}
-                  className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700"
-                >
-                  <div className="flex-1">
-                    <p className="text-white font-medium">{movie.title}</p>
-                    <p className="text-xs text-gray-500">
-                      Разница в оценках: {Math.abs(movie.difference).toFixed(1)} балла
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 flex-shrink-0">
-                    <div className="text-right">
-                      <p className="text-sm text-gray-400">Вы: {movie.myRating}</p>
-                      <p className="text-sm text-gray-400">Он: {movie.theirRating}</p>
+              {(() => {
+                // Sort by difference (ascending - first 0 difference, like Genre Profiles)
+                const sortedByDifference = [...comparison.sharedMovies].sort(
+                  (a, b) => Math.abs(a.difference) - Math.abs(b.difference)
+                );
+                return sortedByDifference.slice(0, 10).map((movie) => (
+                  <div
+                    key={movie.tmdbId}
+                    className="flex items-center justify-between p-3 bg-gray-800 rounded-lg border border-gray-700"
+                  >
+                    <div className="flex-1">
+                      <p className="text-white font-medium">{movie.title}</p>
+                      <p className="text-xs text-gray-500">
+                        Разница в оценках: {Math.abs(movie.difference).toFixed(1)} балла
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <div className="text-right">
+                        <p className="text-sm text-gray-400">Вы: {movie.myRating}</p>
+                        <p className="text-sm text-gray-400">Он: {movie.theirRating}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ));
+              })()}
+
               {comparison.sharedMovies.length > 10 && (
                 <p className="text-center text-gray-500 text-sm mt-4">
                   ... и еще {comparison.sharedMovies.length - 10} фильмов
@@ -550,7 +626,108 @@ export default function ComparisonPage() {
             })()}
           </div>
         )}
+
+        {/* Person Profiles Comparison */}
+        {comparison.personComparison && (
+          <div className="bg-gray-900 border border-gray-800 rounded-lg p-6 mb-8">
+            <h2 className="text-xl font-bold text-white mb-6">👥 Профиль Персон (Актеры & Режиссеры)</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Actors Comparison */}
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    🎬 Актеры
+                  </h3>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-blue-400">
+                      {(comparison.personComparison.actors.jaccardIndex * 100).toFixed(0)}%
+                    </div>
+                    <div className="text-xs text-gray-400">Совпадение</div>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden mb-4">
+                  <div
+                    className="bg-blue-500 h-full"
+                    style={{ width: `${comparison.personComparison.actors.jaccardIndex * 100}%` }}
+                  />
+                </div>
+
+                  {/* Mutual Actors Only */}
+                  {comparison.personComparison.actors.mutual.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-green-400 mb-2">
+                        ✅ Любимые оба ({comparison.personComparison.actors.mutual.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {comparison.personComparison.actors.mutual.slice(0, 5).map((actor) => (
+                          <div key={actor.name} className="text-sm text-gray-300 bg-green-900/20 px-2 py-1 rounded">
+                            <span className="font-medium">{actor.name}</span>
+                            <span className="text-gray-500 ml-1 text-xs">
+                              (Вы: {actor.userScore.toFixed(0)}, Он: {actor.comparedScore.toFixed(0)})
+                            </span>
+                          </div>
+                        ))}
+                        {comparison.personComparison.actors.mutual.length > 5 && (
+                          <p className="text-xs text-gray-500">+ еще {comparison.personComparison.actors.mutual.length - 5}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Нет совпадающих актеров</p>
+                  )}
+              </div>
+
+              {/* Directors Comparison */}
+              <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    🎥 Режиссеры
+                  </h3>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-pink-400">
+                      {(comparison.personComparison.directors.jaccardIndex * 100).toFixed(0)}%
+                    </div>
+                    <div className="text-xs text-gray-400">Совпадение</div>
+                  </div>
+                </div>
+                
+                <div className="w-full bg-gray-700 rounded-full h-2 overflow-hidden mb-4">
+                  <div
+                    className="bg-pink-500 h-full"
+                    style={{ width: `${comparison.personComparison.directors.jaccardIndex * 100}%` }}
+                  />
+                </div>
+
+                  {/* Mutual Directors Only */}
+                  {comparison.personComparison.directors.mutual.length > 0 ? (
+                    <div>
+                      <h4 className="text-sm font-semibold text-green-400 mb-2">
+                        ✅ Любимые оба ({comparison.personComparison.directors.mutual.length})
+                      </h4>
+                      <div className="space-y-1">
+                        {comparison.personComparison.directors.mutual.slice(0, 5).map((director) => (
+                          <div key={director.name} className="text-sm text-gray-300 bg-green-900/20 px-2 py-1 rounded">
+                            <span className="font-medium">{director.name}</span>
+                            <span className="text-gray-500 ml-1 text-xs">
+                              (Вы: {director.userScore.toFixed(0)}, Он: {director.comparedScore.toFixed(0)})
+                            </span>
+                          </div>
+                        ))}
+                        {comparison.personComparison.directors.mutual.length > 5 && (
+                          <p className="text-xs text-gray-500">+ еще {comparison.personComparison.directors.mutual.length - 5}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">Нет совпадающих режиссеров</p>
+                  )}
+              </div>
+            </div>
+          </div>
+        )}
+        </div>
       </div>
-    </div>
-  );
+    );
 }

@@ -11,6 +11,7 @@ import { calculateWeightedRating } from "@/lib/calculateWeightedRating";
 import { invalidateUserCache } from "@/lib/redis";
 import { recomputeTasteMap } from '@/lib/taste-map/compute';
 import { trackOutcome } from '@/lib/recommendation-outcome-tracking';
+import { incrementallyUpdatePersonProfile, ensureMoviePersonCacheExists } from '@/lib/taste-map/person-profile-v2';
 import { randomUUID } from 'crypto';
 
 // Helper to get or generate request ID
@@ -490,6 +491,25 @@ export async function POST(req: Request) {
     }
 
     await invalidateUserCache(session.user.id);
+
+    // Incrementally update person profile (non-blocking)
+    after(async () => {
+      try {
+        await ensureMoviePersonCacheExists(tmdbId, mediaType);
+        await incrementallyUpdatePersonProfile(
+          session.user.id,
+          tmdbId,
+          mediaType,
+          'add'
+        );
+      } catch (error) {
+        logger.error('Person profile update failed (non-blocking)', {
+          error: error instanceof Error ? error.message : String(error),
+          userId: session.user.id,
+          tmdbId,
+        });
+      }
+    });
 
     // Track recommendation outcome if recommendationLogId provided and status is watched/rewatched
     if (recommendationLogId && (status === 'watched' || status === 'rewatched')) {

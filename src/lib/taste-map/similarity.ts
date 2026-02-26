@@ -42,11 +42,14 @@ export const RATING_THRESHOLDS = {
   EPIC: { min: 10, max: 10, label: 'Эпик вин!', color: '⚡', signal: 'Пересмотр!' },
 } as const;
 
-// Weights for overall match from CONTEXT.md
+// Weights for overall match
+// - Movies (rating correlation): 50% (most important)
+// - Genres: 30%
+// - Persons: 20% (least important)
 const WEIGHTS = {
-  tasteSimilarity: 0.5,
-  ratingCorrelation: 0.3,
-  personOverlap: 0.2,
+  tasteSimilarity: 0.3,      // Genres
+  ratingCorrelation: 0.5,    // Movies
+  personOverlap: 0.2,        // Persons
 };
 
 // Similarity threshold from CONTEXT.md
@@ -57,9 +60,10 @@ const SIMILARITY_THRESHOLD = 0.7;
  */
 export interface RatingMatchPatterns {
   // Pattern 1: Полное совпадение оценок (в пределах ±1, ±2)
-  perfectMatches: number;      // Фильм + статус + оценка полностью совпали
-  closeMatches: number;        // Фильм + статус совпали, оценка ±1
-  moderateMatches: number;     // Фильм + статус совпали, оценка ±2
+  perfectMatches: number;      // Фильм + статус + оценка полностью совпали (diff === 0)
+  closeMatches: number;        // Фильм + статус совпали, оценка ±1 (0 < diff <= 1)
+  moderateMatches: number;     // Фильм + статус совпали, оценка ±2 (1 < diff <= 2)
+  largeDifference: number;     // Оценки существенно отличаются (diff > 2)
   
   // Pattern 2: Анализ разницы оценок по категориям
   sameCategory: number;        // Обе оценки в одной категории (1-3, 4-5, 6-7, 8-9)
@@ -78,7 +82,7 @@ export interface RatingMatchPatterns {
   avgRatingDifference: number;        // Средняя разница оценок по всем общим фильмам
   positiveRatingsPercentage: number;  // % фильмов где оба дали 8-10
   bothRewatchedCount: number;         // Количество фильмов оба пересмотрели
-  overallMovieMatch: number;          // Итоговая метрика совпадения по фильмам (0-1)
+  overallMovieMatch: number;          // % совпадения: (Полное + Близкое) / Все общие = 0-1
 }
 
 /**
@@ -228,6 +232,50 @@ export function genreRatingSimilarity(
 }
 
 /**
+ * Calculate genre match percentage based on preference alignment
+ * 
+ * Logic:
+ * 1. Base (100%): Union of all genres from watched/rewatched movies of both users
+ * 2. Matching genres: Genres with score difference <= 0.4 (on 0-1 scale, i.e., 4 points on 0-10 scale)
+ * 3. Result: (matching genres / all genres) * 100%
+ * 
+ * Returns value between 0 and 1 (1 = 100% genre preferences match)
+ */
+export function calculateGenreMatchPercentage(
+  profileA: GenreProfile,
+  profileB: GenreProfile
+): number {
+  // Get all unique genres from both profiles (union)
+  const allGenres = new Set([
+    ...Object.keys(profileA),
+    ...Object.keys(profileB),
+  ]);
+  
+  // If no genres, return 0
+  if (allGenres.size === 0) {
+    return 0;
+  }
+  
+  // Count matching genres (difference <= 0.4 on 0-1 scale = 4 points on 0-10 scale)
+  const MATCH_THRESHOLD = 0.4; // On a 0-1 scale
+  let matchingCount = 0;
+
+  for (const genre of allGenres) {
+    const ratingA = (profileA[genre] ?? 0) / 100; // Convert 0-100 to 0-1 scale
+    const ratingB = (profileB[genre] ?? 0) / 100; // Convert 0-100 to 0-1 scale
+    const diff = Math.abs(ratingA - ratingB);
+    
+    // Count as matching if difference is within threshold
+    if (diff <= MATCH_THRESHOLD) {
+      matchingCount++;
+    }
+  }
+  
+  // Return percentage: matching / total
+  return matchingCount / allGenres.size;
+}
+
+/**
  * Compute Pearson correlation coefficient between two rating arrays
  * Returns value between -1 and 1
  * - 1 = perfect positive correlation
@@ -303,17 +351,24 @@ export function personOverlap(
 
 /**
  * Compute overall match score from similarity result
- * Uses weights from CONTEXT.md: tasteSimilarity: 0.5, ratingCorrelation: 0.3, personOverlap: 0.2
- * Note: ratingCorrelation is normalized from [-1, 1] to [0, 1] for weighting
+ * Uses weights: Movies 0.5, Genres 0.3, Persons 0.2
+ * 
+ * Priority:
+ * 1. If ratingPatterns available: use overallMovieMatch (% perfect+close ratings)
+ * 2. Otherwise: use normalized ratingCorrelation (Pearson, -1 to 1 → 0 to 1)
+ * 
+ * This matches the client-side calculation on comparison page.
  */
 export function computeOverallMatch(result: SimilarityResult): number {
-  // Normalize rating correlation from [-1, 1] to [0, 1]
-  const normalizedCorrelation = (result.ratingCorrelation + 1) / 2;
+  // Use overallMovieMatch from patterns if available (0-1 scale)
+  // Otherwise fall back to normalized rating correlation
+  const movieScore = result.ratingPatterns?.overallMovieMatch ?? 
+    ((result.ratingCorrelation + 1) / 2);
   
   return (
-    result.tasteSimilarity * WEIGHTS.tasteSimilarity +
-    normalizedCorrelation * WEIGHTS.ratingCorrelation +
-    result.personOverlap * WEIGHTS.personOverlap
+    movieScore * WEIGHTS.ratingCorrelation +       // Movies: 0.5
+    result.tasteSimilarity * WEIGHTS.tasteSimilarity +  // Genres: 0.3
+    result.personOverlap * WEIGHTS.personOverlap   // Persons: 0.2
   );
 }
 
@@ -327,9 +382,10 @@ export function isSimilar(result: SimilarityResult): boolean {
 }
 
 // Redis key patterns for similarity data
+// v2 suffix added after weight formula change: Movies 0.5, Genres 0.3, Persons 0.2
 const SIMILAR_KEYS = {
-  similarUsers: (userId: string) => `similar-users:${userId}`,
-  similarityPair: (userId: string, otherUserId: string) => `similarity:${userId}:${otherUserId}`,
+  similarUsers: (userId: string) => `similar-users:v2:${userId}`,
+  similarityPair: (userId: string, otherUserId: string) => `similarity:v2:${userId}:${otherUserId}`,
 };
 
 /**
@@ -491,6 +547,7 @@ async function computeRatingPatterns(
       perfectMatches: 0,
       closeMatches: 0,
       moderateMatches: 0,
+      largeDifference: 0,
       sameCategory: 0,
       differentIntensity: 0,
       avgRatingUser1: 0,
@@ -498,6 +555,10 @@ async function computeRatingPatterns(
       intensityMatch: 0,
       pearsonCorrelation: 0,
       totalSharedMovies: watchListB.length,
+      avgRatingDifference: 0,
+      positiveRatingsPercentage: 0,
+      bothRewatchedCount: 0,
+      overallMovieMatch: 0,
     };
   }
 
@@ -509,9 +570,10 @@ async function computeRatingPatterns(
   let bothRewatchedCount = 0;
 
   // Pattern counters
-  let perfectMatches = 0;     // Exactly same rating
-  let closeMatches = 0;       // ±1 difference
-  let moderateMatches = 0;    // ±2 difference
+  let perfectMatches = 0;     // Exactly same rating (diff === 0)
+  let closeMatches = 0;       // ±1 difference (0 < diff <= 1)
+  let moderateMatches = 0;    // ±2 difference (1 < diff <= 2)
+  let largeDifference = 0;    // Large difference (diff > 2)
   let sameCategory = 0;       // Same intensity category
   let differentIntensity = 0; // Different intensity categories
 
@@ -546,13 +608,16 @@ async function computeRatingPatterns(
       bothRewatchedCount++;
     }
 
-    // Pattern 1: Exact and close matches
+    // Pattern 1: Exact and close matches - counts ALL shared movies across categories
     if (diff === 0) {
       perfectMatches++;
     } else if (diff <= 1) {
       closeMatches++;
     } else if (diff <= 2) {
       moderateMatches++;
+    } else {
+      // New: count movies with large differences to ensure all movies are accounted for
+      largeDifference++;
     }
 
     // Pattern 2: Category alignment
@@ -587,15 +652,18 @@ async function computeRatingPatterns(
     ? Math.round((positiveRatingsCount / ratingsA.length) * 100)
     : 0;
 
-  // Overall movie match: based on perfect matches percentage
+  // Overall movie match: считаем Полное (diff=0) + Близкое (0<diff≤1) совпадение
+  // Отсеиваем: Умеренное (1<diff≤2) и Большую разницу (diff>2)
+  // Формула: (Полное + Близкое) / Все общие фильмы × 100%
   const overallMovieMatch = ratingsA.length > 0
-    ? perfectMatches / ratingsA.length 
+    ? (perfectMatches + closeMatches) / ratingsA.length 
     : 0;
 
   return {
     perfectMatches,
     closeMatches,
     moderateMatches,
+    largeDifference,
     sameCategory,
     differentIntensity,
     avgRatingUser1: Math.round(avgRatingUser1 * 10) / 10,
@@ -633,7 +701,7 @@ async function computeRatingCorrelation(
  * Returns full SimilarityResult
  * 
  * IMPORTANT: All metrics are based on watched/rewatched movies only:
- * - tasteSimilarity: compares genre preferences from completed watches
+ * - tasteSimilarity: genre match percentage based on preference alignment (new logic)
  * - ratingCorrelation: pearson correlation of ratings for shared watched movies
  * - personOverlap: compares favorite actors/directors from completed watches
  * 
@@ -660,8 +728,8 @@ export async function computeSimilarity(
     };
   }
   
-  // Compute taste similarity (cosine similarity of genre vectors)
-  const tasteSimilarity = cosineSimilarity(
+  // Compute taste similarity using new genre match percentage logic
+  const tasteSimilarity = calculateGenreMatchPercentage(
     tasteMapA.genreProfile,
     tasteMapB.genreProfile
   );
@@ -687,20 +755,22 @@ export async function computeSimilarity(
   // For rating correlation, compute from shared watched movies
   const ratingCorrelationValue = await computeRatingCorrelation(userIdA, userIdB);
   
+  // Compute rating patterns first if needed (they're required for proper overall match calculation)
+  let ratingPatterns: RatingMatchPatterns | undefined;
+  if (includePatterns) {
+    ratingPatterns = await computeRatingPatterns(userIdA, userIdB);
+  }
+  
   const result: SimilarityResult = {
     tasteSimilarity,
     ratingCorrelation: ratingCorrelationValue,
     personOverlap: personOverlapValue,
-    overallMatch: 0, // Will be computed below
     genreRatingSimilarity: genreRatingSimilarityValue,
+    ratingPatterns, // Include patterns if computed
+    overallMatch: 0, // Will be computed below
   };
   
-  // Optionally include detailed rating patterns (for comparison page)
-  if (includePatterns) {
-    result.ratingPatterns = await computeRatingPatterns(userIdA, userIdB);
-  }
-  
-  // Compute overall match
+  // Compute overall match (uses ratingPatterns if available)
   result.overallMatch = computeOverallMatch(result);
   
   return result;
@@ -721,8 +791,9 @@ export async function findSimilarUsers(
     // Skip comparing user to themselves
     if (candidateId === userId) continue;
     
-    // Compute similarity
-    const result = await computeSimilarity(userId, candidateId);
+    // Compute similarity without patterns for performance
+    // computeOverallMatch handles fallback to normalized ratingCorrelation
+    const result = await computeSimilarity(userId, candidateId, false);
     
     // Store individual pair similarity to Redis
     await storeSimilarityPair(userId, candidateId, result.overallMatch);

@@ -8,6 +8,8 @@ import { MOVIE_STATUS_IDS } from '@/lib/movieStatusConstants';
 import { computeSimilarity } from '@/lib/taste-map/similarity';
 import { getTasteMap } from '@/lib/taste-map/redis';
 import { computeTasteMap } from '@/lib/taste-map/compute';
+import { comparePersonProfiles } from '@/lib/taste-map/person-comparison';
+import { computeAndStoreSimilarityScore } from '@/lib/taste-map/similarity-storage';
 
 // Only compare watched/rewatched movies for accurate taste comparison
 const COMPLETED_STATUS_IDS = [MOVIE_STATUS_IDS.WATCHED, MOVIE_STATUS_IDS.REWATCHED];
@@ -73,6 +75,17 @@ export async function GET(
     // Get similarity metrics WITH detailed rating patterns
     const similarityResult = await computeSimilarity(currentUserId, comparedUserId, true);
 
+    // Store similarity score to persistent database for consistency across API calls
+    try {
+      await computeAndStoreSimilarityScore(currentUserId, comparedUserId, 'on-demand');
+    } catch (err) {
+      logger.debug('Failed to store similarity score', {
+        error: err instanceof Error ? err.message : String(err),
+        context: 'TasteMapComparisonAPI',
+      });
+      // Don't fail the endpoint if storage fails
+    }
+
     // Get taste maps (compute if needed)
     const [currentTasteMap, comparedTasteMap] = await Promise.all([
       getTasteMap(currentUserId, () => computeTasteMap(currentUserId)),
@@ -136,6 +149,12 @@ export async function GET(
       })
       .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
 
+    // Compare person profiles (actors and directors)
+    const personComparison = comparePersonProfiles(
+      currentTasteMap.personProfiles,
+      comparedTasteMap.personProfiles
+    );
+
     return NextResponse.json({
       userId: currentUserId,
       comparedUserId,
@@ -151,6 +170,7 @@ export async function GET(
         current: currentTasteMap.genreProfile,
         compared: comparedTasteMap.genreProfile,
       },
+      personComparison,
       myWatchedCount: currentCount,
       theirWatchedCount: comparedCount,
       commonWatchedCount: sharedMovies.length,

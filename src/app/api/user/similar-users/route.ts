@@ -4,30 +4,26 @@ import { authOptions } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
 import { rateLimit } from '@/middleware/rateLimit';
-import {
-  computeSimilarity,
-  getSimilarUsers,
-  storeSimilarUsers,
-  isSimilar,
-} from '@/lib/taste-map/similarity';
-import { getTasteMap } from '@/lib/taste-map/redis';
+import { computeAndStoreSimilarityScore, getCandidateUsersForSimilarity } from '@/lib/taste-map/similarity-storage';
+import { computeSimilarity, isSimilar } from '@/lib/taste-map/similarity';
 
-const SAMPLE_ACTIVE_USERS = 100; // Sample size for performance
-const MIN_USER_HISTORY = 5; // Minimum watched movies to be considered
+const MIN_USER_HISTORY = 5;
+// No longer limiting candidate search - check ALL users with shared movies
+// Previously limited to 200 active users, now finds all potential matches
 
 /**
  * GET /api/user/similar-users
  *
- * Find users with similar taste profiles (taste map).
- *
+ * Find users with similar taste profiles from persistent database storage
+ * 
  * Query parameters:
  * - limit: maximum number of similar users to return (default 10, max 50)
- * - useCache: whether to use cached results (default true)
+ * - freshOnly: only return recently computed scores (default false)
  *
  * Returns:
- * - similarUsers: array of {userId, overallMatch, userInfo}
- * - cached: whether these results came from Redis cache
- * - computedAt: timestamp when similarities were computed
+ * - similarUsers: array of {userId, overallMatch, watchCount, memberSince}
+ * - fromDatabase: whether results came from persistent storage
+ * - computedAt: timestamp of the stored/computed results
  */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -52,11 +48,8 @@ export async function GET(request: NextRequest) {
     }
 
     const userId = session.user.id;
-    const limit = Math.min(
-      parseInt(searchParams.get('limit') || '10'),
-      50
-    );
-    const useCache = searchParams.get('useCache') !== 'false';
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100); // Increased default and max limits
+    const freshOnly = searchParams.get('freshOnly') === 'true';
 
     // Check user has minimum history
     const watchListCount = await prisma.watchList.count({
@@ -66,114 +59,131 @@ export async function GET(request: NextRequest) {
     if (watchListCount < MIN_USER_HISTORY) {
       return NextResponse.json({
         similarUsers: [],
-        cached: false,
+        fromDatabase: false,
         computedAt: new Date().toISOString(),
         message: 'Not enough watch history to find similar users',
       });
     }
 
-    // Try to get cached results
-    let similarUsers = useCache ? await getSimilarUsers(userId) : [];
+    // Get similar users from database
+    let dbScores = await prisma.similarityScore.findMany({
+      where: {
+        OR: [
+          { userIdA: userId },
+          { userIdB: userId },
+        ],
+      },
+      orderBy: {
+        overallMatch: 'desc',
+      },
+      take: limit,
+    });
 
-    if (similarUsers.length === 0) {
-      let candidateIds: string[] = [];
+    let fromDatabase = true;
+    let computedAt = new Date();
 
-      // Try to get active users with recent activity (30 days)
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-      let activeUsers = await prisma.watchList.findMany({
-        where: {
-          addedAt: { gte: thirtyDaysAgo },
-          userId: { not: userId },
-        },
-        select: { userId: true },
-        distinct: ['userId'],
-        take: SAMPLE_ACTIVE_USERS,
+    // FALLBACK: If no data in database, compute on-the-fly and save
+    // This handles the migration from Redis cache to persistent storage
+    if (dbScores.length === 0) {
+      logger.info('No cached similarities found, computing on-the-fly', {
+        userId,
+        context: 'SimilarUsersAPI',
       });
 
-      candidateIds = activeUsers.map(u => u.userId);
+      fromDatabase = false;
 
-      // If not enough active users in 30 days, expand search
-      if (candidateIds.length < 10) {
-        const ninetyDaysAgo = new Date();
-        ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+      // Find candidate users with shared movies - checks ALL users, not limited to sample
+      const candidateIds = await getCandidateUsersForSimilarity(userId);
 
-        const expandedUsers = await prisma.watchList.findMany({
-          where: {
-            addedAt: { gte: ninetyDaysAgo },
-            userId: { not: userId },
-          },
-          select: { userId: true },
-          distinct: ['userId'],
-          take: SAMPLE_ACTIVE_USERS,
+      if (candidateIds.length === 0) {
+        return NextResponse.json({
+          similarUsers: [],
+          fromDatabase: false,
+          computedAt: new Date().toISOString(),
+          message: 'Not enough users with shared movies found',
         });
-
-        candidateIds = expandedUsers.map(u => u.userId);
       }
 
-      // If still not enough, get ALL users with minimum history (very permissive)
-      if (candidateIds.length < 10) {
-        // Get all users with count of their watchlist items
-        const usersWithCounts = await prisma.user.findMany({
-          select: {
-            id: true,
-            _count: { select: { watchList: true } },
-          },
-          where: { id: { not: userId } },
-          take: SAMPLE_ACTIVE_USERS * 2,
-        });
-
-        // Filter to only users with minimum watch history
-        candidateIds = usersWithCounts
-          .filter(u => u._count.watchList >= MIN_USER_HISTORY)
-          .map(u => u.id)
-          .slice(0, SAMPLE_ACTIVE_USERS);
-      }
-
-      logger.info('Computing similar users', {
+      logger.info('Computing similarities for candidates', {
         userId,
         candidatesCount: candidateIds.length,
         context: 'SimilarUsersAPI',
       });
 
-      // Compute similarities
-      similarUsers = [];
+      // Compute similarities and store in DB
+      const computedScores: typeof dbScores = [];
+      let similarCount = 0;
       for (const candidateId of candidateIds) {
         try {
-          const result = await computeSimilarity(userId, candidateId);
+          const result = await computeSimilarity(userId, candidateId, false);
 
           if (isSimilar(result)) {
-            similarUsers.push({
-              userId: candidateId,
-              overallMatch: result.overallMatch,
+            similarCount++;
+            // Store to database
+            await computeAndStoreSimilarityScore(userId, candidateId, 'on-demand');
+
+            // Also fetch the stored record for consistent response
+            const stored = await prisma.similarityScore.findUnique({
+              where: {
+                userIdA_userIdB: userId < candidateId ? { userIdA: userId, userIdB: candidateId } : { userIdA: candidateId, userIdB: userId },
+              },
             });
+
+            if (stored) {
+              computedScores.push(stored);
+            }
           }
-        } catch (error) {
-          // Skip users with errors
+        } catch (err) {
           logger.debug('Error computing similarity', {
-            error: error instanceof Error ? error.message : String(error),
+            error: err instanceof Error ? err.message : String(err),
             candidateId,
             context: 'SimilarUsersAPI',
           });
         }
       }
 
-      // Sort by match score
-      similarUsers.sort((a, b) => b.overallMatch - a.overallMatch);
+      logger.info('Finished computing similarities', {
+        userId,
+        candidatesChecked: candidateIds.length,
+        similarFound: similarCount,
+        context: 'SimilarUsersAPI',
+      });
 
-      // Store to Redis if we found any
-      if (similarUsers.length > 0) {
-        await storeSimilarUsers(userId, similarUsers);
+      // Sort by match score
+      computedScores.sort((a, b) => Number(b.overallMatch) - Number(a.overallMatch));
+      dbScores = computedScores.slice(0, limit);
+      computedAt = new Date();
+    }
+
+    // Extract user IDs and scores (convert Decimal to number)
+    const similarUsers = dbScores.map(score => ({
+      userId: score.userIdA === userId ? score.userIdB : score.userIdA,
+      overallMatch: Number(score.overallMatch),
+      fromDatabase: true,
+      computedAt: score.computedAt,
+    }));
+
+    if (freshOnly && similarUsers.length > 0) {
+      // Filter to only fresh scores (computed within last 7 days)
+      const freshScores = similarUsers.filter(u => {
+        const ageHours = (Date.now() - u.computedAt.getTime()) / (1000 * 60 * 60);
+        return ageHours <= 168; // 7 days
+      });
+      
+      if (freshScores.length === 0) {
+        return NextResponse.json({
+          similarUsers: [],
+          fromDatabase: false,
+          computedAt: new Date().toISOString(),
+          message: 'No fresh similarity scores found. Scheduler runs weekly.',
+        });
       }
     }
 
-    // Limit results
-    const results = similarUsers.slice(0, limit);
-
-    // Fetch basic user info for display
+    // Fetch user info for enrichment
+    const userIds = similarUsers.map(u => u.userId);
     const userInfoMap = await prisma.user.findMany({
-      where: { id: { in: results.map(u => u.userId) } },
+      where: { id: { in: userIds } },
       select: {
         id: true,
         email: true,
@@ -182,23 +192,22 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const userInfoMapById = new Map(
-      userInfoMap.map(u => [u.id, u])
-    );
+    const userInfoById = new Map(userInfoMap.map(u => [u.id, u]));
 
-    const enrichedResults = results.map(u => ({
+    const enrichedResults = similarUsers.map(u => ({
       userId: u.userId,
-      overallMatch: Number((u.overallMatch * 100).toFixed(1)), // Percentage
-      watchCount: userInfoMapById.get(u.userId)?.watchList.length || 0,
-      memberSince: userInfoMapById.get(u.userId)?.createdAt,
+      overallMatch: Number((u.overallMatch * 100).toFixed(1)), // Convert to percentage
+      watchCount: userInfoById.get(u.userId)?.watchList.length || 0,
+      memberSince: userInfoById.get(u.userId)?.createdAt,
+      source: fromDatabase ? 'database' : 'computed',
     }));
 
     return NextResponse.json({
       similarUsers: enrichedResults,
-      cached: similarUsers.length > 0 && useCache,
-      computedAt: new Date().toISOString(),
+      fromDatabase,
+      computedAt: (similarUsers.length > 0 ? similarUsers[0].computedAt : computedAt).toISOString(),
       message: enrichedResults.length === 0
-        ? 'No similar users found'
+        ? 'No similar users found in database'
         : `Found ${enrichedResults.length} similar user(s)`,
     });
   } catch (error) {

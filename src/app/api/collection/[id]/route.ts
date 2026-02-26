@@ -44,6 +44,11 @@ export async function GET(
     clearTimeout(timeoutId);
 
     if (!res.ok) {
+      logger.warn('TMDB API error', {
+        status: res.status,
+        collectionId,
+        context: 'CollectionAPI'
+      });
       return NextResponse.json({ error: 'Failed to fetch from TMDB' }, { status: 500 });
     }
 
@@ -123,9 +128,11 @@ export async function GET(
       parts: moviesWithStatus,
     });
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     logger.error('Collection error', { 
-      error: error instanceof Error ? error.message : String(error),
-      context: 'Collection'
+      error: errorMsg,
+      collectionId: id,
+      context: 'CollectionAPI'
     });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }

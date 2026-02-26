@@ -29,11 +29,15 @@ interface MovieCardData {
   ratingCount: number;
 }
 
+interface HorizontalMovieGridServerProps {
+  title?: string;
+}
+
 // Enable ISR with 1 hour revalidation
 export const revalidateTime = revalidate(3600);
 export const cacheTagsList = tags(['trending-movies', 'home-page']);
 
-export default async function HorizontalMovieGridServer() {
+export default async function HorizontalMovieGridServer({ title = 'Популярное на этой неделе' }: HorizontalMovieGridServerProps) {
   const session = await getServerSession(authOptions);
   const userId = session?.user?.id;
   
@@ -160,7 +164,7 @@ export default async function HorizontalMovieGridServer() {
   if (displayMovies.length === 0) {
     return (
       <div className="w-full">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-6 mt-4">Популярное на этой неделе</h1>
+        <h1 className="text-3xl sm:text-4xl font-bold mb-6 mt-4">{title}</h1>
         <div className="bg-yellow-900/30 border border-yellow-700 rounded-lg p-6">
           <p className="text-yellow-300">Не удалось загрузить фильмы. Возможные причины:</p>
           <ul className="text-gray-400 text-sm mt-2 list-disc pl-5">
@@ -175,7 +179,7 @@ export default async function HorizontalMovieGridServer() {
 
   return (
     <div className="w-full">
-      <h1 className="text-3xl sm:text-4xl font-bold mb-6 mt-4">Популярное на этой неделе</h1>
+      <h1 className="text-3xl sm:text-4xl font-bold mb-6 mt-4">{title}</h1>
       
       <ScrollContainer>
         {moviesWithData.map((data, index) => (
