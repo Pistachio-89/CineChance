@@ -52,6 +52,19 @@ export default function TasteMapClient({ tasteMap, userId }: TasteMapClientProps
             ]
           );
           setTopActors(actorsList);
+        } else {
+          // Fallback to old API if PersonProfile empty
+          const fallbackResponse = await fetch(`/api/user/achiev_actors?limit=10&singleLoad=true&offset=0`);
+          if (fallbackResponse.ok) {
+            const data = await fallbackResponse.json();
+            const actorsList: Array<[string, number]> = (data.actors || [])
+              .slice(0, 10)
+              .map((actor: ActorData) => [
+                actor.name,
+                actor.average_rating ?? 0,
+              ]);
+            setTopActors(actorsList);
+          }
         }
       } catch (error) {
         logger.debug('Failed to load actors', { error, context: 'TasteMapClient' });
@@ -78,6 +91,19 @@ export default function TasteMapClient({ tasteMap, userId }: TasteMapClientProps
             ]
           );
           setTopDirectors(directorsList);
+        } else {
+          // Fallback to old API if PersonProfile empty
+          const fallbackResponse = await fetch(`/api/user/achiev_creators?limit=10&singleLoad=true&offset=0`);
+          if (fallbackResponse.ok) {
+            const data = await fallbackResponse.json();
+            const directorsList: Array<[string, number]> = (data.creators || [])
+              .slice(0, 10)
+              .map((creator: DirectorData) => [
+                creator.name,
+                creator.average_rating ?? 0,
+              ]);
+            setTopDirectors(directorsList);
+          }
         }
       } catch (error) {
         logger.debug('Failed to load directors', { error, context: 'TasteMapClient' });
