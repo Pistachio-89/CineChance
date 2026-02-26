@@ -9,7 +9,7 @@ import {
   computeAndStoreSimilarityScore,
   getActiveUsersForSimilarityCompute,
   getCandidateUsersForSimilarity,
-} from './similarity-storage';
+} from '@/lib/taste-map/similarity-storage';
 
 export interface ComputeProgressCallback {
   (progress: {

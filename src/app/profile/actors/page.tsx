@@ -2,6 +2,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/auth';
 import { redirect } from 'next/navigation';
 import ActorsClient from './ActorsClient';
+import { computeUserPersonProfile } from '@/lib/taste-map/person-profile-v2';
 
 export const dynamic = 'force-dynamic';
 export const dynamicParams = true;
@@ -12,6 +13,13 @@ export default async function ActorsPage() {
   if (!session || !session.user) {
     redirect('/');
   }
+
+  // Заполняем таблицу PersonProfile при заходе на страницу
+  // Это обеспечивает актуальные данные для страницы taste-map
+  await Promise.all([
+    computeUserPersonProfile(session.user.id, 'actor'),
+    computeUserPersonProfile(session.user.id, 'director'),
+  ]);
 
   return (
     <div className="min-h-screen bg-gray-950 py-6 md:py-8">
